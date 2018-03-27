@@ -3,11 +3,16 @@ mod matrix;
 mod utils;
 mod vector2d;
 
+pub const CLIENT_WIDTH:i32 = 600;
+pub const CLIENT_HEIGHT:i32 = 600;
+
 //--------------------------------------------
 //-------------游戏资源ID----------------------
 //--------------------------------------------
-pub const RES_SPLASH_BITMAP:i32 = 0;
-pub const RES_DESERT_BITMAP:i32 = 1;
+pub const RES_TANK_BITMAP:i32 = 0;
+pub const RES_MISSILE_BITMAP:i32 = 1;
+pub const RES_LG_EXPLOSION_BITMAP:i32 = 2;
+pub const RES_SM_EXPLOSION__BITMAP:i32 = 3;
 
 //-----------------------------------
 //-------------事件ID----------------
@@ -67,4 +72,30 @@ pub fn on_resources_load() {
 #[no_mangle]
 pub fn on_touch_event(event:i32, x:i32, y:i32){
     //处理鼠标、触摸事件
+}
+
+//玩家
+pub struct Player{
+    sprite: Sprite,
+    score: i32,
+}
+
+//游戏主结构体
+pub struct Game{
+    engine: GameEngine,
+    players_id: Vec<f64>,
+    current_player_id: f64,
+}
+
+impl Game{
+    //新用户加入游戏
+    pub fn join_game(&mut self){
+        //创建玩家坦克
+        let mut car_sprite = Sprite::with_bounds_action(
+                            BitmapRes::new(RES_TANK_BITMAP, 45, 48),
+                            Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT), BA_STOP);
+        self.current_player_id = car_sprite.id();
+        car_sprite.set_position(CLIENT_WIDTH/2, CLIENT_HEIGHT/2);
+        self.engine.add_sprite(car_sprite);
+    }
 }
