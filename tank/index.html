@@ -1,0 +1,118 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, user-scalable=no">
+        <meta charset="utf-8">
+        <script src="support.js"></script>
+    </head>
+<body style="padding:0px;margin:0">
+<canvas id="myCanvas" style="background:#ccc;"></canvas>
+<script>
+
+    //是否支持Webassembly
+    if(!support_webassembly()){
+        alert('不支持Webassembly，请更换浏览器。')
+    }
+    
+    //绘图画布
+    var myCanvas = document.getElementById('myCanvas');
+    var ctx = myCanvas.getContext("2d");
+
+    var exports; //wasm
+    var res_url_map = new Map(); //资源名称
+    var res_map; //加载好的资源
+    const EVENT_MOUSE_MOVE = 0;
+    const EVENT_MOUSE_CLICK = 1;
+    const EVENT_TOUCH_MOVE = 10;
+
+    //注册事件监听
+    myCanvas.addEventListener("mousemove", function(event){
+        exports.on_touch_event(EVENT_MOUSE_MOVE, event.clientX, event.clientY);
+    });
+    myCanvas.addEventListener("click", function(event){
+        exports.on_touch_event(EVENT_MOUSE_CLICK, event.clientX, event.clientY);
+    });
+    myCanvas.addEventListener("touchmove", function(event){
+        exports.on_touch_event(EVENT_TOUCH_MOVE, event.touches[0].clientX, event.touches[0].clientY);
+    });
+
+    //下面是要导入webassembly的JS帮助函数
+    const imports = {
+        env: {
+            log: function(str_ptr, len){
+                console.log(read_string(exports.memory.buffer, str_ptr, len));
+            },
+            current_time_millis: function(){
+                return Date.now();
+            },
+            window_width: function(){ return window.innerWidth; },
+            window_height: function(){ return window.innerHeight; },
+            canvas_offset_left: function(){ return myCanvas.offsetLeft; },
+            random: function(){
+                return Math.random();
+            },
+            request_animation_frame: function(){
+                window.requestAnimationFrame(exports.draw_frame, myCanvas);
+            },
+            add_resource: function(resId, url_ptr, url_len){
+                res_url_map.set(resId, read_string(exports.memory.buffer, url_ptr, url_len));
+            },
+            load_resource: function(){
+                loadResources(res_url_map, function(map){
+                    res_map = map;
+                    exports.on_resources_load();
+                }, function(n1, n2){
+                    exports.on_load_resource_progress(n1, n2);
+                });
+            },
+            set_canvas_size: function(width, height){
+                myCanvas.width = width;
+                myCanvas.height = height;
+            },
+            set_canvas_margin: function(left, top, right, bottom){
+                myCanvas.style.marginLeft = left+'px';
+                myCanvas.style.marginTop = top+'px';
+                myCanvas.style.marginRight = right+'px';
+                myCanvas.style.marginBottom = bottom+'px';
+            },
+            set_canvas_style_size: function(width, height){
+                myCanvas.style.width = width+'px';
+                myCanvas.style.height = height+'px';
+            },
+            set_canvas_font: function(font_ptr, len){
+                ctx.font = read_string(exports.memory.buffer, font_ptr, len);
+            },
+            fill_style_rgb: function(r, g, b){
+                ctx.fillStyle = "rgb("+r+", "+g+", "+b+")";
+            },
+            fill_rect: function(x, y, width, height){
+                ctx.fillRect(x, y, width, height);
+            },
+            fill_text: function(text_ptr, len, x, y){
+                ctx.fillText(read_string(exports.memory.buffer, text_ptr, len), x, y);
+            },
+            draw_image_at: function(resId, x, y){
+                ctx.drawImage(res_map.get(resId), x, y);
+            },
+            draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
+                ctx.drawImage(res_map.get(resId), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+            }
+        }
+    };
+
+    //加载游戏的wasm代码(谷歌浏览不支持"file:///"开头的fetch)
+    fetch("tank.wasm").then(response =>
+      response.arrayBuffer()
+    ).then(bytes =>
+      WebAssembly.instantiate(bytes, imports)
+    ).then(results =>
+      results.instance
+    ).then(instance => {
+        //引用wasm导出的函数
+        exports = instance.exports;
+        //启动游戏
+        exports.run();
+    });
+</script>
+</body>
+</html>

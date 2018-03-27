@@ -1,0 +1,10 @@
+[package]
+name = "tank"
+version = "1.0.0"
+authors = ["Jia Ye <planet0104@gmail.com>"]
+
+[lib]
+path = "src/game.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
