@@ -1,5 +1,5 @@
 use std::cmp;
-use ::{draw_image_at,current_time,random, draw_image, rand_int};
+use ::{log_string, fill_style, fill_text, draw_image_at, current_time_millis, random, draw_image, rand_int};
 
 //Sprite主要代码
 
@@ -39,7 +39,7 @@ impl BitmapRes{
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct Rect{
     pub left:i32,
     pub top:i32,
@@ -86,7 +86,7 @@ impl Rect{
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Debug, Copy)]
 pub struct Point{
     pub x:i32,
     pub y:i32
@@ -108,6 +108,7 @@ pub struct Sprite{
     hidden:bool,
     dying:bool,
     one_cycle:bool,
+    name:String,
 }
 
 impl Sprite{
@@ -128,9 +129,10 @@ impl Sprite{
             hidden: false,
             dying: false,
             one_cycle: false,
+            name: "玩家姓名".to_string(),
             collision: Rect::zero()
         };
-        sprite.id = current_time()+random();
+        sprite.id = unsafe{ current_time_millis()+random() };
         sprite.calc_collision_rect();
         sprite
     }
@@ -143,7 +145,7 @@ impl Sprite{
         //计算随即位置
         let x_pos = rand_int(0, bounds.right - bounds.left);
         let y_pos = rand_int(0, bounds.bottom - bounds.top);
-        Sprite::new(bitmap,Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
+        Sprite::new(bitmap, Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
     }
 
     fn calc_collision_rect(&mut self){
@@ -157,6 +159,8 @@ impl Sprite{
     // Sprite General Methods
     //-----------------------------------------------------------------
     pub fn update(&mut self)->SPRITEACTION{
+        //let msg = format!("before update>position={:?}", self.position());
+        //unsafe { log(msg.as_ptr(), msg.len()); }
         // See if the sprite needs to be killed
         if self.dying {
             return SA_KILL;   
@@ -245,6 +249,8 @@ impl Sprite{
         }
         self.set_position_point(&new_position);
 
+        //let msg = format!("after update>position={:?}", self.position());
+        //unsafe { log(msg.as_ptr(), msg.len()); }
         SA_NONE
     }
 
@@ -252,10 +258,14 @@ impl Sprite{
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
-            match self.num_frames{
-                1=>draw_image_at(self.bitmap.id, self.position.left, self.position.top),
-                _=>draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
-                        self.position.left, self.position.top, self.width(), self.height())
+            unsafe{
+                match self.num_frames{
+                    1=>draw_image_at(self.bitmap.id, self.position.left, self.position.top),
+                    _=>draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
+                            self.position.left, self.position.top, self.width(), self.height())
+                }
+                fill_style("#fff".as_ptr(), 4);
+                fill_text(self.name.as_ptr(), self.name.len(), self.position.right, self.position.top);
             }
         }
     }
@@ -276,6 +286,18 @@ impl Sprite{
                 }
             }
         }
+    }
+
+    pub fn set_current_frame(&mut self, cur_frame:i32){
+        self.cur_frame = cur_frame;
+    }
+
+    pub fn current_frame(&self)->i32{
+        self.cur_frame
+    }
+
+    pub fn set_frame_delay(&mut self, frame_delay:i32){
+        self.frame_delay = frame_delay;
     }
 
     pub fn set_velocity(&mut self, x:i32, y:i32){

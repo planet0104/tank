@@ -58,12 +58,12 @@ impl GameEngine{
             let sprite_action = self.sprites[i].update();
 
             //处理SA_ADDSPRITE
-            if sprite_action == SA_ADDSPRITE{
-                //允许精灵添加它的精灵
-                if let Some(sprite) = self.sprites[i].add_sprite(){
-                    self.add_sprite(sprite);
-                }
-            }
+            // if sprite_action == SA_ADDSPRITE{
+            //     //允许精灵添加它的精灵
+            //     if let Some(sprite) = self.sprites[i].add_sprite(){
+            //         self.add_sprite(sprite);
+            //     }
+            // }
 
             //处理 SA_KILL
             if sprite_action == SA_KILL{
@@ -106,15 +106,6 @@ impl GameEngine{
         self.sprites.clear();
     }
 
-    pub fn _is_point_in_sprite(&self, x:i32, y:i32)->Option<&Sprite>{
-        for sprite in &self.sprites{
-            if !sprite.hidden() && sprite.is_point_inside(x, y){
-                return Some(sprite);
-            }
-        }
-        None
-    }
-
     pub fn get_sprite(&mut self, id:f64)->Option<&mut Sprite>{
         for sprite in &mut self.sprites{
             if sprite.id() == id{
@@ -124,39 +115,13 @@ impl GameEngine{
         None
     }
 
-    pub fn _initialize(&mut self)->bool{
-        true
-    }
-
-    pub fn _end(&self){
-
-    }
-
-    pub fn play_music(url:&str){
-        play_music(url);
-    }
-
-    pub fn pause_music(){
-        pause_music();
-    }
-
-    pub fn play_sound(res_id:i32){
-        play_sound(res_id);
-    }
-
     pub fn ready_for_next_frame(&mut self)->bool{
         self.timer.ready_for_next_frame()
     }
 
     pub fn kill_sprite(&mut self, sprite:&Sprite){
-        //log_string(format!("kill_sprite id={}", sprite.id()).as_str().as_bytes());
         if let Some(s) = self.get_sprite(sprite.id()){
             s.kill();
         }
     }
-
-    pub fn elapsed_secs(&self)->f64{
-        self.timer.elapsed_secs()
-    }
-
 }

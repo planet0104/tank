@@ -5,7 +5,7 @@
         <meta charset="utf-8">
         <script src="support.js"></script>
     </head>
-<body style="padding:0px;margin:0">
+<body style="padding:0px;margin:0" onresize="if(exports)exports.on_window_resize()">
 <canvas id="myCanvas" style="background:#ccc;"></canvas>
 <script>
 
@@ -26,10 +26,14 @@
     const EVENT_TOUCH_MOVE = 10;
 
     //注册事件监听
-    myCanvas.addEventListener("mousemove", function(event){
-        exports.on_touch_event(EVENT_MOUSE_MOVE, event.clientX, event.clientY);
+    document.addEventListener("keyup", function(event){
+        exports.on_keyup_event(event.keyCode);
+    });
+    document.addEventListener("keydown", function(event){
+        exports.on_keydown_event(event.keyCode);
     });
     myCanvas.addEventListener("click", function(event){
+        console.log("click:", event);
         exports.on_touch_event(EVENT_MOUSE_CLICK, event.clientX, event.clientY);
     });
     myCanvas.addEventListener("touchmove", function(event){
@@ -80,16 +84,21 @@
                 myCanvas.style.height = height+'px';
             },
             set_canvas_font: function(font_ptr, len){
-                ctx.font = read_string(exports.memory.buffer, font_ptr, len);
+                var font = read_string(exports.memory.buffer, font_ptr, len);
+                console.log(font);
+                ctx.font = '48px serif';
             },
             fill_style_rgb: function(r, g, b){
                 ctx.fillStyle = "rgb("+r+", "+g+", "+b+")";
+            },
+            fill_style: function(str, len){
+                ctx.fillStyle = read_string(exports.memory.buffer, str, len);
             },
             fill_rect: function(x, y, width, height){
                 ctx.fillRect(x, y, width, height);
             },
             fill_text: function(text_ptr, len, x, y){
-                ctx.fillText(read_string(exports.memory.buffer, text_ptr, len), x, y);
+                ctx.strokeText(read_string(exports.memory.buffer, text_ptr, len), x, y);
             },
             draw_image_at: function(resId, x, y){
                 ctx.drawImage(res_map.get(resId), x, y);
