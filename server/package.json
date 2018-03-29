@@ -1,0 +1,24 @@
+{
+  "name": "annrobot-node",
+  "version": "0.0.1",
+  "description": "annrobot-node demo",
+  "main": "server.js",
+  "dependencies": {
+    "mongodb": "^2.1.16",
+    "ws": "5.1.0"
+  },
+  "engine": {
+    "node": "*",
+    "npm": "*"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/planet0104/annrobot_node.git"
+  },
+  "author": "JiaYe <planet2@qq.com>",
+  "license": "GPL",
+  "homepage": "https://github.com/planet0104/annrobot_node"
+}

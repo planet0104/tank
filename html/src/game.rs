@@ -1,4 +1,7 @@
 //参考: https://www.hellorust.com/setup/wasm-target/
+#[macro_use]
+extern crate json;
+
 mod sprite;
 mod timer;
 mod engine;
@@ -6,6 +9,8 @@ use engine::{GameEngine, GameEngineHandler};
 use sprite::{Sprite, Point, Rect, BA_BOUNCE, BA_DIE, BA_WRAP, BitmapRes};
 use std::ptr;
 use std::mem::transmute;
+use std::ffi::CString;
+use std::os::raw::c_char;
 
 pub const CLIENT_WIDTH:i32 = 1000;
 pub const CLIENT_HEIGHT:i32 = 1000;
@@ -33,6 +38,11 @@ pub const KEYCODE_UP:i32 = 38;
 pub const KEYCODE_DOWN:i32 = 40;
 pub const KEYCODE_SPACE:i32 = 32;
 
+pub const MSG_CREATE:i32 = 1;
+pub const MSG_DELETE:i32 = 2;
+pub const MSG_UPDATE:i32 = 3;
+pub const MSG_QUERY:i32 = 4;
+
 //导入的JS帮助函数
 extern {
     pub fn log(text: *const u8, len:usize);
@@ -54,6 +64,8 @@ extern {
     pub fn fill_text(text: *const u8, len:usize, x:i32, y:i32);
     pub fn draw_image_at(res_id:i32, x:i32, y:i32);
     pub fn draw_image(res_id:i32, source_x:i32, source_y:i32, source_width:i32, source_height:i32, dest_x:i32, dest_y:i32, dest_width:i32, dest_height:i32);
+    pub fn send_message(text: *const u8, len:usize);
+    pub fn ready();
 }
 
 //----------------------------------------------
@@ -114,6 +126,21 @@ pub unsafe fn on_resources_load() {
     log_string("资源加载完成");
     game().join_game();
     request_animation_frame();
+    ready();
+
+    //发送消息
+    let sprite = game().engine().get_sprite(self.current_player_id).unwrap();
+    //value: 精灵ID,资源ID,x,y,velocity_x,velocity_y,
+    let msg_obj = object!{
+        "id" => MSG_CREATE,
+        "game" => "Tank",
+        "data" => object!{
+            "id": sprite.id(),
+            "value": 
+        }
+    };
+    let msg = json::stringify(msg_obj);
+    send_message(msg.as_ptr(), msg.len());
 }
 
 //游戏循环主函数(由window.requestAnimationFrame调用)
@@ -143,6 +170,45 @@ pub unsafe fn on_keyup_event(keycode:i32){
 #[no_mangle]
 pub unsafe fn on_keydown_event(keycode:i32){
     game().on_keydown_event(keycode);
+}
+#[no_mangle]
+pub unsafe fn on_connect(){
+    //websocket连接成功
+    //去服务器请求数据
+    let msg_obj = object!{
+        "id" => 4,
+        "game" => "Tank",
+    };
+    let msg = json::stringify(msg_obj);
+    send_message(msg.as_ptr(), msg.len());
+}
+
+#[no_mangle]
+pub unsafe fn on_message(len:usize){
+    //读取消息
+    let msg = std::str::from_utf8(&game().message_buffer[0..len]).unwrap();
+    let json = json::parse(msg).unwrap();
+    match json["id"].as_i32().unwrap(){
+        1 =>{
+            log_string("message:创建精灵")
+        },
+        2 =>{
+            log_string("message:精灵死亡")
+        },
+        3 =>{
+            log_string("message:精灵修改")
+        },
+        4 =>{
+            log_string("message:拉取数据")
+        },
+        _ => ()
+    }
+}
+
+#[no_mangle]
+pub fn get_message_buffer()->*const u8{
+    //字符串指针传递给javascript
+    game().message_buffer.as_ptr()
 }
 
 //生成指定范围的随即整数
@@ -232,6 +298,7 @@ impl GameEngineHandler for GameHandler{
 pub struct Game{
     engine: GameEngine,
     current_player_id: f64,
+    message_buffer: [u8; 1024]
 }
 
 impl Game{
@@ -239,6 +306,7 @@ impl Game{
         Game{
             engine: GameEngine::new(30, CLIENT_WIDTH, CLIENT_HEIGHT, GameHandler{}),
             current_player_id: 0.0,
+            message_buffer: [0; 1024]
         }
     }
 

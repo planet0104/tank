@@ -17,8 +17,10 @@
     //绘图画布
     var myCanvas = document.getElementById('myCanvas');
     var ctx = myCanvas.getContext("2d");
+    var socket;
+    var message_buffer;
 
-    var exports; //wasm
+    var exports; //Webassembly
     var res_url_map = new Map(); //资源名称
     var res_map; //加载好的资源
     const EVENT_MOUSE_MOVE = 0;
@@ -105,9 +107,43 @@
             },
             draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
                 ctx.drawImage(res_map.get(resId), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+            },
+            send_message: function(str, len){
+                socket.send(read_string(exports.memory.buffer, str, len));
+            },
+            ready: function(){
+                //游戏启动完成
+                message_buffer = exports.get_message_buffer();
+                connect();
             }
         }
     };
+
+    //连接websocket
+    function connect(){
+        socket = new WebSocket("ws://127.0.0.1:8080");
+        console.log("连接服务器...");
+
+        socket.onopen = function(event) {
+            console.log("连接成功.");
+
+            exports.on_connect();
+
+            socket.onmessage = function(event){
+                console.log("onMessage:", event.data, event.data.length);
+                //拉取成功，刷新游戏数据
+                exports.on_message(write_string(event.data, exports.memory.buffer, message_buffer));
+            };
+
+            socket.onclose = function(event) {
+                alert("连接关闭，请重试");
+            };
+        }
+
+        socket.onerror = function(){
+            alert("连接失败，请重试");
+        }
+    }
 
     //加载游戏的wasm代码(谷歌浏览不支持"file:///"开头的fetch)
     fetch("tank.wasm").then(response =>

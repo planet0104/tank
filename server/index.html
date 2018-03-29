@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>annrobot-node</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+</head>
+<body>
+<script>
+    var ws_url = window.location.href.replace("http:", "ws:");
+    var socket = new WebSocket(ws_url);
+    console.log("连接服务器...");
+
+    socket.onopen = function(event) {
+      console.log("连接成功.");
+      socket.send(JSON.stringify({
+        id: 4,
+        game: "Tank"
+      }));
+
+      socket.onmessage = function(event){
+        console.log("服务器消息:", event.data);
+      };
+
+      socket.onclose = function(event) {
+        console.log('Socket关闭.');
+      };
+    }
+
+    socket.onerror = function(){
+      console.log("连接失败..");
+    }
+  </script>
+</body>
+</html>
