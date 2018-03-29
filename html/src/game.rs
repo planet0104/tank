@@ -130,13 +130,19 @@ pub unsafe fn on_resources_load() {
 
     //发送消息
     let sprite = game().engine().get_sprite(self.current_player_id).unwrap();
-    //value: 精灵ID,资源ID,x,y,velocity_x,velocity_y,
+    //value: 资源ID,x,y,velocity_x,velocity_y,姓名(非玩家没有)
     let msg_obj = object!{
         "id" => MSG_CREATE,
         "game" => "Tank",
         "data" => object!{
             "id": sprite.id(),
-            "value": 
+            "value": format!("{},{},{},{},{},{}",
+                                sprite.bitmap().id(),
+                                sprite.position().x,
+                                sprite.position().y,
+                                sprite.velocity().x,
+                                sprite.velocity().y,
+                                sprite.name())
         }
     };
     let msg = json::stringify(msg_obj);
