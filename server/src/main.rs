@@ -5,7 +5,7 @@ extern crate json;
 use ws::{listen, Handler, Message, Request, Response, Result, Sender};
 use std::collections::HashMap;
 use std::path::Path;
-use std::fs::File;
+use std::{fs, fs::File, io::Read };
 
 const MSG_CREATE:i32 = 1;
 const MSG_DELETE:i32 = 2;
@@ -16,12 +16,16 @@ const MSG_QUERY:i32 = 4;
 struct Server {
     out: Sender,
     resources: HashMap<String, Vec<u8>>, //存放静态资源
-    games: HashMap<String, HashMap<String, String>>, //游戏数据
+    games: HashMap<String, HashMap<f64, String>>, //游戏数据
 }
 
 impl Server{
     fn new(out :Sender) -> Server {
-        let mut server = Server{ out: out, resources: HashMap::new() };
+        let mut server = Server {
+            out: out,
+            resources: HashMap::new(),
+            games: HashMap::new(),
+        };
         server.load_resources();
         server
     }
@@ -75,49 +79,60 @@ impl Handler for Server {
     fn on_message(&mut self, msg: Message) -> Result<()> {
         
         if !msg.is_text(){
-            return Ok();//非文本消息
+            return Ok(());//非文本消息
         }
 
         let msg = msg.into_text().unwrap();
-        let json = json::parse(msg);
+        let json = json::parse(&msg);
         
         if json.is_err(){
-            return Ok();//json解析失败
+            return Ok(());//json解析失败
         }
 
         let json = json.unwrap();
-        let msg_id = json["id"];
-        let game = json["game"];
-        let sprite = json["sprite"];
+        let msg_id = json["i"];
+        let game = json["g"];
+        let sprite = json["s"];
 
         if !msg_id.is_number() || !game.is_string() || !sprite.is_object(){
-            return Ok(); //json结构错误
+            return Ok(()); //json结构错误
         }
 
         let msg_id = msg_id.as_number().unwrap();
         let game = game.as_str().unwrap();
 
         //创建游戏数据
-        if(!GameMap.has(message.game)){
-        GameMap.set(message.game, new Map());
-        }
+        let game_data = self.games.entry(String::from(game)).or_insert(HashMap::new());
 
         match msg_id.into(){
-            MSG_CREATE => {
+            MSG_CREATE | MSG_UPDATE => {
                 //添加(创建新的精灵)
+                if let Some(sprite_id) = sprite["i"].as_f64(){
+                    if let Some(value) = sprite["v"].as_str(){
+                        game_data.insert(sprite_id, value);//保存或更新
+                        self.out.broadcast(msg);//广播给所有人
+                    }
+                }
             },
             MSG_DELETE => {
                 //删除(精灵死亡)
-            },
-            MSG_UPDATE => {
-                //修改
+                if let Some(sprite_id) = sprite["i"].as_f64(){
+                    game_data.remove(sprite_id);//删除
+                    self.out.broadcast(msg);//广播给所有人
+                }
             },
             MSG_QUERY => {
                 //查询
+                let msg_obj = object!{
+                    "id" => MSG_QUERY,
+                    "game" => game,
+                    "data" => game_data.clone()
+                };
+                self.out.send(Message::text(json::stringify(msg_obj)));
             },
-            _ => ()
+            _ => {}
         }
-        //self.out.broadcast(msg)
+        Ok(())
     }
 }
 
