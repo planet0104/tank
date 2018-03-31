@@ -109,11 +109,13 @@
                 ctx.drawImage(res_map.get(resId), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
             },
             send_message: function(str, len){
+                console.log("发送消息:str=", str, "len=", len);
                 socket.send(read_string(exports.memory.buffer, str, len));
             },
             ready: function(){
                 //游戏启动完成
                 message_buffer = exports.get_message_buffer();
+                console.log("游戏启动完成.");
                 connect();
             }
         }
@@ -121,7 +123,7 @@
 
     //连接websocket
     function connect(){
-        socket = new WebSocket("ws://127.0.0.1:8080");
+        socket = new WebSocket("ws://127.0.0.1:8000/ws");
         console.log("连接服务器...");
 
         socket.onopen = function(event) {

@@ -108,7 +108,7 @@ pub struct Sprite{
     hidden:bool,
     dying:bool,
     one_cycle:bool,
-    name:String,
+    name:Option<String>,
 }
 
 impl Sprite{
@@ -129,7 +129,7 @@ impl Sprite{
             hidden: false,
             dying: false,
             one_cycle: false,
-            name: "玩家姓名".to_string(),
+            name: None,
             collision: Rect::zero()
         };
         sprite.id = unsafe{ current_time_millis()+random() };
@@ -265,7 +265,9 @@ impl Sprite{
                             self.position.left, self.position.top, self.width(), self.height())
                 }
                 fill_style("#fff".as_ptr(), 4);
-                fill_text(self.name.as_ptr(), self.name.len(), self.position.right, self.position.top);
+                if let Some(ref name) = self.name{
+                    fill_text(name.as_ptr(), name.len(), self.position.right, self.position.top);
+                }
             }
         }
     }
@@ -369,6 +371,10 @@ impl Sprite{
 
     pub fn id(&self)->f64{
         self.id
+    }
+
+    pub fn name(&self)->Option<&String>{
+        self.name.as_ref()
     }
 
     pub fn set_num_frames(&mut self, num_frames:i32, one_cycle:bool){

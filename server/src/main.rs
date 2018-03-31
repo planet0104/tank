@@ -2,10 +2,12 @@ extern crate ws;
 #[macro_use]
 extern crate json;
 
-use ws::{listen, Handler, Message, Request, Response, Result, Sender};
+use ws::{listen, Handler, Message, Request, Response, Result, Sender, Handshake};
 use std::collections::HashMap;
 use std::path::Path;
 use std::{fs, fs::File, io::Read };
+use std::time::Instant;
+use json::JsonValue;
 
 const MSG_CREATE:i32 = 1;
 const MSG_DELETE:i32 = 2;
@@ -16,15 +18,18 @@ const MSG_QUERY:i32 = 4;
 struct Server {
     out: Sender,
     resources: HashMap<String, Vec<u8>>, //存放静态资源
-    games: HashMap<String, HashMap<f64, String>>, //游戏数据
+    games: HashMap<String, HashMap<String, String>>, //游戏数据
+    time: Instant,
 }
 
 impl Server{
     fn new(out :Sender) -> Server {
+        println!("创建Server");
         let mut server = Server {
             out: out,
             resources: HashMap::new(),
             games: HashMap::new(),
+            time: Instant::now()
         };
         server.load_resources();
         server
@@ -32,6 +37,7 @@ impl Server{
 
     //加载静态文件资源
     fn load_resources(&mut self){
+        println!("加载资源.");
         let dir = Path::new("./html");
         for entry in fs::read_dir(dir).unwrap(){
             let path = entry.unwrap().path();
@@ -75,27 +81,33 @@ impl Handler for Server {
         }
     }
 
+    fn on_open(&mut self, shake: Handshake) -> Result<()> {
+        println!("客户端连接:{:?}", shake.remote_addr());
+        Ok(())
+    }
+
     //处理websocket接收到的消息 (/ws)
     fn on_message(&mut self, msg: Message) -> Result<()> {
         
         if !msg.is_text(){
-            return Ok(());//非文本消息
+            return self.out.send(Message::text("非文本消息"));
         }
+        println!("on_message:{}", msg.as_text().unwrap());
 
         let msg = msg.into_text().unwrap();
         let json = json::parse(&msg);
         
         if json.is_err(){
-            return Ok(());//json解析失败
+            return self.out.send(Message::text("JSON格式错误"));
         }
 
         let json = json.unwrap();
-        let msg_id = json["i"];
-        let game = json["g"];
-        let sprite = json["s"];
+        let msg_id = &json["i"];
+        let game = &json["g"];
+        let sprite = &json["s"];
 
-        if !msg_id.is_number() || !game.is_string() || !sprite.is_object(){
-            return Ok(()); //json结构错误
+        if !msg_id.is_number() || !game.is_string(){
+            return self.out.send(Message::text("数据格式错误"));
         }
 
         let msg_id = msg_id.as_number().unwrap();
@@ -107,32 +119,45 @@ impl Handler for Server {
         match msg_id.into(){
             MSG_CREATE | MSG_UPDATE => {
                 //添加(创建新的精灵)
-                if let Some(sprite_id) = sprite["i"].as_f64(){
-                    if let Some(value) = sprite["v"].as_str(){
-                        game_data.insert(sprite_id, value);//保存或更新
-                        self.out.broadcast(msg);//广播给所有人
-                    }
+                let sprite_id = sprite["i"].as_str();
+                
+                if sprite_id.is_some() && sprite["v"].is_object() {
+                    let mut value = sprite["v"].clone();
+                    //添加精灵更新时间
+                    let elapsed = self.time.elapsed();
+                    value["update"] = JsonValue::from(elapsed.as_secs() * 1000 + (elapsed.subsec_nanos() as u64 / 1000000));
+                    game_data.insert(String::from(sprite_id.unwrap()), json::stringify((value).clone()));//保存或更新
+                    self.out.broadcast(msg) //广播给所有人
+                }else{
+                    self.out.send(Message::text("数据格式错误"))
                 }
             },
             MSG_DELETE => {
                 //删除(精灵死亡)
-                if let Some(sprite_id) = sprite["i"].as_f64(){
-                    game_data.remove(sprite_id);//删除
-                    self.out.broadcast(msg);//广播给所有人
+                if let Some(sprite_id) = sprite["i"].as_str(){
+                    game_data.remove(&String::from(sprite_id));//删除
+                    self.out.broadcast(msg) //广播给所有人
+                }else{
+                    self.out.send(Message::text("数据格式错误"))
                 }
             },
             MSG_QUERY => {
+                let array:Vec<String> = game_data.iter().map(|(_, value)| String::from((*value).clone())).collect();
                 //查询
                 let msg_obj = object!{
-                    "id" => MSG_QUERY,
-                    "game" => game,
-                    "data" => game_data.clone()
+                    "i" => MSG_QUERY,
+                    "g" => game,
+                    "a" => array,
+                    "time" => {
+                        //返回服务器当前时间
+                        let elapsed = self.time.elapsed();
+                        elapsed.as_secs() * 1000 + (elapsed.subsec_nanos() as u64 / 1000000)
+                    }
                 };
-                self.out.send(Message::text(json::stringify(msg_obj)));
+                self.out.send(Message::text(json::stringify(msg_obj)))
             },
-            _ => {}
+            _ => self.out.send(Message::text("未定义消息类型"))
         }
-        Ok(())
     }
 }
 

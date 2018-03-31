@@ -9,8 +9,6 @@ use engine::{GameEngine, GameEngineHandler};
 use sprite::{Sprite, Point, Rect, BA_BOUNCE, BA_DIE, BA_WRAP, BitmapRes};
 use std::ptr;
 use std::mem::transmute;
-use std::ffi::CString;
-use std::os::raw::c_char;
 
 pub const CLIENT_WIDTH:i32 = 1000;
 pub const CLIENT_HEIGHT:i32 = 1000;
@@ -42,6 +40,7 @@ pub const MSG_CREATE:i32 = 1;
 pub const MSG_DELETE:i32 = 2;
 pub const MSG_UPDATE:i32 = 3;
 pub const MSG_QUERY:i32 = 4;
+pub const GMAE_TITLE:&'static str = "Tank";
 
 //导入的JS帮助函数
 extern {
@@ -124,29 +123,8 @@ pub unsafe fn on_load_resource_progress(current:i32, total:i32){
 pub unsafe fn on_resources_load() {
     //资源加载完成启动游戏
     log_string("资源加载完成");
-    game().join_game();
     request_animation_frame();
     ready();
-
-    //发送消息
-    let sprite = game().engine().get_sprite(self.current_player_id).unwrap();
-    //value: 资源ID,x,y,velocity_x,velocity_y,姓名(非玩家没有)
-    let msg_obj = object!{
-        "id" => MSG_CREATE,
-        "game" => "Tank",
-        "data" => object!{
-            "id": sprite.id(),
-            "value": format!("{},{},{},{},{},{}",
-                                sprite.bitmap().id(),
-                                sprite.position().x,
-                                sprite.position().y,
-                                sprite.velocity().x,
-                                sprite.velocity().y,
-                                sprite.name())
-        }
-    };
-    let msg = json::stringify(msg_obj);
-    send_message(msg.as_ptr(), msg.len());
 }
 
 //游戏循环主函数(由window.requestAnimationFrame调用)
@@ -179,13 +157,15 @@ pub unsafe fn on_keydown_event(keycode:i32){
 }
 #[no_mangle]
 pub unsafe fn on_connect(){
+    log_string("on_connect..");
     //websocket连接成功
     //去服务器请求数据
     let msg_obj = object!{
-        "id" => 4,
-        "game" => "Tank",
+        "i" => 4,
+        "g" => "Tank",
     };
     let msg = json::stringify(msg_obj);
+    log_string(&format!("on_connect send:{}", msg));
     send_message(msg.as_ptr(), msg.len());
 }
 
@@ -193,21 +173,52 @@ pub unsafe fn on_connect(){
 pub unsafe fn on_message(len:usize){
     //读取消息
     let msg = std::str::from_utf8(&game().message_buffer[0..len]).unwrap();
-    let json = json::parse(msg).unwrap();
-    match json["id"].as_i32().unwrap(){
-        1 =>{
-            log_string("message:创建精灵")
-        },
-        2 =>{
-            log_string("message:精灵死亡")
-        },
-        3 =>{
-            log_string("message:精灵修改")
-        },
-        4 =>{
-            log_string("message:拉取数据")
-        },
-        _ => ()
+    
+    let json = json::parse(msg);
+    if json.is_err(){
+        log_string("消息格式错误");
+        return;
+    }
+    let json = json.unwrap();
+    if let Some(msg_id) = json["i"].as_i32(){
+        match msg_id{
+            MSG_CREATE | MSG_UPDATE =>{
+                log_string("message:创建/修改 精灵")
+            },
+            MSG_DELETE =>{
+                log_string("message:精灵死亡")
+            },
+            MSG_QUERY =>{
+                log_string("message:拉取数据");
+                let game = game();
+                //添加服务器端的精灵
+                
+
+                //加入游戏
+                game.join_game();
+                //发送消息
+                let sprite = game.engine.get_sprite(game.current_player_id).unwrap();
+                //发送上线消息
+                let msg_obj = object!{
+                    "i" => MSG_CREATE,  //消息ID
+                    "g" => GMAE_TITLE,  //游戏名称
+                    "s" => object!{
+                        "i" => format!("{}", sprite.id()), //精灵ID
+                        "v" => object!{
+                            "b" => sprite.bitmap().id(), //资源ID
+                            "l" => sprite.position().left,  //left
+                            "t" => sprite.position().top,   //top
+                            "x" => sprite.velocity().x,     //x速度
+                            "y" => sprite.velocity().y,     //y速度
+                            "n" => if let Some(name) = sprite.name(){ (*name).clone()  }else{ String::new() } //精灵label
+                        }
+                    }
+                };
+                let msg = json::stringify(msg_obj);
+                send_message(msg.as_ptr(), msg.len());
+            },
+            _ => ()
+        }
     }
 }
 
@@ -317,7 +328,7 @@ impl Game{
     }
 
     //新用户加入游戏
-    pub fn join_game(&mut self){
+    pub fn join_game(&mut self) {
         //创建玩家坦克
         let mut tank_sprite = Sprite::with_bounds_action(
                             BitmapRes::new(RES_TANK_BITMAP, 36, 144),
@@ -374,7 +385,7 @@ impl Game{
     }
 
     pub fn on_keydown_event(&mut self, keycode:i32){
-        if(self.current_player_id == 0.0){
+        if self.current_player_id == 0.0 {
             return;
         }
          match keycode{
