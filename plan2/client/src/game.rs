@@ -235,15 +235,15 @@ pub fn rand_int(l:i32, b:i32)->i32{
     }
 }
 
-static mut GAME:*const Game = ptr::null_mut();
+static mut GAME: Option<Game> = None;
 
 //获取全局的Game实例
 fn game<'a>() -> &'a mut Game {
     unsafe {
         if GAME.is_null() {
-            GAME = transmute(Box::new(Game::new()));
+            GAME = Some(Game::new());
         }
-        transmute(GAME)
+        GAME.as_mut()
     }
 }
 

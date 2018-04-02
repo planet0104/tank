@@ -1,28 +1,31 @@
 use sprite::{Sprite, SA_KILL};
-use std::time::{Duration, SystemTime};
 use sprite::GameContext;
 
 //GameEngine 负责创建游戏窗口、绘制和更新精灵
 
-pub trait GameEngineHandler<T: SysTime, C: GameContext>:Sized{
-    fn sprite_dying(&mut self, sprite_dying:&Sprite<T, C>);
-    fn sprite_collision(&self, sprite_hitter:&Sprite<T, C>, sprite_hittee:&Sprite<T, C>)->bool;
+pub trait GameEngineHandler<C: GameContext>{
+    fn sprite_dying(&mut self, sprite_dying:&Sprite<C>);
+    fn sprite_collision(&self, sprite_hitter:&Sprite<C>, sprite_hittee:&Sprite<C>)->bool;
 }
 
-pub struct GameEngine<T: SysTime, C: GameContext, H: GameEngineHandler<T, C>>{
-    handler: H,
-    sprites:Vec<Sprite<T, C>>
+pub struct GameEngine<C: GameContext>{
+    handler: Option<Box<GameEngineHandler<C>>>,
+    sprites:Vec<Sprite<C>>
 }
 
-impl <T: SysTime, C: GameContext, H: GameEngineHandler<T, C>> GameEngine<T, C, H>{
-    pub fn new(handler: H)->GameEngine<T, C, H>{
+impl <C: GameContext> GameEngine<C>{
+    pub fn new()->GameEngine<C>{
         GameEngine{
-            handler: handler,
+            handler: None,
             sprites: vec![]
         }
     }
 
-    pub fn add_sprite(&mut self, sprite:Sprite<T, C>){
+    pub fn set_handler<T: GameEngineHandler<C> + 'static>(&mut self, handler: T){
+        self.handler = Some(Box::new(handler));
+    }
+
+    pub fn add_sprite(&mut self, sprite:Sprite<C>){
         if self.sprites.len()>0 {
             for i in 0..self.sprites.len(){
                 //根据z-order插入精灵到数组
@@ -64,7 +67,7 @@ impl <T: SysTime, C: GameContext, H: GameEngineHandler<T, C>> GameEngine<T, C, H
             //处理 SA_KILL
             if sprite_action == SA_KILL{
                 //通知游戏精灵死亡
-                self.handler.sprite_dying(&self.sprites[i]);
+                self.handler.unwrap().sprite_dying(&self.sprites[i]);
                 //杀死精灵
                 sprites_to_kill.push(self.sprites[i].id());
                 continue;
@@ -92,7 +95,7 @@ impl <T: SysTime, C: GameContext, H: GameEngineHandler<T, C>> GameEngine<T, C, H
                 continue;
             }
             if test_sprite.test_collison(self.sprites[i].position()){
-                return self.handler.sprite_collision(&self.sprites[i], test_sprite);
+                return self.handler.unwrap().sprite_collision(&self.sprites[i], test_sprite);
             }
         }
         return false;
@@ -102,7 +105,7 @@ impl <T: SysTime, C: GameContext, H: GameEngineHandler<T, C>> GameEngine<T, C, H
         self.sprites.clear();
     }
 
-    pub fn get_sprite(&mut self, id:f64)->Option<&mut Sprite<T, C>>{
+    pub fn get_sprite(&mut self, id:f64)->Option<&mut Sprite<C>>{
         for sprite in &mut self.sprites{
             if sprite.id() == id{
                 return Some(sprite);
@@ -111,104 +114,9 @@ impl <T: SysTime, C: GameContext, H: GameEngineHandler<T, C>> GameEngine<T, C, H
         None
     }
 
-    pub fn kill_sprite(&mut self, sprite:&Sprite<T, C>){
+    pub fn kill_sprite(&mut self, sprite:&Sprite<C>){
         if let Some(s) = self.get_sprite(sprite.id()){
             s.kill();
-        }
-    }
-}
-
-
-//计时器
-pub trait Timer{
-    fn ready_for_next_frame(&mut self) -> bool;
-}
-
-pub trait SysTime:Sized{
-    fn current_time_millis(&self) -> u64;
-}
-
-pub struct ClientTimer<T: SysTime>{
-    sys_time:T,
-    fps:u64,
-    frame_time:u64,
-    start_time:u64,
-    next_time:u64,
-    current_time:u64,
-}
-
-impl <T: SysTime> ClientTimer<T>{
-    pub fn new(fps:u64, sys_time: T)->ClientTimer<T>{
-        let t = sys_time.current_time_millis();
-        ClientTimer{
-            sys_time: sys_time,
-            fps:fps,
-            frame_time: 1000 / fps,
-            start_time: t,
-            next_time: t,
-            current_time: 0,
-        }
-    }
-
-    pub fn fps(&self)->u64{
-        self.fps
-    }
-}
-
-impl <T: SysTime> Timer for ClientTimer<T>{
-    fn ready_for_next_frame(&mut self)->bool{
-        
-	    //逝去的时间
-        self.current_time = self.sys_time.current_time_millis() - self.start_time;
-        
-        if self.current_time > self.next_time {
-            //更新时间
-            self.next_time = self.current_time + self.frame_time;
-            true
-        }else{
-            false
-        }
-    }
-}
-
-pub struct InstantTimer{
-    frame_time:u64,
-    start_time:SystemTime,
-    next_time:Duration,
-}
-
-impl InstantTimer{
-    pub fn new(fps:u64)->InstantTimer{
-        InstantTimer{
-            frame_time: 1000 / fps,
-            start_time: SystemTime::now(),
-            next_time: Duration::from_millis(0)
-        }
-    }
-
-    pub fn _start(&mut self){
-        //设置计数器起始值
-        self.start_time = SystemTime::now();
-        //更新时间在下一帧使用
-        self.next_time = Duration::from_millis(0);
-    }
-
-    //逝去的毫秒数
-    pub fn elapsed_secs(&self)->f64{
-        let duration = self.start_time.elapsed().unwrap();
-        duration.as_secs() as f64
-           + duration.subsec_nanos() as f64 * 1e-9
-    }
-}
-
-impl Timer for InstantTimer{
-    fn ready_for_next_frame(&mut self)->bool{
-        if self.start_time.elapsed().unwrap() > self.next_time {
-            //更新时间
-            self.next_time = self.start_time.elapsed().unwrap() + Duration::from_millis(self.frame_time);
-            true
-        }else{
-            false
         }
     }
 }

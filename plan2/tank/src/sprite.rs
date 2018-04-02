@@ -1,5 +1,4 @@
 use std::cmp;
-use engine::SysTime;
 //精灵代码
 
 pub type SPRITEACTION = u32;
@@ -99,9 +98,10 @@ pub trait GameContext:Sized{
     fn fill_style(&self, style: &str);
     fn fill_rect(&self, x:i32, y:i32, width:i32, height:i32);
     fn fill_text(&self, text: &str, x:i32, y:i32);
+    fn current_time_millis(&self) -> u64;
 }
 
-pub struct Sprite<T: SysTime, C: GameContext>{
+pub struct Sprite<C: GameContext>{
     id:f64,
     bitmap:BitmapRes,
     num_frames:i32,
@@ -118,13 +118,12 @@ pub struct Sprite<T: SysTime, C: GameContext>{
     dying:bool,
     one_cycle:bool,
     name:Option<String>,
-    sys_time: T,
     context: C
 }
 
-impl <T: SysTime, C: GameContext> Sprite<T, C>{
-    pub fn new(sys_time:T, context: C, bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
-                bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<T, C>{
+impl <C: GameContext> Sprite<C>{
+    pub fn new(context: C, bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
+                bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<C>{
         let mut sprite = Sprite{
             id: 0.0,
             position: Rect::new(position.x, position.y, position.x+bitmap.width(), position.y+bitmap.height()),
@@ -142,23 +141,22 @@ impl <T: SysTime, C: GameContext> Sprite<T, C>{
             one_cycle: false,
             name: None,
             collision: Rect::zero(),
-            sys_time: sys_time,
             context: context
         };
-        sprite.id = sprite.sys_time.current_time_millis() as f64 + sprite.context.random();
+        sprite.id = sprite.context.current_time_millis() as f64 + sprite.context.random();
         sprite.calc_collision_rect();
         sprite
     }
 
-    pub fn from_bitmap(sys_time: T, context: C, bitmap:BitmapRes, bounds:Rect)->Sprite<T, C>{
-        Sprite::new(sys_time, context, bitmap, Point{x:0, y:0}, Point{x:0, y:0}, 0, bounds, BA_STOP)
+    pub fn from_bitmap(context: C, bitmap:BitmapRes, bounds:Rect)->Sprite<C>{
+        Sprite::new(context, bitmap, Point{x:0, y:0}, Point{x:0, y:0}, 0, bounds, BA_STOP)
     }
 
-    pub fn with_bounds_action(sys_time: T, context: C, bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<T, C>{
+    pub fn with_bounds_action(context: C, bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<C>{
         //计算随即位置
         let x_pos = context.rand_int(0, bounds.right - bounds.left);
         let y_pos = context.rand_int(0, bounds.bottom - bounds.top);
-        Sprite::new(sys_time, context, bitmap, Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
+        Sprite::new(context, bitmap, Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
     }
 
     fn calc_collision_rect(&mut self){
@@ -271,16 +269,14 @@ impl <T: SysTime, C: GameContext> Sprite<T, C>{
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
-            unsafe{
-                match self.num_frames{
-                    1=>self.context.draw_image_at(self.bitmap.id, self.position.left, self.position.top),
-                    _=>self.context.draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
-                            self.position.left, self.position.top, self.width(), self.height())
-                }
-                self.context.fill_style("#fff");
-                if let Some(ref name) = self.name{
-                    self.context.fill_text(name, self.position.right, self.position.top);
-                }
+            match self.num_frames{
+                1=>self.context.draw_image_at(self.bitmap.id, self.position.left, self.position.top),
+                _=>self.context.draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
+                        self.position.left, self.position.top, self.width(), self.height())
+            }
+            self.context.fill_style("#fff");
+            if let Some(ref name) = self.name{
+                self.context.fill_text(name, self.position.right, self.position.top);
             }
         }
     }
