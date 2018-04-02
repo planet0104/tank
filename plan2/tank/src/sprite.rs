@@ -90,7 +90,7 @@ pub struct Point{
     pub y:i32
 }
 
-pub trait GameContext:Sized{
+pub trait GameContext{
     fn random(&self)->f64;
     fn rand_int(&self, start:i32, end:i32) ->i32;
     fn draw_image_at(&self, res_id:i32, x:i32, y:i32);
@@ -101,7 +101,7 @@ pub trait GameContext:Sized{
     fn current_time_millis(&self) -> u64;
 }
 
-pub struct Sprite<C: GameContext>{
+pub struct Sprite{
     id:f64,
     bitmap:BitmapRes,
     num_frames:i32,
@@ -118,12 +118,12 @@ pub struct Sprite<C: GameContext>{
     dying:bool,
     one_cycle:bool,
     name:Option<String>,
-    context: C
+    context: Box<GameContext>
 }
 
-impl <C: GameContext> Sprite<C>{
-    pub fn new(context: C, bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
-                bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<C>{
+impl Sprite{
+    pub fn new<C: GameContext+'static>(context: C, bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
+                bounds:Rect, bounds_action:BOUNDSACTION)->Sprite{
         let mut sprite = Sprite{
             id: 0.0,
             position: Rect::new(position.x, position.y, position.x+bitmap.width(), position.y+bitmap.height()),
@@ -141,18 +141,18 @@ impl <C: GameContext> Sprite<C>{
             one_cycle: false,
             name: None,
             collision: Rect::zero(),
-            context: context
+            context: Box::new(context)
         };
         sprite.id = sprite.context.current_time_millis() as f64 + sprite.context.random();
         sprite.calc_collision_rect();
         sprite
     }
 
-    pub fn from_bitmap(context: C, bitmap:BitmapRes, bounds:Rect)->Sprite<C>{
+    pub fn from_bitmap<C: GameContext+'static>(context: C, bitmap:BitmapRes, bounds:Rect)->Sprite{
         Sprite::new(context, bitmap, Point{x:0, y:0}, Point{x:0, y:0}, 0, bounds, BA_STOP)
     }
 
-    pub fn with_bounds_action(context: C, bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite<C>{
+    pub fn with_bounds_action<C: GameContext+'static>(context: C, bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite{
         //计算随即位置
         let x_pos = context.rand_int(0, bounds.right - bounds.left);
         let y_pos = context.rand_int(0, bounds.bottom - bounds.top);

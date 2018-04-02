@@ -1,31 +1,26 @@
 use sprite::{Sprite, SA_KILL};
-use sprite::GameContext;
 
 //GameEngine 负责创建游戏窗口、绘制和更新精灵
 
-pub trait GameEngineHandler<C: GameContext>{
-    fn sprite_dying(&mut self, sprite_dying:&Sprite<C>);
-    fn sprite_collision(&self, sprite_hitter:&Sprite<C>, sprite_hittee:&Sprite<C>)->bool;
+pub trait GameEngineHandler{
+    fn sprite_dying(&mut self, sprite_dying:&Sprite);
+    fn sprite_collision(&self, sprite_hitter:&Sprite, sprite_hittee:&Sprite)->bool;
 }
 
-pub struct GameEngine<C: GameContext>{
-    handler: Option<Box<GameEngineHandler<C>>>,
-    sprites:Vec<Sprite<C>>
+pub struct GameEngine{
+    handler: Box<GameEngineHandler>,
+    sprites:Vec<Sprite>
 }
 
-impl <C: GameContext> GameEngine<C>{
-    pub fn new()->GameEngine<C>{
+impl GameEngine{
+    pub fn new<C: GameEngineHandler+'static>(handler: C)->GameEngine{
         GameEngine{
-            handler: None,
+            handler: Box::new(handler),
             sprites: vec![]
         }
     }
 
-    pub fn set_handler<T: GameEngineHandler<C> + 'static>(&mut self, handler: T){
-        self.handler = Some(Box::new(handler));
-    }
-
-    pub fn add_sprite(&mut self, sprite:Sprite<C>){
+    pub fn add_sprite(&mut self, sprite:Sprite){
         if self.sprites.len()>0 {
             for i in 0..self.sprites.len(){
                 //根据z-order插入精灵到数组
@@ -67,7 +62,7 @@ impl <C: GameContext> GameEngine<C>{
             //处理 SA_KILL
             if sprite_action == SA_KILL{
                 //通知游戏精灵死亡
-                self.handler.unwrap().sprite_dying(&self.sprites[i]);
+                self.handler.sprite_dying(&self.sprites[i]);
                 //杀死精灵
                 sprites_to_kill.push(self.sprites[i].id());
                 continue;
@@ -95,7 +90,7 @@ impl <C: GameContext> GameEngine<C>{
                 continue;
             }
             if test_sprite.test_collison(self.sprites[i].position()){
-                return self.handler.unwrap().sprite_collision(&self.sprites[i], test_sprite);
+                return self.handler.sprite_collision(&self.sprites[i], test_sprite);
             }
         }
         return false;
@@ -105,7 +100,7 @@ impl <C: GameContext> GameEngine<C>{
         self.sprites.clear();
     }
 
-    pub fn get_sprite(&mut self, id:f64)->Option<&mut Sprite<C>>{
+    pub fn get_sprite(&mut self, id:f64)->Option<&mut Sprite>{
         for sprite in &mut self.sprites{
             if sprite.id() == id{
                 return Some(sprite);
@@ -114,7 +109,7 @@ impl <C: GameContext> GameEngine<C>{
         None
     }
 
-    pub fn kill_sprite(&mut self, sprite:&Sprite<C>){
+    pub fn kill_sprite(&mut self, sprite:&Sprite){
         if let Some(s) = self.get_sprite(sprite.id()){
             s.kill();
         }

@@ -38,56 +38,61 @@ pub const MSG_UPDATE:i32 = 3;
 pub const MSG_QUERY:i32 = 4;
 pub const GMAE_TITLE:&'static str = "Tank";
 
-//计时器
-pub trait Timer{
-    fn ready_for_next_frame(&mut self) -> bool;
-}
 
-// struct GameHandler{}
-// impl <C: GameContext> GameEngineHandler<C> for GameHandler{
-//     fn sprite_dying(&mut self, sprite_dying: &Sprite<C>){
-        
-//     }
+//游戏循环由服务器和客户端各自执行
+//TankGame提供所有游戏更新方法
 
-//     fn sprite_collision(&self, sprite_hitter: &Sprite<C>, sprite_hittee: &Sprite<C>)->bool{
-//         //检测子弹是否和坦克碰撞
-//         false
-//     }
-// }
-
-pub struct TankGame<I, C>
-    where I :Timer, C: GameContext + 'static{
-    timer: I,
-    engine: GameEngine<C>,
-    context: C
-}
-
-impl <I, C> GameEngineHandler<C> for TankGame<I, C>
-    where I :Timer, C: GameContext + 'static{
-    fn sprite_dying(&mut self, sprite_dying: &Sprite<C>){
+struct GameHandler{}
+impl GameEngineHandler for GameHandler{
+    fn sprite_dying(&mut self, sprite_dying: &Sprite){
         
     }
 
-    fn sprite_collision(&self, sprite_hitter: &Sprite<C>, sprite_hittee: &Sprite<C>)->bool{
+    fn sprite_collision(&self, sprite_hitter: &Sprite, sprite_hittee: &Sprite)->bool{
         //检测子弹是否和坦克碰撞
         false
     }
 }
 
-impl <I, C> TankGame<I, C>
-    where I :Timer, C: GameContext{
-    pub fn new(timer: I, context: C)->TankGame<I, C>{
-        let mut game = TankGame{
-            timer: timer,
-            engine: GameEngine::new(),
-            context: context
-        };
-        game.engine.set_handler(&game);
-        game
-    }
+struct MyContext{
 
-    pub fn ready_for_next_frame(&mut self) -> bool{
-        self.timer.ready_for_next_frame()
+}
+impl GameContext for MyContext{
+fn random(&self)->f64{
+    0.0
+}
+    fn rand_int(&self, start:i32, end:i32) ->i32{
+        0
+    }
+    fn draw_image_at(&self, res_id:i32, x:i32, y:i32){
+
+    }
+    fn draw_image(&self, res_id:i32, source_x:i32, source_y:i32, source_width:i32, source_height:i32, dest_x:i32, dest_y:i32, dest_width:i32, dest_height:i32){
+
+    }
+    fn fill_style(&self, style: &str){
+        
+    }
+    fn fill_rect(&self, x:i32, y:i32, width:i32, height:i32){
+        
+    }
+    fn fill_text(&self, text: &str, x:i32, y:i32){
+        
+    }
+    fn current_time_millis(&self) -> u64{
+        0
+    }
+}
+
+pub struct TankGame{
+    engine: GameEngine,
+}
+
+impl TankGame{
+    pub fn new()->TankGame{
+        TankGame{
+           engine: GameEngine::new(GameHandler{})
+        }
     }
 
     pub fn update(&mut self){
@@ -96,6 +101,11 @@ impl <I, C> TankGame<I, C>
 }
 
 /*
+
+//计时器
+// pub trait Timer{
+//     fn ready_for_next_frame(&mut self) -> bool;
+// }
 
 pub trait SysTime:Sized{
     fn current_time_millis(&self) -> u64;
