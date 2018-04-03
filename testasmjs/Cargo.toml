@@ -5,3 +5,5 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 
 [dependencies]
 stdweb = "*"
+rand = "0.4.2"
+uuid = { version = "0.6", features = ["v4"] }
