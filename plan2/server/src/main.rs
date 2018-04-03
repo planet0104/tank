@@ -8,6 +8,8 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as ThreadOut;
 use std::time::Duration;
 use tank::TankGame;
+use tank::utils::Timer;
+use std::thread;
 
 const MSG_CREATE:i32 = 1;
 const MSG_DELETE:i32 = 2;
@@ -34,29 +36,31 @@ impl Handler for Player {
 }
 
 fn main() {
-
-
     //启动websocket服务
     let address = "127.0.0.1:8080";
-    let ws =
-        thread::spawn(move || listen(address, |out| Player { out }).unwrap());
+    let _ws = thread::spawn(move || listen(address, |out| Player { out }).unwrap());
     
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let gs  = thread::spawn(move || {
-        let delay_ms = time::Duration::from_millis(10);
-        let timer = InstantTimer::new(30);
-        let engine = GameEngine::new(30, CLIENT_WIDTH, CLIENT_HEIGHT, GameHandler{});
+        let delay_ms = Duration::from_millis(10);
+        let mut timer = Timer::new(30);
+        let mut game = TankGame::new();
         loop{
+            //处理websocket传来的消息: 玩家上线、键盘输入
             
-            if timer.ready_for_next_frame(){
+            //...
 
+            if timer.ready_for_next_frame(){
+                game.update(true);
+                //游戏事件广播: 添加精灵、精灵死亡
+                //...
             }
             //给一些延迟, 降低CPU使用率
             thread::sleep(delay_ms);
         }
     });
     
-    println!("游戏服务已启动: {}", address)
+    println!("游戏服务已启动: {}", address);
     let res = gs.join();
     println!("游戏服务结束 {:?}", res);
 }

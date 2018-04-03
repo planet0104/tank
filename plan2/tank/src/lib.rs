@@ -1,9 +1,11 @@
 
+extern crate uuid;
+extern crate rand;
+pub mod utils;
 mod engine;
 mod sprite; 
-use engine::{GameEngine, GameEngineHandler};
-//use std::time::{Duration, SystemTime};
-use sprite::{GameContext, Sprite};
+use engine::{GameEngine, CanvasContext};
+use sprite::{BA_DIE, BA_WRAP, Sprite, BitmapRes, Rect };
 
 //游戏宽高
 pub const CLIENT_WIDTH:i32 = 1000;
@@ -38,162 +40,200 @@ pub const MSG_UPDATE:i32 = 3;
 pub const MSG_QUERY:i32 = 4;
 pub const GMAE_TITLE:&'static str = "Tank";
 
-
-//游戏循环由服务器和客户端各自执行
-//TankGame提供所有游戏更新方法
-
-struct GameHandler{}
-impl GameEngineHandler for GameHandler{
-    fn sprite_dying(&mut self, sprite_dying: &Sprite){
-        
-    }
-
-    fn sprite_collision(&self, sprite_hitter: &Sprite, sprite_hittee: &Sprite)->bool{
-        //检测子弹是否和坦克碰撞
-        false
-    }
+pub enum SpriteEvent{
+    Add,
+    Update,
+    Delete
 }
 
-struct MyContext{
-
-}
-impl GameContext for MyContext{
-fn random(&self)->f64{
-    0.0
-}
-    fn rand_int(&self, start:i32, end:i32) ->i32{
-        0
-    }
-    fn draw_image_at(&self, res_id:i32, x:i32, y:i32){
-
-    }
-    fn draw_image(&self, res_id:i32, source_x:i32, source_y:i32, source_width:i32, source_height:i32, dest_x:i32, dest_y:i32, dest_width:i32, dest_height:i32){
-
-    }
-    fn fill_style(&self, style: &str){
-        
-    }
-    fn fill_rect(&self, x:i32, y:i32, width:i32, height:i32){
-        
-    }
-    fn fill_text(&self, text: &str, x:i32, y:i32){
-        
-    }
-    fn current_time_millis(&self) -> u64{
-        0
-    }
+pub struct SpriteInfo{
+    id: String,
+    res: i32,//资源ID
+    left: i32,
+    top: i32,
+    vx: i32,//x速度
+    vy: i32//y速度
 }
 
+/*
+游戏循环由服务器和客户端各自执行(HTML5中游戏循环需要调用request_animation_frame)
+TankGame提供所有游戏更新方法
+
+服务端只调用 update(true) 方法、键盘、鼠标事件处理， 处理完之后将会产生message，message被分发给改各个客户端
+客户端调用 update(false), draw() 方法, handle_message方法(处理添加精灵、更新精灵、删除精灵)； 键盘事件发送给websocket
+(客户端不处理碰撞检测, 服务器检测到碰撞会自动将精灵状态下发到客户端)
+*/
 pub struct TankGame{
     engine: GameEngine,
+    events: Vec<(SpriteEvent, SpriteInfo)>
 }
 
 impl TankGame{
     pub fn new()->TankGame{
         TankGame{
-           engine: GameEngine::new(GameHandler{})
+           engine: GameEngine::new(),
+           events: vec![]
         }
     }
 
-    pub fn update(&mut self){
-        
-    }
-}
-
-/*
-
-//计时器
-// pub trait Timer{
-//     fn ready_for_next_frame(&mut self) -> bool;
-// }
-
-pub trait SysTime:Sized{
-    fn current_time_millis(&self) -> u64;
-}
-
-pub struct ClientTimer<T: SysTime>{
-    sys_time:T,
-    fps:u64,
-    frame_time:u64,
-    start_time:u64,
-    next_time:u64,
-    current_time:u64,
-}
-
-impl <T: SysTime> ClientTimer<T>{
-    pub fn new(fps:u64, sys_time: T)->ClientTimer<T>{
-        let t = sys_time.current_time_millis();
-        ClientTimer{
-            sys_time: sys_time,
-            fps:fps,
-            frame_time: 1000 / fps,
-            start_time: t,
-            next_time: t,
-            current_time: 0,
-        }
+    //玩家加入游戏, 创建坦克
+    pub fn add_tank(&mut self){
+        //创建玩家坦克
+        let mut tank_sprite = Sprite::with_bounds_action(
+                            BitmapRes::new(RES_TANK_BITMAP, 36, 144),
+                            Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT), BA_WRAP);
+        tank_sprite.set_num_frames(4, false);
+        tank_sprite.set_frame_delay(-1);
+        self.engine.add_sprite(tank_sprite);
     }
 
-    pub fn fps(&self)->u64{
-        self.fps
+    pub fn handle_event(event: SpriteEvent, sprite_info: SpriteInfo){
+        // match event{
+        //     SpriteEvent::Add => 
+        // }
     }
-}
 
-impl <T: SysTime> Timer for ClientTimer<T>{
-    fn ready_for_next_frame(&mut self)->bool{
-        
-	    //逝去的时间
-        self.current_time = self.sys_time.current_time_millis() - self.start_time;
-        
-        if self.current_time > self.next_time {
-            //更新时间
-            self.next_time = self.current_time + self.frame_time;
+    //更新游戏
+    pub fn update(&mut self, hadle_collision: bool){
+
+        self.engine.update_sprites(|engine, idx_sprite_dying|{
+            //精灵死亡
+            let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
+            match bitmap_id{
+                //子弹精灵死亡
+                RES_MISSILE_BITMAP => {
+                    //在子弹位置创建一个小的爆炸精灵
+                    let mut sprite = Sprite::from_bitmap(
+                        BitmapRes::new(RES_SM_EXPLOSION__BITMAP, 17, 136),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT));
+                    sprite.set_num_frames(8, true);
+                    sprite.set_position(engine.sprites()[idx_sprite_dying].position().left, engine.sprites()[idx_sprite_dying].position().top);
+                    engine.add_sprite(sprite);
+                }
+                //坦克精灵死亡
+                RES_TANK_BITMAP =>{
+                    //在坦克位置创建一个大的爆炸精灵
+                    let mut sprite = Sprite::from_bitmap(
+                        BitmapRes::new(RES_LG_EXPLOSION_BITMAP, 33, 272),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT));
+                    sprite.set_num_frames(8, true);
+                    sprite.set_position(engine.sprites()[idx_sprite_dying].position().left, engine.sprites()[idx_sprite_dying].position().top);
+                    engine.add_sprite(sprite);
+                }
+                _=> ()
+            }
+        }, |engine, idx_sprite_hitter, idx_sprite_hittee|{
+            
+            if !hadle_collision{
+                return false;
+            }
+
+            //碰撞检测
+            let hitter = engine.sprites()[idx_sprite_hitter].bitmap().id();
+            let hittee = engine.sprites()[idx_sprite_hittee].bitmap().id();
+            if hitter == RES_MISSILE_BITMAP && hittee == RES_TANK_BITMAP ||
+            hitter == RES_TANK_BITMAP && hittee == RES_MISSILE_BITMAP{
+                //杀死子弹和坦克
+                engine.kill_sprite(idx_sprite_hittee);
+                engine.kill_sprite(idx_sprite_hitter);
+            }
+
+            //检测子弹和子弹是否碰撞
+            if hitter == RES_MISSILE_BITMAP && hittee == RES_MISSILE_BITMAP{
+                //杀死子弹
+                engine.kill_sprite(idx_sprite_hittee);
+                engine.kill_sprite(idx_sprite_hitter);
+            }
             true
-        }else{
-            false
+        });
+    }
+
+    //添加要分发的事件
+    fn add_sprite_event(&mut self, event: SpriteEvent, sprite:&Sprite){
+        self.events.push((event, SpriteInfo{
+            id: sprite.id.clone(),
+            res: sprite.bitmap().id(),
+            left: sprite.position().left,
+            top: sprite.position().top,
+            vx: sprite.velocity().x,
+            vy: sprite.velocity().y
+        }));
+    }
+
+    //绘制游戏
+    pub fn draw(&self, context: &CanvasContext){
+        context.fill_style("#2e6da3");
+        context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+        self.engine.draw_sprites(context);
+    }
+
+    //键盘按下，坦克移动、发射子弹
+    pub fn on_keyup_event(&mut self, keycode:i32, sprite_id: &String){
+        match keycode{
+            KEYCODE_SPACE=>{
+                let tank_position = *(self.engine.query_sprite(sprite_id).unwrap().position());
+                //创建一个新的子弹精灵
+                let mut sprite = Sprite::with_bounds_action(
+                    BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
+                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT), BA_DIE);
+                sprite.set_num_frames(4, false);
+                sprite.set_frame_delay(-1);
+                //子弹的方向同玩家的方向
+                let direction = self.engine.query_sprite(sprite_id).unwrap().current_frame();
+                sprite.set_current_frame(direction);
+                match direction{
+                    0 => {
+                        sprite.set_velocity(0, -MISSILE_VELOCITY);
+                        sprite.set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.top-17);
+                    }
+                    1 => {
+                        sprite.set_velocity(0, MISSILE_VELOCITY);
+                        sprite.set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.bottom);
+                    }
+                    2 => {
+                        sprite.set_velocity(-MISSILE_VELOCITY, 0);
+                        sprite.set_position(tank_position.left-17, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                    }
+                    3 => {
+                        sprite.set_velocity(MISSILE_VELOCITY, 0);
+                        sprite.set_position(tank_position.right, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                    }
+                    _=> ()
+                }
+                
+                self.add_sprite_event(SpriteEvent::Update, &sprite);
+                self.engine.add_sprite(sprite);
+            }
+            KEYCODE_LEFT | KEYCODE_RIGHT | KEYCODE_UP | KEYCODE_DOWN =>{
+                let sprite = self.engine.query_sprite(sprite_id).unwrap();
+                sprite.set_velocity(0, 0);
+                self.add_sprite_event(SpriteEvent::Update, &sprite);
+            }
+            _ => ()
+        }
+    }
+
+    //键盘弹起坦克停止走动
+    pub fn on_keydown_event(&mut self, keycode:i32, sprite_id: &String){
+        let tank = self.engine.query_sprite(sprite_id).unwrap();
+         match keycode{
+            KEYCODE_LEFT => {
+                tank.set_current_frame(2);
+                tank.set_velocity(-TANK_VELOCITY, 0);
+            }
+            KEYCODE_RIGHT => {
+                tank.set_current_frame(3);
+                tank.set_velocity(TANK_VELOCITY, 0);
+            }
+            KEYCODE_UP => {
+                tank.set_current_frame(0);
+                tank.set_velocity(0, -TANK_VELOCITY);
+            }
+            KEYCODE_DOWN => {
+                tank.set_current_frame(1);
+                tank.set_velocity(0, TANK_VELOCITY);
+            }
+            _ => ()
         }
     }
 }
-
-pub struct InstantTimer{
-    frame_time:u64,
-    start_time:SystemTime,
-    next_time:Duration,
-}
-
-impl InstantTimer{
-    pub fn new(fps:u64)->InstantTimer{
-        InstantTimer{
-            frame_time: 1000 / fps,
-            start_time: SystemTime::now(),
-            next_time: Duration::from_millis(0)
-        }
-    }
-
-    pub fn _start(&mut self){
-        //设置计数器起始值
-        self.start_time = SystemTime::now();
-        //更新时间在下一帧使用
-        self.next_time = Duration::from_millis(0);
-    }
-
-    //逝去的毫秒数
-    pub fn elapsed_secs(&self)->f64{
-        let duration = self.start_time.elapsed().unwrap();
-        duration.as_secs() as f64
-           + duration.subsec_nanos() as f64 * 1e-9
-    }
-}
-
-impl Timer for InstantTimer{
-    fn ready_for_next_frame(&mut self)->bool{
-        if self.start_time.elapsed().unwrap() > self.next_time {
-            //更新时间
-            self.next_time = self.start_time.elapsed().unwrap() + Duration::from_millis(self.frame_time);
-            true
-        }else{
-            false
-        }
-    }
-}
-
-*/

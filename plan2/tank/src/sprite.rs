@@ -1,4 +1,8 @@
 use std::cmp;
+extern crate uuid;
+use uuid::Uuid;
+use utils::rand_int;
+use engine::CanvasContext;
 //精灵代码
 
 pub type SPRITEACTION = u32;
@@ -90,19 +94,8 @@ pub struct Point{
     pub y:i32
 }
 
-pub trait GameContext{
-    fn random(&self)->f64;
-    fn rand_int(&self, start:i32, end:i32) ->i32;
-    fn draw_image_at(&self, res_id:i32, x:i32, y:i32);
-    fn draw_image(&self, res_id:i32, source_x:i32, source_y:i32, source_width:i32, source_height:i32, dest_x:i32, dest_y:i32, dest_width:i32, dest_height:i32);
-    fn fill_style(&self, style: &str);
-    fn fill_rect(&self, x:i32, y:i32, width:i32, height:i32);
-    fn fill_text(&self, text: &str, x:i32, y:i32);
-    fn current_time_millis(&self) -> u64;
-}
-
 pub struct Sprite{
-    id:f64,
+    pub id: String,
     bitmap:BitmapRes,
     num_frames:i32,
     cur_frame:i32,
@@ -118,14 +111,13 @@ pub struct Sprite{
     dying:bool,
     one_cycle:bool,
     name:Option<String>,
-    context: Box<GameContext>
 }
 
 impl Sprite{
-    pub fn new<C: GameContext+'static>(context: C, bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
+    pub fn new(bitmap:BitmapRes, position:Point, velocity:Point, z_order:i32,
                 bounds:Rect, bounds_action:BOUNDSACTION)->Sprite{
         let mut sprite = Sprite{
-            id: 0.0,
+            id: Uuid::new_v4().hyphenated().to_string(),
             position: Rect::new(position.x, position.y, position.x+bitmap.width(), position.y+bitmap.height()),
             bitmap:bitmap,
             num_frames: 1,
@@ -140,23 +132,21 @@ impl Sprite{
             dying: false,
             one_cycle: false,
             name: None,
-            collision: Rect::zero(),
-            context: Box::new(context)
+            collision: Rect::zero()
         };
-        sprite.id = sprite.context.current_time_millis() as f64 + sprite.context.random();
         sprite.calc_collision_rect();
         sprite
     }
 
-    pub fn from_bitmap<C: GameContext+'static>(context: C, bitmap:BitmapRes, bounds:Rect)->Sprite{
-        Sprite::new(context, bitmap, Point{x:0, y:0}, Point{x:0, y:0}, 0, bounds, BA_STOP)
+    pub fn from_bitmap(bitmap:BitmapRes, bounds:Rect)->Sprite{
+        Sprite::new(bitmap, Point{x:0, y:0}, Point{x:0, y:0}, 0, bounds, BA_STOP)
     }
 
-    pub fn with_bounds_action<C: GameContext+'static>(context: C, bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite{
+    pub fn with_bounds_action(bitmap:BitmapRes, bounds:Rect, bounds_action:BOUNDSACTION)->Sprite{
         //计算随即位置
-        let x_pos = context.rand_int(0, bounds.right - bounds.left);
-        let y_pos = context.rand_int(0, bounds.bottom - bounds.top);
-        Sprite::new(context, bitmap, Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
+        let x_pos = rand_int(0, bounds.right - bounds.left);
+        let y_pos = rand_int(0, bounds.bottom - bounds.top);
+        Sprite::new(bitmap, Point{x:x_pos, y:y_pos}, Point{x:0, y:0}, 0, bounds, bounds_action)
     }
 
     fn calc_collision_rect(&mut self){
@@ -265,18 +255,18 @@ impl Sprite{
         SA_NONE
     }
 
-    pub fn draw(&self){
+    pub fn draw(&self, context: &CanvasContext){
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
             match self.num_frames{
-                1=>self.context.draw_image_at(self.bitmap.id, self.position.left, self.position.top),
-                _=>self.context.draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
+                1=>context.draw_image_at(self.bitmap.id, self.position.left, self.position.top),
+                _=>context.draw_image(self.bitmap.id, 0, self.cur_frame*self.height(), self.width(), self.height(),
                         self.position.left, self.position.top, self.width(), self.height())
             }
-            self.context.fill_style("#fff");
+            context.fill_style("#fff");
             if let Some(ref name) = self.name{
-                self.context.fill_text(name, self.position.right, self.position.top);
+                context.fill_text(name, self.position.right, self.position.top);
             }
         }
     }
@@ -378,9 +368,9 @@ impl Sprite{
         self.hidden
     }
 
-    pub fn id(&self)->f64{
-        self.id
-    }
+    // pub fn id(&self)->Uuid{
+    //     self.id
+    // }
 
     pub fn name(&self)->Option<&String>{
         self.name.as_ref()
