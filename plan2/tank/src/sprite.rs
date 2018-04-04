@@ -8,7 +8,7 @@ use engine::CanvasContext;
 pub type SPRITEACTION = u32;
 pub const SA_NONE:SPRITEACTION      = 0;
 pub const SA_KILL:SPRITEACTION      = 1;
-pub const SA_ADDSPRITE:SPRITEACTION = 2;
+//pub const SA_ADDSPRITE:SPRITEACTION = 2;
 
 pub type BOUNDSACTION = u32;
 pub const BA_STOP:BOUNDSACTION   = 0;

@@ -49,8 +49,10 @@ pub enum SpriteEvent{
 pub struct SpriteInfo{
     id: String,
     res: i32,//资源ID
-    left: i32,
-    top: i32,
+    l: i32,
+    t: i32,
+    r: i32,
+    b: i32,
     vx: i32,//x速度
     vy: i32,//y速度
     frame: i32//当前帧
@@ -119,12 +121,26 @@ impl TankGame{
     }
 
     //客户端接受到服务器发送来的消息，将消息传递给此方法，来更新渲染
-    pub fn handle_event(event: SpriteEvent, sprite_info: SpriteInfo){
-        match event{
+    pub fn handle_event(&mut self, event: SpriteEvent, sprite_info: SpriteInfo){
+        if let Some(sprite_idx) = match event{
             SpriteEvent::Add => {
-                
+                Some(TankGame::add_sprite(&mut self.engine, sprite_info.res))
             }
-            _ => {}
+            SpriteEvent::Update => {
+                self.engine.query_sprite_idx(&sprite_info.id)
+            },
+            SpriteEvent::Delete => {
+                if let Some(sprite) = self.engine.query_sprite(&sprite_info.id){
+                    sprite.kill();
+                }
+                None
+            }
+        }{
+            //设置精灵信息
+            let mut sprite = &mut self.engine.sprites()[sprite_idx];
+            sprite.set_position_rect(Rect::new(sprite_info.l, sprite_info.t, sprite_info.r, sprite_info.b));
+            sprite.set_velocity(sprite_info.vx, sprite_info.vy);
+            sprite.set_current_frame(sprite_info.frame);
         }
     }
 
@@ -138,8 +154,8 @@ impl TankGame{
     pub fn update(&mut self){
         let mut events:Vec<(SpriteEvent, usize)> = vec![];
         self.engine.update_sprites(&mut |engine:&mut GameEngine, idx_sprite_dying|{
-            //添加事件
-            events.push((SpriteEvent::Delete, idx_sprite_dying));
+
+            events.push((SpriteEvent::Delete, idx_sprite_dying));//事件
             //精灵死亡
             let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
             //在精灵位置创建不同的爆炸精灵
@@ -152,9 +168,10 @@ impl TankGame{
             let idx = TankGame::add_sprite(engine, res);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
-            //添加事件
-            events.push((SpriteEvent::Add, idx));
+            events.push((SpriteEvent::Add, idx));//事件
+
         }, |engine, idx_sprite_hitter, idx_sprite_hittee|{
+
             //碰撞检测
             let hitter = engine.sprites()[idx_sprite_hitter].bitmap().id();
             let hittee = engine.sprites()[idx_sprite_hittee].bitmap().id();
@@ -186,8 +203,10 @@ impl TankGame{
         self.events.push((event, SpriteInfo{
             id: sprite.id.clone(),
             res: sprite.bitmap().id(),
-            left: sprite.position().left,
-            top: sprite.position().top,
+            l: sprite.position().left,
+            t: sprite.position().top,
+            r: sprite.position().right,
+            b: sprite.position().bottom,
             vx: sprite.velocity().x,
             vy: sprite.velocity().y,
             frame: sprite.current_frame()
@@ -267,5 +286,9 @@ impl TankGame{
             }
             _ => {}
         }
+    }
+
+    pub fn events(&mut self) -> &mut Vec<(SpriteEvent, SpriteInfo)> {
+        &mut self.events
     }
 }

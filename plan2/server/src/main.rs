@@ -7,7 +7,7 @@ use json::JsonValue;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as ThreadOut;
 use std::time::Duration;
-use tank::TankGame;
+use tank::{ TankGame, SpriteEvent };
 use tank::utils::Timer;
 use std::thread;
 
@@ -48,12 +48,28 @@ fn main() {
         loop{
             //处理websocket传来的消息: 玩家上线、键盘输入
             
-            //...
-
             if timer.ready_for_next_frame(){
-                game.update(true);
-                //游戏事件广播: 添加精灵、精灵死亡
-                //...
+                game.update();
+
+                //游戏更新以后，获取精灵死亡、添加事件，分发到客户端
+                {
+                    let mut events = game.events();
+                    for event in events{
+                        match event.0{
+                            SpriteEvent::Add => {
+                                
+                            }
+                            SpriteEvent::Update => {
+                                
+                            },
+                            SpriteEvent::Delete => {
+                                
+                            }
+                        }
+                    }
+                }
+                //清空事件
+                game.events().clear();
             }
             //给一些延迟, 降低CPU使用率
             thread::sleep(delay_ms);
