@@ -20,18 +20,19 @@ impl GameEngine{
         }
     }
 
-    pub fn add_sprite(&mut self, sprite:Sprite){
+    pub fn add_sprite(&mut self, sprite:Sprite) -> usize {
         if self.sprites.len()>0 {
             for i in 0..self.sprites.len(){
                 //根据z-order插入精灵到数组
                 if sprite.z_order() < self.sprites[i].z_order(){
                     self.sprites.insert(i, sprite);
-                    return;
+                    return i;
                 }
             }
         }
         //精灵的zOrder是最高的，放入Vec的末尾
         self.sprites.push(sprite);
+        self.sprites.len()-1
     }
 
     pub fn draw_sprites(&self, context: &CanvasContext){
@@ -109,8 +110,21 @@ impl GameEngine{
         None
     }
 
-    pub fn sprites(&self)->&Vec<Sprite>{
-        &self.sprites
+    pub fn query_sprite_idx(&self, id:&String) -> Option<usize>{
+        for i in 0..self.sprites.len(){
+            if self.sprites[i].id == id.as_ref(){
+                return Some(i);
+            }
+        }
+        None
+    }
+
+    // pub fn sprites(&self)->&Vec<Sprite>{
+    //     &self.sprites
+    // }
+
+    pub fn sprites(&mut self)->&mut Vec<Sprite>{
+        &mut self.sprites
     }
 
     // pub fn kill_sprite(&mut self, sprite:&Sprite){
