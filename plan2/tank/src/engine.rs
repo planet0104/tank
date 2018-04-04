@@ -42,7 +42,7 @@ impl GameEngine{
         }
     }
 
-    pub fn update_sprites<D: Fn(&mut GameEngine, usize), C: Fn(&mut GameEngine, usize, usize)->bool>(&mut self, sprite_dying: D, sprite_collision: C){
+    pub fn update_sprites<D: FnMut(&mut GameEngine, usize), C: Fn(&mut GameEngine, usize, usize)->bool>(&mut self, sprite_dying: &mut D, sprite_collision: C){
         //log_string(format!("sprites={}", self.sprites.len()).as_str().as_bytes());
         //更新所有精灵
         let mut sprites_to_kill:Vec<String> = vec![];

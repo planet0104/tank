@@ -60,8 +60,8 @@ pub struct SpriteInfo{
 游戏循环由服务器和客户端各自执行(HTML5中游戏循环需要调用request_animation_frame)
 TankGame提供所有游戏更新方法
 
-服务端只调用 update(true) 方法、键盘、鼠标事件处理， 处理完之后将会产生message，message被分发给改各个客户端
-客户端调用 update(false), draw() 方法, handle_event方法(处理添加精灵、更新精灵、删除精灵)； 键盘事件发送给websocket
+服务端只调用 update() 方法、键盘、鼠标事件处理， 处理完之后将会产生message，message被分发给改各个客户端
+客户端调用 update_sprites(), draw() 方法, handle_event方法(处理添加精灵、更新精灵、删除精灵)； 键盘事件发送给websocket
 (客户端不处理碰撞检测, 服务器检测到碰撞会自动将精灵状态下发到客户端)
 */
 pub struct TankGame{
@@ -128,19 +128,18 @@ impl TankGame{
         }
     }
 
+    //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
+    //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
+    pub fn update_sprites(&mut self){
+        self.engine.update_sprites(&mut |_,_|{}, |_,_,_|{false});
+    }
+
     //更新游戏
-    pub fn update(&mut self, hadle_update: bool){
-
-        if !hadle_update {
-            //客户端不对update_sprites做任何操作如
-            //精灵死亡添加爆炸、碰撞检测杀死精灵等
-            //客户端仅按帧更新精灵位置
-            //所有精灵创建、更新都由服务器下发事件中处理
-            self.engine.update_sprites(|_,_|{}, |_,_,_|{false});
-            return;
-        }
-
-        self.engine.update_sprites(|engine, idx_sprite_dying|{
+    pub fn update(&mut self){
+        let mut events:Vec<(SpriteEvent, usize)> = vec![];
+        self.engine.update_sprites(&mut |engine:&mut GameEngine, idx_sprite_dying|{
+            //添加事件
+            events.push((SpriteEvent::Delete, idx_sprite_dying));
             //精灵死亡
             let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
             //在精灵位置创建不同的爆炸精灵
@@ -153,6 +152,8 @@ impl TankGame{
             let idx = TankGame::add_sprite(engine, res);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
+            //添加事件
+            events.push((SpriteEvent::Add, idx));
         }, |engine, idx_sprite_hitter, idx_sprite_hittee|{
             //碰撞检测
             let hitter = engine.sprites()[idx_sprite_hitter].bitmap().id();
@@ -172,6 +173,11 @@ impl TankGame{
             }
             true
         });
+        
+        //将事件存储的列表
+        for event in events{
+            self.add_sprite_event(event.0, event.1);
+        }
     }
 
     //添加要分发的事件
@@ -237,25 +243,29 @@ impl TankGame{
 
     //键盘弹起坦克停止走动
     pub fn on_keydown_event(&mut self, keycode:i32, sprite_id: &String){
-        let tank = self.engine.query_sprite(sprite_id).unwrap();
+        let idx = self.engine.query_sprite_idx(sprite_id).unwrap();
          match keycode{
             KEYCODE_LEFT => {
-                tank.set_current_frame(2);
-                tank.set_velocity(-TANK_VELOCITY, 0);
+                self.engine.sprites()[idx].set_current_frame(2);
+                self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
+                self.add_sprite_event(SpriteEvent::Update, idx);
             }
             KEYCODE_RIGHT => {
-                tank.set_current_frame(3);
-                tank.set_velocity(TANK_VELOCITY, 0);
+                self.engine.sprites()[idx].set_current_frame(3);
+                self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
+                self.add_sprite_event(SpriteEvent::Update, idx);
             }
             KEYCODE_UP => {
-                tank.set_current_frame(0);
-                tank.set_velocity(0, -TANK_VELOCITY);
+                self.engine.sprites()[idx].set_current_frame(0);
+                self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
+                self.add_sprite_event(SpriteEvent::Update, idx);
             }
             KEYCODE_DOWN => {
-                tank.set_current_frame(1);
-                tank.set_velocity(0, TANK_VELOCITY);
+                self.engine.sprites()[idx].set_current_frame(1);
+                self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
+                self.add_sprite_event(SpriteEvent::Update, idx);
             }
-            _ => ()
+            _ => {}
         }
     }
 }
