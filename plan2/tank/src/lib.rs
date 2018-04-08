@@ -47,15 +47,15 @@ pub enum SpriteEvent{
 }
 
 pub struct SpriteInfo{
-    id: String,
-    res: i32,//资源ID
-    l: i32,
-    t: i32,
-    r: i32,
-    b: i32,
-    vx: i32,//x速度
-    vy: i32,//y速度
-    frame: i32//当前帧
+    pub id: String,
+    pub res: i32,//资源ID
+    pub l: i32,
+    pub t: i32,
+    pub r: i32,
+    pub b: i32,
+    pub vx: i32,//x速度
+    pub vy: i32,//y速度
+    pub frame: i32//当前帧
 }
 
 /*
@@ -290,5 +290,9 @@ impl TankGame{
 
     pub fn events(&mut self) -> &mut Vec<(SpriteEvent, SpriteInfo)> {
         &mut self.events
+    }
+
+    pub fn sprites(&mut self) -> &Vec<Sprite> {
+        self.engine.sprites()
     }
 }
