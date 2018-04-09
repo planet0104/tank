@@ -42,7 +42,7 @@ impl GameEngine{
         }
     }
 
-    pub fn update_sprites<D: FnMut(&mut GameEngine, usize), C: Fn(&mut GameEngine, usize, usize)->bool>(&mut self, sprite_dying: &mut D, sprite_collision: C){
+    pub fn update_sprites<D: FnMut(&mut GameEngine, usize), C: FnMut(&mut GameEngine, usize, usize)->bool>(&mut self, sprite_dying: &mut D, sprite_collision: &mut C){
         //log_string(format!("sprites={}", self.sprites.len()).as_str().as_bytes());
         //更新所有精灵
         let mut sprites_to_kill:Vec<String> = vec![];
@@ -69,7 +69,7 @@ impl GameEngine{
                 continue;
             }
 
-            if self.check_sprite_collision(i, &sprite_collision){
+            if self.check_sprite_collision(i, &mut sprite_collision){
                 self.sprites[i].set_position_rect(old_sprite_pos);
             }
         }
@@ -82,7 +82,7 @@ impl GameEngine{
         }
     }
 
-    pub fn check_sprite_collision<C: Fn(&mut GameEngine, usize, usize)->bool>(&mut self, test_sprite_id:usize, sprite_collision: &C)->bool{
+    pub fn check_sprite_collision<C: FnMut(&mut GameEngine, usize, usize)->bool>(&mut self, test_sprite_id:usize, sprite_collision: &mut C)->bool{
         //检查精灵是否和其他精灵相撞
         //let test_sprite = &self.sprites[test_sprite_id];
         for i in 0..self.sprites.len(){

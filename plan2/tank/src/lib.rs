@@ -6,6 +6,7 @@ mod engine;
 mod sprite; 
 use engine::{GameEngine, CanvasContext};
 use sprite::{BA_DIE, BA_WRAP, Sprite, BitmapRes, Rect };
+use std::collections::HashMap;
 
 //游戏宽高
 pub const CLIENT_WIDTH:i32 = 1000;
@@ -58,29 +59,35 @@ pub struct SpriteInfo{
     pub frame: i32//当前帧
 }
 
+pub struct Player{
+    pub name: String
+}
+
 /*
 游戏循环由服务器和客户端各自执行(HTML5中游戏循环需要调用request_animation_frame)
 TankGame提供所有游戏更新方法
 
-服务端只调用 update() 方法、键盘、鼠标事件处理， 处理完之后将会产生message，message被分发给改各个客户端
+服务端只update() 方法、键盘、鼠标事件处理， 处理完之后将会产生message，message被分发给改各个客户端
 客户端调用 update_sprites(), draw() 方法, handle_event方法(处理添加精灵、更新精灵、删除精灵)； 键盘事件发送给websocket
 (客户端不处理碰撞检测, 服务器检测到碰撞会自动将精灵状态下发到客户端)
 */
 pub struct TankGame{
     engine: GameEngine,
-    events: Vec<(SpriteEvent, SpriteInfo)>
+    events: Vec<(SpriteEvent, SpriteInfo)>,
+    players: HashMap<String, Player>
 }
 
 impl TankGame{
     pub fn new()->TankGame{
         TankGame{
            engine: GameEngine::new(),
-           events: vec![]
+           events: vec![],
+           players: HashMap::new()
         }
     }
 
     //创建游戏精灵
-    pub fn add_sprite(engine:&mut GameEngine, res:i32) -> usize {
+    pub fn add_sprite(engine:&mut GameEngine, id:Option<&str>, res:i32) -> usize {
         match res{
             RES_TANK_BITMAP => {
                 //创建玩家坦克
@@ -89,6 +96,7 @@ impl TankGame{
                                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT), BA_WRAP);
                 tank_sprite.set_num_frames(4, false);
                 tank_sprite.set_frame_delay(-1);
+                tank_sprite.id = String::from(id.unwrap_or(&tank_sprite.id));
                 engine.add_sprite(tank_sprite)
             }
             RES_MISSILE_BITMAP => {
@@ -98,6 +106,7 @@ impl TankGame{
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT), BA_DIE);
                 sprite.set_num_frames(4, false);
                 sprite.set_frame_delay(-1);
+                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             },
             RES_SM_EXPLOSION__BITMAP => {
@@ -106,6 +115,7 @@ impl TankGame{
                     BitmapRes::new(RES_SM_EXPLOSION__BITMAP, 17, 136),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT));
                 sprite.set_num_frames(8, true);
+                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             },
             RES_LG_EXPLOSION_BITMAP => {
@@ -114,9 +124,35 @@ impl TankGame{
                     BitmapRes::new(RES_LG_EXPLOSION_BITMAP, 33, 272),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT));
                 sprite.set_num_frames(8, true);
+                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             }
             _ => 0
+        }
+    }
+
+    //玩家加入游戏
+    pub fn join_game(&mut self, id:Option<&str>, name:Option<&str>){
+        //添加坦克精灵
+        let sprite_index = TankGame::add_sprite(&mut self.engine, id, RES_TANK_BITMAP);
+        self.add_sprite_event(SpriteEvent::Add, sprite_index);//添加事件
+        let sprite = &mut self.engine.sprites()[sprite_index];
+        //添加玩家信息
+        self.players.insert(sprite.id.clone(), Player{
+            name: String::from(name.unwrap_or(""))
+        });
+    }
+
+    //离开游戏/断线
+    pub fn leave_game(&mut self, id:Option<&str>){
+        if let Some(id) = id{
+            let id = &String::from(id);
+            //查找玩家id对应的精灵, 将其删除
+            self.players.remove(id);
+            if let Some(index) = self.engine.query_sprite_idx(id){
+                self.add_sprite_event(SpriteEvent::Delete, index);//事件
+                self.engine.sprites()[index].kill();
+            }
         }
     }
 
@@ -124,7 +160,7 @@ impl TankGame{
     pub fn handle_event(&mut self, event: SpriteEvent, sprite_info: SpriteInfo){
         if let Some(sprite_idx) = match event{
             SpriteEvent::Add => {
-                Some(TankGame::add_sprite(&mut self.engine, sprite_info.res))
+                Some(TankGame::add_sprite(&mut self.engine, Some(&sprite_info.id), sprite_info.res))
             }
             SpriteEvent::Update => {
                 self.engine.query_sprite_idx(&sprite_info.id)
@@ -147,15 +183,16 @@ impl TankGame{
     //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
     //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
     pub fn update_sprites(&mut self){
-        self.engine.update_sprites(&mut |_,_|{}, |_,_,_|{false});
+        self.engine.update_sprites(&mut |_,_|{}, &mut |_,_,_|{false});
     }
 
     //更新游戏
     pub fn update(&mut self){
-        let mut events:Vec<(SpriteEvent, usize)> = vec![];
+        let mut events_dying:Vec<(SpriteEvent, usize)> = vec![];
+        let mut events_hitt: Vec<(SpriteEvent, usize)> = vec![];
         self.engine.update_sprites(&mut |engine:&mut GameEngine, idx_sprite_dying|{
 
-            events.push((SpriteEvent::Delete, idx_sprite_dying));//事件
+            events_dying.push((SpriteEvent::Delete, idx_sprite_dying));//事件
             //精灵死亡
             let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
             //在精灵位置创建不同的爆炸精灵
@@ -165,34 +202,49 @@ impl TankGame{
                 }
                 _ => RES_LG_EXPLOSION_BITMAP
             };
-            let idx = TankGame::add_sprite(engine, res);
+            let idx = TankGame::add_sprite(engine, None, res);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
-            events.push((SpriteEvent::Add, idx));//事件
+            events_dying.push((SpriteEvent::Add, idx));//事件
 
-        }, |engine, idx_sprite_hitter, idx_sprite_hittee|{
+        }, &mut |engine:&mut GameEngine, idx_sprite_hitter, idx_sprite_hittee|{
 
             //碰撞检测
             let hitter = engine.sprites()[idx_sprite_hitter].bitmap().id();
             let hittee = engine.sprites()[idx_sprite_hittee].bitmap().id();
             if hitter == RES_MISSILE_BITMAP && hittee == RES_TANK_BITMAP ||
             hitter == RES_TANK_BITMAP && hittee == RES_MISSILE_BITMAP{
-                //杀死子弹和坦克
+                //杀死相撞的子弹和坦克
                 engine.kill_sprite(idx_sprite_hittee);
+                events_hitt.push((SpriteEvent::Delete, idx_sprite_hittee));//事件
                 engine.kill_sprite(idx_sprite_hitter);
-            }
+                events_hitt.push((SpriteEvent::Delete, idx_sprite_hitter));//事件
 
-            //检测子弹和子弹是否碰撞
-            if hitter == RES_MISSILE_BITMAP && hittee == RES_MISSILE_BITMAP{
-                //杀死子弹
+                //坦克死亡将玩家删除
+                if hitter == RES_TANK_BITMAP{
+                    self.players.remove(&String::from(engine.sprites()[idx_sprite_hitter].id));
+                }
+                if hittee == RES_TANK_BITMAP{
+                    self.players.remove(&String::from(engine.sprites()[idx_sprite_hittee].id));
+                }
+                true
+            }else if hitter == RES_MISSILE_BITMAP && hittee == RES_MISSILE_BITMAP{
+                //检测子弹和子弹是否碰撞
                 engine.kill_sprite(idx_sprite_hittee);
+                events_hitt.push((SpriteEvent::Delete, idx_sprite_hittee));//事件
                 engine.kill_sprite(idx_sprite_hitter);
+                events_hitt.push((SpriteEvent::Delete, idx_sprite_hitter));//事件
+                true
+            }else{
+                false
             }
-            true
         });
         
         //将事件存储的列表
-        for event in events{
+        for event in events_dying{
+            self.add_sprite_event(event.0, event.1);
+        }
+        for event in events_hitt{
             self.add_sprite_event(event.0, event.1);
         }
     }
@@ -227,7 +279,7 @@ impl TankGame{
             KEYCODE_SPACE=>{
                 let tank_position = *(self.engine.sprites()[idx].position());
                 //创建一个新的子弹精灵
-                let idx = TankGame::add_sprite(&mut self.engine, RES_MISSILE_BITMAP);
+                let idx = TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP);
                 //子弹的方向同玩家的方向
                 let direction = self.engine.query_sprite(sprite_id).unwrap().current_frame();
                 self.engine.sprites()[idx].set_current_frame(direction);

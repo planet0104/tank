@@ -19,14 +19,14 @@ const MSG_MOUSE_EVENT: isize = 5;
 
 
 // 服务器Web处理程序
-struct Player {
+struct Client {
     out: Sender,
     sender: GameSender<(Sender, isize, JsonValue)>
 }
 
-impl Player{}
+impl Client{}
 
-impl Handler for Player {
+impl Handler for Client {
 
     fn on_open(&mut self, shake: Handshake) -> Result<()> {
         println!("客户端连接:{:?}", shake.remote_addr());
@@ -64,7 +64,7 @@ impl Handler for Player {
 fn main() {
     let (game_sender, game_receiver) = channel();
 
-    let mut ws = WebSocket::new(|out| Player{
+    let mut ws = WebSocket::new(|out| Client{
         out: out,
         sender: game_sender.clone()
     }).unwrap();
@@ -103,13 +103,13 @@ fn main() {
 
                     MSG_START => {
                         //玩家加入游戏
-                        
+                        game.join_game(json["id"].as_str(), json["name"].as_str());
                     }
 
                     MSG_DISCONNECT => {
                         //玩家断开链
                         //如果玩家正在游戏，删除玩家
-
+                        
                     }
 
                     MSG_KEY_EVENT => {
