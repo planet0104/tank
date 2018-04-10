@@ -157,6 +157,7 @@ version = "1.0.0"
 dependencies = [
  "json 0.11.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "tank 0.1.0",
+ "uuid 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ws 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

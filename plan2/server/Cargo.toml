@@ -7,3 +7,4 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 tank = { path = "../tank" }
 ws = "0.7.6"
 json = "0.11.13"
+uuid = { version = "0.6", features = ["v4"] }

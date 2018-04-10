@@ -6,3 +6,5 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 [dependencies]
 rand = "0.4.2"
 uuid = { version = "0.6", features = ["v4"] }
+num-traits = "0.2"
+num-derive = "0.2"

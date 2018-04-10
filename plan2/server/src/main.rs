@@ -2,6 +2,8 @@ extern crate ws;
 #[macro_use]
 extern crate json;
 extern crate tank;
+extern crate uuid;
+use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
 use json::JsonValue;
 use std::sync::mpsc::channel;
@@ -21,7 +23,9 @@ const MSG_MOUSE_EVENT: isize = 5;
 // 服务器Web处理程序
 struct Client {
     out: Sender,
-    sender: GameSender<(Sender, isize, JsonValue)>
+    //isize 是玩家发送给服务器的消息ID, String是玩家的uuid, JsonValue是附加消息(如 keycode、鼠标坐标等等)
+    sender: GameSender<(Sender, isize, String, JsonValue)>,
+    uuid: String //玩家连线以后，创建uuid，此uuid也用于玩家精灵的id
 }
 
 impl Client{}
@@ -32,18 +36,19 @@ impl Handler for Client {
         println!("客户端连接:{:?}", shake.remote_addr());
 
         //玩家连线，从游戏拉去精灵数据，发送给客户端
-        self.sender.send((self.out, MSG_CONNECT, JsonValue::Null));
+        self.sender.send((self.out, MSG_CONNECT, self.uuid, JsonValue::Null));
         Ok(())
     }
 
     fn on_close(&mut self, code: CloseCode, reason: &str){
         //玩家下线
-        self.sender.send((self.out, MSG_DISCONNECT, JsonValue::Null));
+        self.sender.send((self.out, MSG_DISCONNECT, self.uuid, JsonValue::Null));
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         println!("on_message:{:?}", msg);
-
+        //服务器端接收的消息，只有两种 1、玩家加入游戏， 2、玩家键盘操作
+        //所以这里的精灵id自动填充uuid
         if msg.is_text(){
             if let Ok(json) = json::parse(&msg.into_text().unwrap()){
                 if json.is_array(){
@@ -51,7 +56,7 @@ impl Handler for Client {
                     if let Some(msg_id) = json[0].as_isize(){
                         //玩家开始游戏，通知游戏添加精灵，然后广播
                         //玩家键盘操作，通知游戏更新，然后广播
-                        self.sender.send((self.out, msg_id, json[1]));
+                        self.sender.send((self.out, msg_id, self.uuid, json[1]));
                         return  Ok(());
                     }
                 }
@@ -66,7 +71,8 @@ fn main() {
 
     let mut ws = WebSocket::new(|out| Client{
         out: out,
-        sender: game_sender.clone()
+        sender: game_sender.clone(),
+        uuid: Uuid::new_v4().hyphenated().to_string()
     }).unwrap();
     let broadcaster = ws.broadcaster();
 
@@ -77,7 +83,7 @@ fn main() {
         let mut game = TankGame::new();
         loop{
             //处理websocket传来的消息
-            if let Ok((sender, msg_id, json)) = game_receiver.try_recv(){
+            if let Ok((sender, msg_id, uuid, json)) = game_receiver.try_recv(){
                 match msg_id{
                     MSG_CONNECT => {
                         //玩家连线，返回所有精灵列表
@@ -107,14 +113,13 @@ fn main() {
                     }
 
                     MSG_DISCONNECT => {
-                        //玩家断开链
-                        //如果玩家正在游戏，删除玩家
-                        
+                        //玩家断开连接
+                        game.leave_game(&uuid)
                     }
 
                     MSG_KEY_EVENT => {
                         //玩家上传按键事件
-
+                        game.on_keydown_event();
                     }
 
                     MSG_MOUSE_EVENT => {

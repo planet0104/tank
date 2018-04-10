@@ -1,6 +1,8 @@
 
 extern crate uuid;
 extern crate rand;
+#[macro_use]
+extern crate num_derive;
 pub mod utils;
 mod engine;
 mod sprite; 
@@ -23,11 +25,11 @@ pub const RES_SM_EXPLOSION__BITMAP:i32 = 3;
 pub const TANK_VELOCITY:i32 = 6;
 pub const MISSILE_VELOCITY:i32 = 2;
 
-//-----------------------------------
-//-------------事件ID----------------
-pub const EVENT_MOUSE_MOVE:i32 = 0;
-pub const EVENT_MOUSE_CLICK:i32 = 1;
-pub const EVENT_TOUCH_MOVE:i32 = 10;
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum MouseEvent{
+    MOUSE_MOVE,
+    MOUSE_CLICK,
+}
 
 pub const KEYCODE_LEFT:i32 = 37;
 pub const KEYCODE_RIGHT:i32 = 39;
@@ -35,11 +37,13 @@ pub const KEYCODE_UP:i32 = 38;
 pub const KEYCODE_DOWN:i32 = 40;
 pub const KEYCODE_SPACE:i32 = 32;
 
-pub const MSG_CREATE:i32 = 1;
-pub const MSG_DELETE:i32 = 2;
-pub const MSG_UPDATE:i32 = 3;
-pub const MSG_QUERY:i32 = 4;
 pub const GMAE_TITLE:&'static str = "Tank";
+
+#[derive(FromPrimitive, ToPrimitive)]
+pub enum KeyEvent {
+    KEY_DOWN,
+    KEY_UP,
+}
 
 pub enum SpriteEvent{
     Add,
@@ -144,20 +148,17 @@ impl TankGame{
     }
 
     //离开游戏/断线
-    pub fn leave_game(&mut self, id:Option<&str>){
-        if let Some(id) = id{
-            let id = &String::from(id);
-            //查找玩家id对应的精灵, 将其删除
-            self.players.remove(id);
-            if let Some(index) = self.engine.query_sprite_idx(id){
-                self.add_sprite_event(SpriteEvent::Delete, index);//事件
-                self.engine.sprites()[index].kill();
-            }
+    pub fn leave_game(&mut self, id:&String){
+        //查找玩家id对应的精灵, 将其删除
+        self.players.remove(id);
+        if let Some(index) = self.engine.query_sprite_idx(id){
+            self.add_sprite_event(SpriteEvent::Delete, index);//事件
+            self.engine.sprites()[index].kill();
         }
     }
 
     //客户端接受到服务器发送来的消息，将消息传递给此方法，来更新渲染
-    pub fn handle_event(&mut self, event: SpriteEvent, sprite_info: SpriteInfo){
+    pub fn handle_server_event(&mut self, event: SpriteEvent, sprite_info: SpriteInfo){
         if let Some(sprite_idx) = match event{
             SpriteEvent::Add => {
                 Some(TankGame::add_sprite(&mut self.engine, Some(&sprite_info.id), sprite_info.res))
@@ -183,16 +184,18 @@ impl TankGame{
     //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
     //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
     pub fn update_sprites(&mut self){
-        self.engine.update_sprites(&mut |_,_|{}, &mut |_,_,_|{false});
+        self.engine.update_sprites(&mut |_,_|{}, |_,_,_|{false});
     }
 
     //更新游戏
     pub fn update(&mut self){
-        let mut events_dying:Vec<(SpriteEvent, usize)> = vec![];
-        let mut events_hitt: Vec<(SpriteEvent, usize)> = vec![];
+        let mut sprites_dying = vec![];
+        let mut sprites_add = vec![];
+
+        //更新游戏，并处理精灵死亡、碰撞检测回调
         self.engine.update_sprites(&mut |engine:&mut GameEngine, idx_sprite_dying|{
 
-            events_dying.push((SpriteEvent::Delete, idx_sprite_dying));//事件
+            sprites_dying.push(idx_sprite_dying);
             //精灵死亡
             let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
             //在精灵位置创建不同的爆炸精灵
@@ -205,10 +208,10 @@ impl TankGame{
             let idx = TankGame::add_sprite(engine, None, res);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
-            events_dying.push((SpriteEvent::Add, idx));//事件
+            sprites_add.push(idx);
 
-        }, &mut |engine:&mut GameEngine, idx_sprite_hitter, idx_sprite_hittee|{
-
+        }, |engine, idx_sprite_hitter, idx_sprite_hittee|{
+            //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
             //碰撞检测
             let hitter = engine.sprites()[idx_sprite_hitter].bitmap().id();
             let hittee = engine.sprites()[idx_sprite_hittee].bitmap().id();
@@ -216,36 +219,30 @@ impl TankGame{
             hitter == RES_TANK_BITMAP && hittee == RES_MISSILE_BITMAP{
                 //杀死相撞的子弹和坦克
                 engine.kill_sprite(idx_sprite_hittee);
-                events_hitt.push((SpriteEvent::Delete, idx_sprite_hittee));//事件
                 engine.kill_sprite(idx_sprite_hitter);
-                events_hitt.push((SpriteEvent::Delete, idx_sprite_hitter));//事件
-
-                //坦克死亡将玩家删除
-                if hitter == RES_TANK_BITMAP{
-                    self.players.remove(&String::from(engine.sprites()[idx_sprite_hitter].id));
-                }
-                if hittee == RES_TANK_BITMAP{
-                    self.players.remove(&String::from(engine.sprites()[idx_sprite_hittee].id));
-                }
                 true
             }else if hitter == RES_MISSILE_BITMAP && hittee == RES_MISSILE_BITMAP{
                 //检测子弹和子弹是否碰撞
                 engine.kill_sprite(idx_sprite_hittee);
-                events_hitt.push((SpriteEvent::Delete, idx_sprite_hittee));//事件
                 engine.kill_sprite(idx_sprite_hitter);
-                events_hitt.push((SpriteEvent::Delete, idx_sprite_hitter));//事件
                 true
             }else{
                 false
             }
         });
         
-        //将事件存储的列表
-        for event in events_dying{
-            self.add_sprite_event(event.0, event.1);
+        //添加精灵事件
+        for idx in sprites_add{
+            self.add_sprite_event(SpriteEvent::Add, idx);
         }
-        for event in events_hitt{
-            self.add_sprite_event(event.0, event.1);
+        //删除精灵事件
+        for idx in sprites_dying{
+            self.add_sprite_event(SpriteEvent::Delete, idx);
+            //坦克死亡将玩家删除
+            let sprite = &self.engine.sprites()[idx];
+            if sprite.bitmap().id() == RES_TANK_BITMAP{
+                self.players.remove(&sprite.id);
+            }
         }
     }
 
@@ -273,8 +270,19 @@ impl TankGame{
     }
 
     //键盘按下，坦克移动、发射子弹
-    pub fn on_keyup_event(&mut self, keycode:i32, sprite_id: &String){
+    pub fn on_keyup_event(&mut self, event: &KeyEvent, keycode:i32, sprite_id: &String){
         let idx = self.engine.query_sprite_idx(sprite_id).unwrap();
+
+        match event{
+            KeyEvent::KEY_UP{
+
+            }
+            
+            KeyEvent::KEY_DOWN{
+
+            }
+        }
+
         match keycode{
             KEYCODE_SPACE=>{
                 let tank_position = *(self.engine.sprites()[idx].position());
