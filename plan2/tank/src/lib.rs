@@ -27,8 +27,8 @@ pub const MISSILE_VELOCITY:i32 = 2;
 
 #[derive(FromPrimitive, ToPrimitive)]
 pub enum MouseEvent{
-    MOUSE_MOVE,
-    MOUSE_CLICK,
+    MouseMove,
+    MouseClick,
 }
 
 pub const KEYCODE_LEFT:i32 = 37;
@@ -41,8 +41,8 @@ pub const GMAE_TITLE:&'static str = "Tank";
 
 #[derive(FromPrimitive, ToPrimitive)]
 pub enum KeyEvent {
-    KEY_DOWN,
-    KEY_UP,
+    KeyDown,
+    KeyUp,
 }
 
 pub enum SpriteEvent{
@@ -270,81 +270,74 @@ impl TankGame{
     }
 
     //键盘按下，坦克移动、发射子弹
-    pub fn on_keyup_event(&mut self, event: &KeyEvent, keycode:i32, sprite_id: &String){
+    pub fn on_key_event(&mut self, event: KeyEvent, key_code:i32, sprite_id: &String){
         let idx = self.engine.query_sprite_idx(sprite_id).unwrap();
 
         match event{
-            KeyEvent::KEY_UP{
-
+            KeyEvent::KeyUp => {
+                match key_code{
+                    KEYCODE_SPACE=>{
+                        let tank_position = *(self.engine.sprites()[idx].position());
+                        //创建一个新的子弹精灵
+                        let idx = TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP);
+                        //子弹的方向同玩家的方向
+                        let direction = self.engine.query_sprite(sprite_id).unwrap().current_frame();
+                        self.engine.sprites()[idx].set_current_frame(direction);
+                        match direction{
+                            0 => {
+                                self.engine.sprites()[idx].set_velocity(0, -MISSILE_VELOCITY);
+                                self.engine.sprites()[idx].set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.top-17);
+                            }
+                            1 => {
+                                self.engine.sprites()[idx].set_velocity(0, MISSILE_VELOCITY);
+                                self.engine.sprites()[idx].set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.bottom);
+                            }
+                            2 => {
+                                self.engine.sprites()[idx].set_velocity(-MISSILE_VELOCITY, 0);
+                                self.engine.sprites()[idx].set_position(tank_position.left-17, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                            }
+                            3 => {
+                                self.engine.sprites()[idx].set_velocity(MISSILE_VELOCITY, 0);
+                                self.engine.sprites()[idx].set_position(tank_position.right, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                            }
+                            _=> {}
+                        }   
+                        self.add_sprite_event(SpriteEvent::Update, idx);
+                    }
+                    KEYCODE_LEFT | KEYCODE_RIGHT | KEYCODE_UP | KEYCODE_DOWN =>{
+                        self.engine.sprites()[idx].set_velocity(0, 0);
+                        self.add_sprite_event(SpriteEvent::Update, idx);
+                    }
+                    _ => {}
+                }
             }
             
-            KeyEvent::KEY_DOWN{
-
-            }
-        }
-
-        match keycode{
-            KEYCODE_SPACE=>{
-                let tank_position = *(self.engine.sprites()[idx].position());
-                //创建一个新的子弹精灵
-                let idx = TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP);
-                //子弹的方向同玩家的方向
-                let direction = self.engine.query_sprite(sprite_id).unwrap().current_frame();
-                self.engine.sprites()[idx].set_current_frame(direction);
-                match direction{
-                    0 => {
-                        self.engine.sprites()[idx].set_velocity(0, -MISSILE_VELOCITY);
-                        self.engine.sprites()[idx].set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.top-17);
+            KeyEvent::KeyDown => {
+                //键盘弹起坦克停止走动
+                match key_code{
+                    KEYCODE_LEFT => {
+                        self.engine.sprites()[idx].set_current_frame(2);
+                        self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
+                        self.add_sprite_event(SpriteEvent::Update, idx);
                     }
-                    1 => {
-                        self.engine.sprites()[idx].set_velocity(0, MISSILE_VELOCITY);
-                        self.engine.sprites()[idx].set_position(tank_position.left+(tank_position.right-tank_position.left)/2-8, tank_position.bottom);
+                    KEYCODE_RIGHT => {
+                        self.engine.sprites()[idx].set_current_frame(3);
+                        self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
+                        self.add_sprite_event(SpriteEvent::Update, idx);
                     }
-                    2 => {
-                        self.engine.sprites()[idx].set_velocity(-MISSILE_VELOCITY, 0);
-                        self.engine.sprites()[idx].set_position(tank_position.left-17, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                    KEYCODE_UP => {
+                        self.engine.sprites()[idx].set_current_frame(0);
+                        self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
+                        self.add_sprite_event(SpriteEvent::Update, idx);
                     }
-                    3 => {
-                        self.engine.sprites()[idx].set_velocity(MISSILE_VELOCITY, 0);
-                        self.engine.sprites()[idx].set_position(tank_position.right, tank_position.top-(tank_position.top-tank_position.bottom)/2-8);
+                    KEYCODE_DOWN => {
+                        self.engine.sprites()[idx].set_current_frame(1);
+                        self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
+                        self.add_sprite_event(SpriteEvent::Update, idx);
                     }
-                    _=> {}
-                }   
-                self.add_sprite_event(SpriteEvent::Update, idx);
+                    _ => {}
+                }
             }
-            KEYCODE_LEFT | KEYCODE_RIGHT | KEYCODE_UP | KEYCODE_DOWN =>{
-                self.engine.sprites()[idx].set_velocity(0, 0);
-                self.add_sprite_event(SpriteEvent::Update, idx);
-            }
-            _ => {}
-        }
-    }
-
-    //键盘弹起坦克停止走动
-    pub fn on_keydown_event(&mut self, keycode:i32, sprite_id: &String){
-        let idx = self.engine.query_sprite_idx(sprite_id).unwrap();
-         match keycode{
-            KEYCODE_LEFT => {
-                self.engine.sprites()[idx].set_current_frame(2);
-                self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
-                self.add_sprite_event(SpriteEvent::Update, idx);
-            }
-            KEYCODE_RIGHT => {
-                self.engine.sprites()[idx].set_current_frame(3);
-                self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
-                self.add_sprite_event(SpriteEvent::Update, idx);
-            }
-            KEYCODE_UP => {
-                self.engine.sprites()[idx].set_current_frame(0);
-                self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
-                self.add_sprite_event(SpriteEvent::Update, idx);
-            }
-            KEYCODE_DOWN => {
-                self.engine.sprites()[idx].set_current_frame(1);
-                self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
-                self.add_sprite_event(SpriteEvent::Update, idx);
-            }
-            _ => {}
         }
     }
 

@@ -119,7 +119,7 @@ fn main() {
 
                     MSG_KEY_EVENT => {
                         //玩家上传按键事件
-                        game.on_keydown_event();
+                        game.on_key_event();
                     }
 
                     MSG_MOUSE_EVENT => {
