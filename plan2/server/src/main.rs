@@ -3,13 +3,14 @@ extern crate ws;
 extern crate json;
 extern crate tank;
 extern crate uuid;
+extern crate num;
 use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
 use json::JsonValue;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as GameSender;
 use std::time::Duration;
-use tank::TankGame;
+use tank::{TankGame, KeyEvent, SpriteEvent};
 use tank::utils::Timer;
 use std::thread;
 
@@ -36,19 +37,18 @@ impl Handler for Client {
         println!("客户端连接:{:?}", shake.remote_addr());
 
         //玩家连线，从游戏拉去精灵数据，发送给客户端
-        self.sender.send((self.out, MSG_CONNECT, self.uuid, JsonValue::Null));
+        let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), JsonValue::Null));
         Ok(())
     }
 
     fn on_close(&mut self, code: CloseCode, reason: &str){
         //玩家下线
-        self.sender.send((self.out, MSG_DISCONNECT, self.uuid, JsonValue::Null));
+        let _ = self.sender.send((self.out.clone(), MSG_DISCONNECT, self.uuid.clone(), JsonValue::Null));
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         println!("on_message:{:?}", msg);
         //服务器端接收的消息，只有两种 1、玩家加入游戏， 2、玩家键盘操作
-        //所以这里的精灵id自动填充uuid
         if msg.is_text(){
             if let Ok(json) = json::parse(&msg.into_text().unwrap()){
                 if json.is_array(){
@@ -56,7 +56,7 @@ impl Handler for Client {
                     if let Some(msg_id) = json[0].as_isize(){
                         //玩家开始游戏，通知游戏添加精灵，然后广播
                         //玩家键盘操作，通知游戏更新，然后广播
-                        self.sender.send((self.out, msg_id, self.uuid, json[1]));
+                        let _ = self.sender.send((self.out.clone(), msg_id, self.uuid.clone(), json[1].clone()));
                         return  Ok(());
                     }
                 }
@@ -69,7 +69,7 @@ impl Handler for Client {
 fn main() {
     let (game_sender, game_receiver) = channel();
 
-    let mut ws = WebSocket::new(|out| Client{
+    let ws = WebSocket::new(|out| Client{
         out: out,
         sender: game_sender.clone(),
         uuid: Uuid::new_v4().hyphenated().to_string()
@@ -88,7 +88,7 @@ fn main() {
                     MSG_CONNECT => {
                         //玩家连线，返回所有精灵列表
                         let sprites = game.sprites();
-                        let array = vec![];
+                        let mut array = vec![];
                         for sprite in sprites{
                             array.push(
                                 object!{
@@ -104,12 +104,12 @@ fn main() {
                                 }
                             );
                         }
-                        sender.send(Message::text(json::stringify(array)));
+                        let _ = sender.send(Message::text(json::stringify(array)));
                     }
 
                     MSG_START => {
                         //玩家加入游戏
-                        game.join_game(json["id"].as_str(), json["name"].as_str());
+                        game.join_game(&uuid, json["name"].as_str());
                     }
 
                     MSG_DISCONNECT => {
@@ -119,28 +119,35 @@ fn main() {
 
                     MSG_KEY_EVENT => {
                         //玩家上传按键事件
-                        game.on_key_event();
+                        let event = json[0].as_i32();
+                        let key_code = json[1].as_i32();
+                        if event.is_some() && key_code.is_some(){
+                            if let Some(event) = num::FromPrimitive::from_i32(event.unwrap()){
+                                game.on_key_event(event, key_code.unwrap(), &uuid);
+                            }
+                        }
                     }
 
                     MSG_MOUSE_EVENT => {
                         //玩家上传鼠标事件
                     }
+
+                    _ => {}
                 }
             }
-            
             
             if timer.ready_for_next_frame(){
                 game.update();
 
                 //游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
                 {
-                    let mut events = game.events();
+                    let events = game.events();
                     for event in events{
-                        broadcaster.broadcast(Message::text(json::stringify(
+                        let _ = broadcaster.broadcast(Message::text(json::stringify(
                             object!{
-                                "event" => event.0,
+                                "event" => num::ToPrimitive::to_i32(&event.0).unwrap(),
                                 "msg" => object!{
-                                            "id" => event.1.id,
+                                            "id" => event.1.id.clone(),
                                             "res" => event.1.res,
                                             "l" => event.1.l,
                                             "t" => event.1.t,
