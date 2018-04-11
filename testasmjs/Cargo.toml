@@ -4,6 +4,6 @@ version = "0.1.0"
 authors = ["Jia Ye <planet0104@gmail.com>"]
 
 [dependencies]
-stdweb = "*"
+stdweb = "0.4.3"
 rand = "0.4.2"
 uuid = { version = "0.6", features = ["v4"] }

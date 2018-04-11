@@ -1,11 +1,8 @@
 [package]
-name = "tank"
+name = "client"
 version = "1.0.0"
 authors = ["Jia Ye <planet0104@gmail.com>"]
 
-[lib]
-path = "src/game.rs"
-crate-type = ["cdylib"]
-
 [dependencies]
-json = "0.11.13"
+stdweb = "0.4.3"
+tank = { path = "../tank" }

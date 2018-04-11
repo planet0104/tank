@@ -1,31 +1,30 @@
 extern crate ws;
 #[macro_use]
-extern crate json;
+extern crate serde_json;
 extern crate tank;
 extern crate uuid;
 extern crate num;
+use serde_json::value::Value;
 use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
-use json::JsonValue;
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as GameSender;
 use std::time::Duration;
-use tank::{TankGame, KeyEvent, SpriteEvent};
+use tank::TankGame;
 use tank::utils::Timer;
 use std::thread;
 
-const MSG_CONNECT: isize = 1;
-const MSG_DISCONNECT: isize = 2;
-const MSG_START: isize = 3;
-const MSG_KEY_EVENT: isize = 4;
-const MSG_MOUSE_EVENT: isize = 5;
-
+const MSG_CONNECT: i64 = 1;
+const MSG_DISCONNECT: i64 = 2;
+const MSG_START: i64 = 3;
+const MSG_KEY_EVENT: i64 = 4;
+const MSG_MOUSE_EVENT: i64 = 5;
 
 // 服务器Web处理程序
 struct Client {
     out: Sender,
     //isize 是玩家发送给服务器的消息ID, String是玩家的uuid, JsonValue是附加消息(如 keycode、鼠标坐标等等)
-    sender: GameSender<(Sender, isize, String, JsonValue)>,
+    sender: GameSender<(Sender, i64, String, Value)>,
     uuid: String //玩家连线以后，创建uuid，此uuid也用于玩家精灵的id
 }
 
@@ -37,28 +36,26 @@ impl Handler for Client {
         println!("客户端连接:{:?}", shake.remote_addr());
 
         //玩家连线，从游戏拉去精灵数据，发送给客户端
-        let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), JsonValue::Null));
+        let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), json!(null)));
         Ok(())
     }
 
-    fn on_close(&mut self, code: CloseCode, reason: &str){
+    fn on_close(&mut self, _code: CloseCode, _reason: &str){
         //玩家下线
-        let _ = self.sender.send((self.out.clone(), MSG_DISCONNECT, self.uuid.clone(), JsonValue::Null));
+        let _ = self.sender.send((self.out.clone(), MSG_DISCONNECT, self.uuid.clone(), json!(null)));
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         println!("on_message:{:?}", msg);
         //服务器端接收的消息，只有两种 1、玩家加入游戏， 2、玩家键盘操作
-        if msg.is_text(){
-            if let Ok(json) = json::parse(&msg.into_text().unwrap()){
-                if json.is_array(){
-                    //将消息转换成整数数组
-                    if let Some(msg_id) = json[0].as_isize(){
-                        //玩家开始游戏，通知游戏添加精灵，然后广播
-                        //玩家键盘操作，通知游戏更新，然后广播
-                        let _ = self.sender.send((self.out.clone(), msg_id, self.uuid.clone(), json[1].clone()));
-                        return  Ok(());
-                    }
+        if let Ok(text) = msg.into_text(){
+            let value:Value = serde_json::from_str(text.as_str()).unwrap();
+            if let Some(array) = value.as_array(){
+                if let Some(msg_id) = array[0].as_i64(){
+                    //玩家开始游戏，通知游戏添加精灵，然后广播
+                    //玩家键盘操作，通知游戏更新，然后广播
+                    let _ = self.sender.send((self.out.clone(), msg_id, self.uuid.clone(), array[1].clone()));
+                    return  Ok(());
                 }
             }
         }
@@ -91,20 +88,22 @@ fn main() {
                         let mut array = vec![];
                         for sprite in sprites{
                             array.push(
-                                object!{
-                                    "id" => sprite.id.clone(),
-                                    "res" => sprite.bitmap().id(),
-                                    "l" => sprite.position().left,
-                                    "t" => sprite.position().top,
-                                    "r" => sprite.position().right,
-                                    "b" => sprite.position().bottom,
-                                    "vx" => sprite.velocity().x,
-                                    "vy" => sprite.velocity().y,
-                                    "frame" => sprite.current_frame()
-                                }
+                                json!({
+                                    "id" : sprite.id.clone(),
+                                    "res" : sprite.bitmap().id(),
+                                    "l" : sprite.position().left,
+                                    "t" : sprite.position().top,
+                                    "r" : sprite.position().right,
+                                    "b" : sprite.position().bottom,
+                                    "vx" : sprite.velocity().x,
+                                    "vy" : sprite.velocity().y,
+                                    "frame" : sprite.current_frame()
+                                })
                             );
                         }
-                        let _ = sender.send(Message::text(json::stringify(array)));
+                        if let Ok(string) = serde_json::to_string(&array){
+                            let _ = sender.send(Message::text(string));
+                        }
                     }
 
                     MSG_START => {
@@ -119,11 +118,11 @@ fn main() {
 
                     MSG_KEY_EVENT => {
                         //玩家上传按键事件
-                        let event = json[0].as_i32();
-                        let key_code = json[1].as_i32();
-                        if event.is_some() && key_code.is_some(){
-                            if let Some(event) = num::FromPrimitive::from_i32(event.unwrap()){
-                                game.on_key_event(event, key_code.unwrap(), &uuid);
+                        let event = json[0].as_i64();
+                        let key = json[1].as_str();
+                        if event.is_some() && key.is_some(){
+                            if let Some(event) = num::FromPrimitive::from_i64(event.unwrap()){
+                                game.on_key_event(event, key.unwrap(), &uuid);
                             }
                         }
                     }
@@ -142,23 +141,17 @@ fn main() {
                 //游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
                 {
                     let events = game.events();
+                    let mut array = vec![];
                     for event in events{
-                        let _ = broadcaster.broadcast(Message::text(json::stringify(
-                            object!{
-                                "event" => num::ToPrimitive::to_i32(&event.0).unwrap(),
-                                "msg" => object!{
-                                            "id" => event.1.id.clone(),
-                                            "res" => event.1.res,
-                                            "l" => event.1.l,
-                                            "t" => event.1.t,
-                                            "r" => event.1.r,
-                                            "b" => event.1.b,
-                                            "vx" => event.1.vx,
-                                            "vy" => event.1.vy,
-                                            "frame" => event.1.frame
-                                        }
-                            }
-                        )));
+                        array.push(
+                            json!({
+                                "event" : num::ToPrimitive::to_i32(&event.0).unwrap(),
+                                "msg" : json!{event.1}
+                            })
+                        );
+                    }
+                    if let Ok(string) = serde_json::to_string(&array){
+                        let _ = broadcaster.broadcast(Message::text(string));
                     }
                 }
                 //清空事件

@@ -3,6 +3,10 @@ extern crate uuid;
 extern crate rand;
 #[macro_use]
 extern crate num_derive;
+extern crate serde;
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 pub mod utils;
 mod engine;
 mod sprite; 
@@ -31,15 +35,9 @@ pub enum MouseEvent{
     MouseClick,
 }
 
-pub const KEYCODE_LEFT:i32 = 37;
-pub const KEYCODE_RIGHT:i32 = 39;
-pub const KEYCODE_UP:i32 = 38;
-pub const KEYCODE_DOWN:i32 = 40;
-pub const KEYCODE_SPACE:i32 = 32;
-
 pub const GMAE_TITLE:&'static str = "Tank";
 
-#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Debug, FromPrimitive, ToPrimitive)]
 pub enum KeyEvent {
     KeyDown,
     KeyUp,
@@ -52,6 +50,7 @@ pub enum SpriteEvent{
     Delete
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct SpriteInfo{
     pub id: String,
     pub res: i32,//资源ID
@@ -271,12 +270,12 @@ impl TankGame{
     }
 
     //键盘按下，坦克移动、发射子弹
-    pub fn on_key_event(&mut self, event: KeyEvent, key_code:i32, sprite_id: &String){
+    pub fn on_key_event(&mut self, event: KeyEvent, key:&str, sprite_id: &String){
         if let Some(idx) = self.engine.query_sprite_idx(sprite_id){
             match event{
                 KeyEvent::KeyDown => {
-                    match key_code{
-                        KEYCODE_SPACE => {
+                    match key{
+                        " " => {
                             let tank_position = *(self.engine.sprites()[idx].position());
                             //创建一个新的子弹精灵
                             let missile_idx = TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP);
@@ -306,7 +305,7 @@ impl TankGame{
                                 _=> {}
                             }
                         }
-                        KEYCODE_LEFT | KEYCODE_RIGHT | KEYCODE_UP | KEYCODE_DOWN =>{
+                        "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" =>{
                             self.engine.sprites()[idx].set_velocity(0, 0);
                             self.add_sprite_event(SpriteEvent::Update, idx);
                         }
@@ -318,23 +317,23 @@ impl TankGame{
                     //键盘弹起坦克停止走动
                     let do_update = {
                         let mut tank = &mut self.engine.sprites()[idx];
-                        match key_code{
-                            KEYCODE_LEFT => {
+                        match key{
+                            "ArrowLeft" => {
                                 tank.set_current_frame(2);
                                 tank.set_velocity(-TANK_VELOCITY, 0);
                                 true
                             }
-                            KEYCODE_RIGHT => {
+                            "ArrowRight" => {
                                 tank.set_current_frame(3);
                                 tank.set_velocity(TANK_VELOCITY, 0);
                                 true
                             }
-                            KEYCODE_UP => {
+                            "ArrowUp" => {
                                 tank.set_current_frame(0);
                                 tank.set_velocity(0, -TANK_VELOCITY);
                                 true
                             }
-                            KEYCODE_DOWN => {
+                            "ArrowDown" => {
                                 tank.set_current_frame(1);
                                 tank.set_velocity(0, TANK_VELOCITY);
                                 true
