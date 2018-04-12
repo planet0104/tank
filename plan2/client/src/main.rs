@@ -93,12 +93,12 @@ thread_local!{
 fn main(){
     stdweb::initialize();
 
-    let window = window();
+    //let window = window();
     let canvas: CanvasElement = document().query_selector("#canvas").unwrap().unwrap().try_into().unwrap();
-    // let context: CanvasRenderingContext2d = canvas.get_context().unwrap();
-    // canvas.set_width(CLIENT_WIDTH as u32);
-    // canvas.set_height(CLIENT_HEIGHT as u32);
-    // resize_window(canvas.clone());
+    //let context: CanvasRenderingContext2d = canvas.get_context().unwrap();
+    //canvas.set_width(CLIENT_WIDTH as u32);
+    //canvas.set_height(CLIENT_HEIGHT as u32);
+    //resize_window(canvas.clone());
 
     // //添加事件
     // window.add_event_listener( enclose!( (canvas) move |_: ResizeEvent| { resize_window(canvas.clone()); }));
