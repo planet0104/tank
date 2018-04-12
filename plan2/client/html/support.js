@@ -1,17 +1,15 @@
-//加载图片资源
-function loadResources(srcMap, cb, listener){
+//加载图片资源 srcMap为json对象
+function loadResources(srcMap, listener){
+    var total = Object.keys(srcMap).length;
     var resMap = new Map();
     function check(listener){
         if(listener)
-            listener(resMap.size, srcMap.size);
-        if(srcMap.size == resMap.size){
-            cb(resMap);
-        }
+            listener(resMap, resMap.size, total);
     }
-    for(var [key, url] of srcMap.entries()){
+    for(var key in srcMap){
             var image = new Image();
             image.key = key;
-            image.src = url;
+            image.src = srcMap[key];
             image.onload = function(){
                 resMap.set(this.key, this);
                 check(listener);

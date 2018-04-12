@@ -8,8 +8,8 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 pub mod utils;
-mod engine;
-mod sprite; 
+pub mod engine;
+mod sprite;
 use engine::{GameEngine, CanvasContext};
 use sprite::{BA_DIE, BA_WRAP, Sprite, BitmapRes, Rect };
 use std::collections::HashMap;

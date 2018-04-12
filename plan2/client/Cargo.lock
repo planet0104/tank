@@ -17,7 +17,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "client"
 version = "1.0.0"
 dependencies = [
- "json 0.11.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "stdweb 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tank 0.1.0",
 ]
@@ -54,11 +54,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "itoa"
 version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "json"
-version = "0.11.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -224,6 +219,9 @@ dependencies = [
  "num-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "uuid 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -270,7 +268,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum fuchsia-zircon-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 "checksum futures 0.1.21 (registry+https://github.com/rust-lang/crates.io-index)" = "1a70b146671de62ec8c8ed572219ca5d594d9b06c0b364d5e67b722fc559b48c"
 "checksum itoa 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c069bbec61e1ca5a596166e55dfe4773ff745c3d16b700013bcaff9a6df2c682"
-"checksum json 0.11.13 (registry+https://github.com/rust-lang/crates.io-index)" = "9ad0485404155f45cce53a40d4b2d6ac356418300daed05273d9e26f91c390be"
 "checksum libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)" = "6fd41f331ac7c5b8ac259b8bf82c75c0fb2e469bbf37d2becbba9a6a2221965b"
 "checksum num-derive 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "436caa80f4f29f5f050611b2fefda77ad617ca307038e89cfd9de2456510b317"
 "checksum num-traits 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "dee092fcdf725aee04dd7da1d21debff559237d49ef1cb3e69bcb8ece44c7364"

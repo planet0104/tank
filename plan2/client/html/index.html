@@ -7,6 +7,7 @@
     </head>
 <body style="padding:0px;margin:0">
 <canvas id="canvas" style="background:#ccc;"></canvas>
+<div id="console">日志.</div>
 <script>
 
     //是否支持Webassembly
@@ -43,13 +44,6 @@
             alert("连接失败，请重试");
         }
     }
-</script>
-<script>
-    var Module = {
-        onRuntimeInitialized: function(){
-            console.log('onRuntimeInitialized');
-        }
-    };
 </script>
 <script src="client.js"></script>
 </body>
