@@ -3,7 +3,9 @@ name = "client"
 version = "1.0.0"
 authors = ["Jia Ye <planet0104@gmail.com>"]
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
-stdweb = "0.4.3"
 tank = { path = "../tank" }
 serde_json = "1.0.13"

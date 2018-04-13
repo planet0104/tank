@@ -1,0 +1,50 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, user-scalable=no">
+        <meta charset="utf-8">
+        <script src="support.js"></script>
+    </head>
+<body style="padding:0px;margin:0">
+<canvas id="canvas" style="background:#ccc;"></canvas>
+<div id="console">日志.</div>
+<script>
+
+    //是否支持Webassembly
+    if(!support_webassembly()){
+        alert('不支持Webassembly，请更换浏览器。')
+    }
+
+    var socket;
+    var res_url_map = new Map(); //资源名称
+    var res_map; //加载好的资源
+
+    //连接websocket
+    function connect(){
+        socket = new WebSocket("ws://127.0.0.1:8000/ws");
+        console.log("连接服务器...");
+
+        socket.onopen = function(event) {
+            console.log("连接成功.");
+
+            exports.on_connect();
+
+            socket.onmessage = function(event){
+                console.log("onMessage:", event.data, event.data.length);
+                //拉取成功，刷新游戏数据
+                exports.on_message(write_string(event.data, exports.memory.buffer, message_buffer));
+            };
+
+            socket.onclose = function(event) {
+                alert("连接关闭，请重试");
+            };
+        }
+
+        socket.onerror = function(){
+            alert("连接失败，请重试");
+        }
+    }
+</script>
+<script src="client.js"></script>
+</body>
+</html>
