@@ -1,10 +1,20 @@
 extern crate rand;
 use rand::Rng;
 
+// extern "C" {
+//     pub fn _random() -> f64;
+// }
+
 //返回[low, low] 区间的数
 pub fn rand_int(low: i32, high: i32) -> i32 {
     rand::thread_rng().gen_range(low, high + 1)
 }
+
+// pub fn rand_int_js(l:i32, b:i32)->i32{
+//     unsafe{
+//         ((_random()*(b as f64 - l as f64 + 1.0)).floor()+l as f64) as i32
+//     }
+// }
 
 pub struct Timer {
     frame_time: u64,

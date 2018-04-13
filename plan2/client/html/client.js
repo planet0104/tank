@@ -30,12 +30,11 @@ var imports = {
         _current_time_millis: function(){
             return Date.now();
         },
-        _window_inner_width: function(){ return window.innerWidth; },
-        _window_inner_height: function(){ return window.innerHeight; },
-        canvas_offset_left: function(){ return canvas.offsetLeft; },
-        random: function(){
+        _random: function(){
             return Math.random();
         },
+        _window_inner_width: function(){ return window.innerWidth; },
+        _window_inner_height: function(){ return window.innerHeight; },
         _request_animation_frame: function(){
             window.requestAnimationFrame(exports.request_animation_frame_callback);
         },
@@ -77,11 +76,11 @@ var imports = {
         _fill_text: function(text_ptr, len, x, y){
             ctx.fillText(read_string(text_ptr, len), x, y);
         },
-        draw_image_at: function(resId, x, y){
-            ctx.drawImage(res_map.get(resId), x, y);
+        _draw_image_at: function(resId, x, y){
+            ctx.drawImage(window.resMap.get(resId+""), x, y);
         },
-        draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
-            ctx.drawImage(res_map.get(resId), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+        _draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
+            ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
         },
         _send_message: function(str, len){
             socket.send(read_string(str, len));
@@ -247,7 +246,7 @@ var socket;
 
 //连接websocket
 function connect(){
-    socket = new WebSocket("ws://127.0.0.1:8000/ws");
+    socket = new WebSocket("ws://127.0.0.1:8080");
     console.log("连接服务器...");
 
     socket.onopen = function(event) {

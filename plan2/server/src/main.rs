@@ -89,6 +89,7 @@ fn main() {
             if let Ok((sender, msg_id, uuid, json)) = game_receiver.try_recv(){
                 match msg_id{
                     MSG_CONNECT => {
+                        println!("玩家连接 {}", uuid);
                         //玩家连线，返回所有精灵列表
                         let sprites = game.sprites();
                         let mut array = vec![];

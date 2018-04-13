@@ -28,6 +28,16 @@ pub const RES_SM_EXPLOSION__BITMAP: i32 = 3;
 pub const TANK_VELOCITY: i32 = 6;
 pub const MISSILE_VELOCITY: i32 = 2;
 
+// extern "C" {
+//     pub fn _console_log(text: *const u8, len: usize);
+// }
+
+// pub fn console_log(msg: &str) {
+//     unsafe {
+//         _console_log(msg.as_ptr(), msg.len());
+//     }
+// }
+
 #[derive(FromPrimitive, ToPrimitive)]
 pub enum MouseEvent {
     MouseMove,
@@ -75,7 +85,7 @@ TankGame提供所有游戏更新方法
 (客户端不处理碰撞检测, 服务器检测到碰撞会自动将精灵状态下发到客户端)
 */
 pub struct TankGame {
-    engine: GameEngine,
+    pub engine: GameEngine,
     events: Vec<(SpriteEvent, SpriteInfo)>,
     players: HashMap<String, Player>,
 }

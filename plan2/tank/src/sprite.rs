@@ -3,6 +3,7 @@ extern crate uuid;
 use uuid::Uuid;
 use utils::rand_int;
 use engine::CanvasContext;
+//use ::console_log;
 //精灵代码
 
 pub type SPRITEACTION = u32;

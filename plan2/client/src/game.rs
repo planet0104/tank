@@ -4,51 +4,25 @@ use std::cell::RefCell;
 use tank::{KeyEvent, TankGame, CLIENT_HEIGHT, CLIENT_WIDTH};
 use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION__BITMAP, RES_TANK_BITMAP};
 use tank::utils::Timer;
-use tank::engine::CanvasContext;
-use {console_log, current_time_millis, fill_rect, fill_style, fill_text, load_resource,
-     request_animation_frame, set_canvas_font, set_canvas_height, set_canvas_style_height,
-     set_canvas_style_margin, set_canvas_style_width, set_canvas_width, set_frame_callback,
-     set_on_keydown_listener, set_on_keyup_listener, set_on_resource_load_listener,
-     set_on_window_resize_listener, window_inner_height, window_inner_width};
+use ::Context2D;
+use {console_log, current_time_millis, draw_image, draw_image_at, fill_rect, fill_style,
+     fill_text, load_resource, request_animation_frame, set_canvas_font, set_canvas_height,
+     set_canvas_style_height, set_canvas_style_margin, set_canvas_style_width, set_canvas_width,
+     set_frame_callback, set_on_keydown_listener, set_on_keyup_listener,
+     set_on_resource_load_listener, set_on_window_resize_listener, window_inner_height,
+     window_inner_width};
 
 struct Env {
     timer: Timer,
     game: TankGame,
-}
-
-struct Context2D {}
-
-impl CanvasContext for Context2D {
-    fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
-        //ctx.drawImage(res_map.get(resId), x, y);
-    }
-
-    fn draw_image(
-        &self,
-        res_id: i32,
-        source_x: i32,
-        source_y: i32,
-        source_width: i32,
-        source_height: i32,
-        dest_x: i32,
-        dest_y: i32,
-        dest_width: i32,
-        dest_height: i32,
-    ) {
-
-    }
-
-    fn fill_style(&self, style: &str) {}
-
-    fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {}
-
-    fn fill_text(&self, text: &str, x: i32, y: i32) {}
+    context: Context2D,
 }
 
 thread_local!{
     static ENV: RefCell<Env> = RefCell::new(Env{
         timer:Timer::new(1, ||{ current_time_millis() }),
         game:TankGame::new(),
+        context: Context2D{}
     });
 }
 
@@ -106,6 +80,7 @@ pub fn start() {
             let mut env = e.borrow_mut();
             if env.timer.ready_for_next_frame() {
                 env.game.update_sprites();
+                env.game.draw(&env.context);
                 console_log(&format!("游戏循环 {}", timestamp));
             }
             request_animation_frame();

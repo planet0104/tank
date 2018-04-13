@@ -4,12 +4,13 @@ extern crate tank;
 mod game;
 use std::cell::RefCell;
 use std::mem;
+use tank::engine::CanvasContext;
 
 //导入的JS帮助函数
 extern "C" {
     pub fn _console_log(text: *const u8, len: usize);
     pub fn _current_time_millis() -> f64;
-    pub fn random() -> f64;
+    pub fn _random() -> f64;
     pub fn _request_animation_frame();
     pub fn _window_inner_width() -> i32;
     pub fn _window_inner_height() -> i32;
@@ -24,8 +25,8 @@ extern "C" {
     pub fn _fill_style(text: *const u8, len: usize);
     pub fn _fill_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn _fill_text(text: *const u8, len: usize, x: i32, y: i32);
-    pub fn draw_image_at(res_id: i32, x: i32, y: i32);
-    pub fn draw_image(
+    pub fn _draw_image_at(res_id: i32, x: i32, y: i32);
+    pub fn _draw_image(
         res_id: i32,
         source_x: i32,
         source_y: i32,
@@ -46,6 +47,7 @@ struct JS {
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
     on_keyup_listener: Option<fn(key: String)>,
     on_keydown_listener: Option<fn(key: String)>,
+    on_connect_listener: Option<fn()>,
 }
 
 thread_local!{
@@ -107,6 +109,37 @@ pub fn set_canvas_font(font: &str) {
     }
 }
 
+pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
+    unsafe {
+        _draw_image_at(res_id, x, y);
+    }
+}
+pub fn draw_image(
+    res_id: i32,
+    source_x: i32,
+    source_y: i32,
+    source_width: i32,
+    source_height: i32,
+    dest_x: i32,
+    dest_y: i32,
+    dest_width: i32,
+    dest_height: i32,
+) {
+    unsafe {
+        _draw_image(
+            res_id,
+            source_x,
+            source_y,
+            source_width,
+            source_height,
+            dest_x,
+            dest_y,
+            dest_width,
+            dest_height,
+        );
+    }
+}
+
 pub fn set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32) {
     unsafe { _set_canvas_style_margin(left, top, right, bottom) };
 }
@@ -132,6 +165,12 @@ pub fn set_frame_callback(callback: fn(f64)) {
 pub fn set_on_window_resize_listener(listener: fn()) {
     JS.with(|e| {
         e.borrow_mut().on_window_resize_listener = Some(listener);
+    });
+}
+
+pub fn on_connect_listener(listener: fn()) {
+    JS.with(|e| {
+        e.borrow_mut().on_connect_listener = Some(listener);
     });
 }
 
@@ -187,6 +226,15 @@ pub fn on_resource_load(num: i32, total: i32) {
 }
 
 #[no_mangle]
+pub fn on_connect() {
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_connect_listener {
+            callback();
+        }
+    });
+}
+
+#[no_mangle]
 pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
     let key = String::from_raw_parts(key, length, length);
     JS.with(|e| {
@@ -217,4 +265,49 @@ pub fn alloc(size: usize) -> *const u8 {
 #[no_mangle]
 pub fn start() {
     game::start();
+}
+
+pub struct Context2D {}
+
+impl CanvasContext for Context2D {
+    fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
+        draw_image_at(res_id, x, y);
+    }
+
+    fn draw_image(
+        &self,
+        res_id: i32,
+        source_x: i32,
+        source_y: i32,
+        source_width: i32,
+        source_height: i32,
+        dest_x: i32,
+        dest_y: i32,
+        dest_width: i32,
+        dest_height: i32,
+    ) {
+        draw_image(
+            res_id,
+            source_x,
+            source_y,
+            source_width,
+            source_height,
+            dest_x,
+            dest_y,
+            dest_width,
+            dest_height,
+        );
+    }
+
+    fn fill_style(&self, style: &str) {
+        fill_style(style);
+    }
+
+    fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
+        fill_rect(x, y, width, height);
+    }
+
+    fn fill_text(&self, text: &str, x: i32, y: i32) {
+        fill_text(text, x, y);
+    }
 }
