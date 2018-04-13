@@ -83,26 +83,26 @@ pub fn window_inner_height() -> i32 {
     unsafe { _window_inner_height() }
 }
 
-pub fn fill_style(style: &str){
-    unsafe{
+pub fn fill_style(style: &str) {
+    unsafe {
         _fill_style(style.as_ptr(), style.len());
     }
 }
 
-pub fn fill_rect(x: i32, y: i32, width: i32, height: i32){
-    unsafe{
+pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
         _fill_rect(x, y, width, height);
     }
 }
 
-pub fn fill_text(text: &str, x: i32, y: i32){
-    unsafe{
+pub fn fill_text(text: &str, x: i32, y: i32) {
+    unsafe {
         _fill_text(text.as_ptr(), text.len(), x, y);
     }
 }
 
-pub fn set_canvas_font(font: &str){
-    unsafe{
+pub fn set_canvas_font(font: &str) {
+    unsafe {
         _set_canvas_font(font.as_ptr(), font.len());
     }
 }

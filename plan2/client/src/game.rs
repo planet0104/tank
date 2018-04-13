@@ -5,11 +5,11 @@ use tank::{KeyEvent, TankGame, CLIENT_HEIGHT, CLIENT_WIDTH};
 use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION__BITMAP, RES_TANK_BITMAP};
 use tank::utils::Timer;
 use tank::engine::CanvasContext;
-use {console_log, current_time_millis, load_resource, request_animation_frame, set_canvas_height,
-     set_canvas_style_height, set_canvas_style_margin, set_canvas_style_width, set_canvas_width,
-     set_frame_callback, set_on_keydown_listener, set_on_keyup_listener,
-     set_on_resource_load_listener, set_on_window_resize_listener, window_inner_height,
-     window_inner_width, fill_style, fill_rect, fill_text, set_canvas_font};
+use {console_log, current_time_millis, fill_rect, fill_style, fill_text, load_resource,
+     request_animation_frame, set_canvas_font, set_canvas_height, set_canvas_style_height,
+     set_canvas_style_margin, set_canvas_style_width, set_canvas_width, set_frame_callback,
+     set_on_keydown_listener, set_on_keyup_listener, set_on_resource_load_listener,
+     set_on_window_resize_listener, window_inner_height, window_inner_width};
 
 struct Env {
     timer: Timer,
@@ -68,16 +68,25 @@ pub fn start() {
     //加载游戏资源
     set_on_resource_load_listener(|num: i32, total: i32| {
         let percent = num as f32 / total as f32;
-        let bar_width = (CLIENT_WIDTH as f32/1.5) as i32;
-        let bar_height = bar_width/10;
-        let bar_left = CLIENT_WIDTH/2-bar_width/2;
-        let bar_top = CLIENT_HEIGHT/2-bar_height/2;
+        let bar_width = (CLIENT_WIDTH as f32 / 1.5) as i32;
+        let bar_height = bar_width / 10;
+        let bar_left = CLIENT_WIDTH / 2 - bar_width / 2;
+        let bar_top = CLIENT_HEIGHT / 2 - bar_height / 2;
         fill_style("rgb(200, 200, 200)");
         fill_rect(bar_left, bar_top, bar_width, bar_height);
         fill_style("rgb(120, 120, 255)");
-        fill_rect(bar_left, bar_top, (bar_width as f32*percent) as i32, bar_height);
+        fill_rect(
+            bar_left,
+            bar_top,
+            (bar_width as f32 * percent) as i32,
+            bar_height,
+        );
         fill_style("#ff0");
-        fill_text(&format!("资源加载中({}/{})", num, total), bar_left+bar_width/3, bar_top+bar_height/2+10);
+        fill_text(
+            &format!("资源加载中({}/{})", num, total),
+            bar_left + bar_width / 3,
+            bar_top + bar_height / 2 + 10,
+        );
         if num == total {
             //资源加载完成, 启动游戏循环
             request_animation_frame();
@@ -95,7 +104,7 @@ pub fn start() {
     let frame_callback = |timestamp| {
         ENV.with(|e| {
             let mut env = e.borrow_mut();
-            if env.timer.ready_for_next_frame(){
+            if env.timer.ready_for_next_frame() {
                 env.game.update_sprites();
                 console_log(&format!("游戏循环 {}", timestamp));
             }

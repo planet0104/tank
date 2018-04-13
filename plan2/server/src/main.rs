@@ -13,6 +13,7 @@ use std::time::Duration;
 use tank::TankGame;
 use tank::utils::Timer;
 use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const MSG_CONNECT: i64 = 1;
 const MSG_DISCONNECT: i64 = 2;
@@ -76,7 +77,12 @@ fn main() {
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let _gs  = thread::spawn(move || {
         let delay_ms = Duration::from_millis(10);
-        let mut timer = Timer::new(30);
+
+        let mut timer = Timer::new(30, ||->u64{
+                //当前时间戳
+                let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+                since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000
+        });
         let mut game = TankGame::new();
         loop{
             //处理websocket传来的消息
