@@ -14,12 +14,16 @@ use tank::TankGame;
 use tank::utils::Timer;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-const MSG_CONNECT: i64 = 1;
-const MSG_DISCONNECT: i64 = 2;
-const MSG_START: i64 = 3;
-const MSG_KEY_EVENT: i64 = 4;
-const MSG_MOUSE_EVENT: i64 = 5;
+use tank::{
+    KeyEvent,
+    MSG_CONNECT,
+    MSG_DISCONNECT,
+    MSG_START,
+    MSG_KEY_EVENT,
+    MSG_MOUSE_EVENT,
+    SERVER_MSG_EVENT,
+    SERVER_MSG_UUID
+};
 
 // 服务器Web处理程序
 struct Client {
@@ -37,6 +41,12 @@ impl Handler for Client {
         println!("客户端连接:{:?}", shake.remote_addr());
 
         //玩家连线，从游戏拉去精灵数据，发送给客户端
+        if let Ok(string) = serde_json::to_string(&json!([
+                    SERVER_MSG_UUID,
+                    self.uuid
+                ])){
+            let _ = self.out.send(Message::text(string));
+        }
         let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), json!(null)));
         Ok(())
     }
@@ -78,7 +88,7 @@ fn main() {
     let _gs  = thread::spawn(move || {
         let delay_ms = Duration::from_millis(10);
 
-        let mut timer = Timer::new(30, ||->u64{
+        let mut timer = Timer::new(2, ||->u64{
                 //当前时间戳
                 let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
                 since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000
@@ -128,9 +138,7 @@ fn main() {
                         let event = json[0].as_i64();
                         let key = json[1].as_str();
                         if event.is_some() && key.is_some(){
-                            if let Some(event) = num::FromPrimitive::from_i64(event.unwrap()){
-                                game.on_key_event(event, key.unwrap(), &uuid);
-                            }
+                            game.on_key_event(KeyEvent::from_i64(event.unwrap()), key.unwrap(), &uuid);
                         }
                     }
 
@@ -148,17 +156,22 @@ fn main() {
                 //游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
                 {
                     let events = game.events();
-                    let mut array = vec![];
-                    for event in events{
-                        array.push(
-                            json!({
-                                "event" : num::ToPrimitive::to_i32(&event.0).unwrap(),
-                                "msg" : json!{event.1}
-                            })
-                        );
-                    }
-                    if let Ok(string) = serde_json::to_string(&array){
-                        let _ = broadcaster.broadcast(Message::text(string));
+                    if events.len()>0{
+                        let mut array = vec![];
+                        for event in events{
+                            array.push(
+                                json!({
+                                    "event" : event.0.to_i64(),
+                                    "info" : json!{event.1}
+                                    })
+                            );
+                        }
+                        if let Ok(string) = serde_json::to_string(&json!([
+                                    SERVER_MSG_EVENT,
+                                    array
+                                ])){
+                            let _ = broadcaster.broadcast(Message::text(string));
+                        }
                     }
                 }
                 //清空事件

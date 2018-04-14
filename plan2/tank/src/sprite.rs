@@ -165,10 +165,11 @@ impl Sprite {
         bitmap: BitmapRes,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
+        rand_position: bool,
     ) -> Sprite {
         //计算随即位置
-        let x_pos = rand_int(0, bounds.right - bounds.left);
-        let y_pos = rand_int(0, bounds.bottom - bounds.top);
+        let x_pos = if rand_position { rand_int(0, bounds.right - bounds.left)} else {0};
+        let y_pos = if rand_position { rand_int(0, bounds.bottom - bounds.top)} else {0};
         Sprite::new(
             bitmap,
             Point { x: x_pos, y: y_pos },

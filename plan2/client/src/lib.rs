@@ -21,7 +21,6 @@ extern "C" {
     pub fn _set_canvas_height(height: i32);
     pub fn _set_canvas_font(font: *const u8, len: usize);
     pub fn _load_resource(json: *const u8, len: usize);
-    pub fn canvas_offset_left() -> i32;
     pub fn _fill_style(text: *const u8, len: usize);
     pub fn _fill_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn _fill_text(text: *const u8, len: usize, x: i32, y: i32);
@@ -37,8 +36,8 @@ extern "C" {
         dest_width: i32,
         dest_height: i32,
     );
-    pub fn send_message(text: *const u8, len: usize);
-    pub fn ready();
+    pub fn _send_message(text: *const u8, len: usize);
+    pub fn _connect(url: *const u8, len: usize);
 }
 
 struct JS {
@@ -48,6 +47,8 @@ struct JS {
     on_keyup_listener: Option<fn(key: String)>,
     on_keydown_listener: Option<fn(key: String)>,
     on_connect_listener: Option<fn()>,
+    on_close_listener: Option<fn()>,
+    on_message_listener: Option<fn(msg: String)>,
 }
 
 thread_local!{
@@ -56,7 +57,10 @@ thread_local!{
         on_window_resize_listener: None,
         on_resource_load_listener: None,
         on_keyup_listener: None,
-        on_keydown_listener: None
+        on_keydown_listener: None,
+        on_connect_listener: None,
+        on_close_listener: None,
+        on_message_listener: None,
     });
 }
 
@@ -75,6 +79,11 @@ pub fn load_resource(map: serde_json::Value) {
     unsafe {
         _load_resource(json.as_ptr(), json.len());
     }
+}
+
+pub fn send_json_message(json: serde_json::Value) {
+    let json = serde_json::to_string(&json).unwrap();
+    send_message(&json);
 }
 
 pub fn window_inner_width() -> i32 {
@@ -106,6 +115,18 @@ pub fn fill_text(text: &str, x: i32, y: i32) {
 pub fn set_canvas_font(font: &str) {
     unsafe {
         _set_canvas_font(font.as_ptr(), font.len());
+    }
+}
+
+pub fn send_message(msg: &str) {
+    unsafe {
+        _send_message(msg.as_ptr(), msg.len());
+    }
+}
+
+pub fn connect(url: &str) {
+    unsafe {
+        _connect(url.as_ptr(), url.len());
     }
 }
 
@@ -168,9 +189,15 @@ pub fn set_on_window_resize_listener(listener: fn()) {
     });
 }
 
-pub fn on_connect_listener(listener: fn()) {
+pub fn set_on_connect_listener(listener: fn()) {
     JS.with(|e| {
         e.borrow_mut().on_connect_listener = Some(listener);
+    });
+}
+
+pub fn set_on_close_listener(listener: fn()) {
+    JS.with(|e| {
+        e.borrow_mut().on_close_listener = Some(listener);
     });
 }
 
@@ -191,6 +218,13 @@ pub fn set_on_keydown_listener(listener: fn(key: String)) {
         e.borrow_mut().on_keydown_listener = Some(listener);
     });
 }
+
+pub fn set_on_message_listener(listener: fn(msg: String)) {
+    JS.with(|e| {
+        e.borrow_mut().on_message_listener = Some(listener);
+    });
+}
+
 
 pub fn request_animation_frame() {
     unsafe {
@@ -230,6 +264,25 @@ pub fn on_connect() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_connect_listener {
             callback();
+        }
+    });
+}
+
+#[no_mangle]
+pub fn on_close() {
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_close_listener {
+            callback();
+        }
+    });
+}
+
+#[no_mangle]
+pub unsafe fn on_message(msg: *mut u8, length: usize) {
+    let msg = String::from_raw_parts(msg, length, length);
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_message_listener {
+            callback(msg);
         }
     });
 }

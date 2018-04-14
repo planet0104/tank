@@ -84,6 +84,9 @@ var imports = {
         },
         _send_message: function(str, len){
             socket.send(read_string(str, len));
+        },
+        _connect: function(url, len){
+            connect(read_string(url, len));
         }
     }
 };
@@ -245,24 +248,20 @@ function decode_utf8(bytes) {
 var socket;
 
 //连接websocket
-function connect(){
-    socket = new WebSocket("ws://127.0.0.1:8080");
+function connect(url){
+    socket = new WebSocket(url);
     console.log("连接服务器...");
 
     socket.onopen = function(event) {
-        console.log("连接成功.");
-
         exports.on_connect();
 
         socket.onmessage = function(event){
-            console.log("onMessage:", event.data, event.data.length);
-            //拉取成功，刷新游戏数据
-            exports.on_message(write_string(event.data, exports.memory.buffer, message_buffer));
+            var msg = alloc_string(event.data);
+            exports.on_message(msg.ptr, msg.len);
         };
 
         socket.onclose = function(event) {
-            exports.onclose();
-            alert("连接关闭，请重试");
+            exports.on_close();
         };
     }
 
@@ -281,5 +280,4 @@ fetch("client.wasm").then(response =>
       exports = instance.exports;
       window.onresize = exports.on_window_resize;
       exports.start();
-      connect();
   });

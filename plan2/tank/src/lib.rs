@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate num_derive;
 extern crate rand;
 extern crate serde;
 #[macro_use]
@@ -12,7 +10,16 @@ mod sprite;
 use engine::{CanvasContext, GameEngine};
 use sprite::{BitmapRes, Rect, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
+//socket消息
+pub const MSG_CONNECT: i64 = 1;
+pub const MSG_DISCONNECT: i64 = 2;
+pub const MSG_START: i64 = 3;
+pub const MSG_KEY_EVENT: i64 = 4;
+pub const MSG_MOUSE_EVENT: i64 = 5;
 
+//server发送给客户端的消息
+pub const SERVER_MSG_EVENT: isize = 1;
+pub const SERVER_MSG_UUID: isize = 2;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 1000;
 pub const CLIENT_HEIGHT: i32 = 1000;
@@ -38,7 +45,6 @@ pub const MISSILE_VELOCITY: i32 = 2;
 //     }
 // }
 
-#[derive(FromPrimitive, ToPrimitive)]
 pub enum MouseEvent {
     MouseMove,
     MouseClick,
@@ -46,17 +52,53 @@ pub enum MouseEvent {
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
-#[derive(Debug, FromPrimitive, ToPrimitive)]
+#[derive(Debug)]
 pub enum KeyEvent {
     KeyDown,
     KeyUp,
 }
 
-#[derive(FromPrimitive, ToPrimitive)]
+impl KeyEvent{
+    pub fn from_i64(num:i64) -> KeyEvent{
+        match num{
+            0 => KeyEvent::KeyDown,
+            1 => KeyEvent::KeyUp,
+            _ => KeyEvent::KeyUp
+        }
+    }
+
+    pub fn to_i64(&self) -> i64 {
+        match self{
+            &KeyEvent::KeyDown => 0,
+            &KeyEvent::KeyUp => 1,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub enum SpriteEvent {
     Add,
     Update,
     Delete,
+}
+
+impl SpriteEvent{
+    pub fn from_i64(num:i64) -> SpriteEvent{
+        match num{
+            0 => SpriteEvent::Add,
+            1 => SpriteEvent::Update,
+            2 => SpriteEvent::Delete,
+            _ => SpriteEvent::Update
+        }
+    }
+
+    pub fn to_i64(&self) -> i64 {
+        match self{
+            &SpriteEvent::Add => 0,
+            &SpriteEvent::Update => 1,
+            &SpriteEvent::Delete => 2,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -100,7 +142,7 @@ impl TankGame {
     }
 
     //创建游戏精灵
-    pub fn add_sprite(engine: &mut GameEngine, id: Option<&str>, res: i32) -> usize {
+    pub fn add_sprite(engine: &mut GameEngine, id: Option<&str>, res: i32, rand_pos: bool) -> usize {
         match res {
             RES_TANK_BITMAP => {
                 //创建玩家坦克
@@ -108,6 +150,7 @@ impl TankGame {
                     BitmapRes::new(RES_TANK_BITMAP, 36, 144),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                     BA_WRAP,
+                    rand_pos,
                 );
                 tank_sprite.set_num_frames(4, false);
                 tank_sprite.set_frame_delay(-1);
@@ -120,6 +163,7 @@ impl TankGame {
                     BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                     BA_DIE,
+                    rand_pos
                 );
                 sprite.set_num_frames(4, false);
                 sprite.set_frame_delay(-1);
@@ -154,7 +198,7 @@ impl TankGame {
     pub fn join_game(&mut self, id: &String, name: Option<&str>) {
         //添加坦克精灵
         let sprite_index =
-            TankGame::add_sprite(&mut self.engine, Some(id.as_str()), RES_TANK_BITMAP);
+            TankGame::add_sprite(&mut self.engine, Some(id.as_str()), RES_TANK_BITMAP, true);
         self.add_sprite_event(SpriteEvent::Add, sprite_index); //添加事件
         let sprite = &mut self.engine.sprites()[sprite_index];
         //添加玩家信息
@@ -182,7 +226,7 @@ impl TankGame {
             SpriteEvent::Add => Some(TankGame::add_sprite(
                 &mut self.engine,
                 Some(&sprite_info.id),
-                sprite_info.res,
+                sprite_info.res, false
             )),
             SpriteEvent::Update => self.engine.query_sprite_idx(&sprite_info.id),
             SpriteEvent::Delete => {
@@ -227,7 +271,7 @@ impl TankGame {
                     RES_MISSILE_BITMAP => RES_SM_EXPLOSION__BITMAP,
                     _ => RES_LG_EXPLOSION_BITMAP,
                 };
-                let idx = TankGame::add_sprite(engine, None, res);
+                let idx = TankGame::add_sprite(engine, None, res, true);
                 let pos = *engine.sprites()[idx_sprite_dying].position();
                 engine.sprites()[idx].set_position(pos.left, pos.top);
                 sprites_add.push(idx);
@@ -306,7 +350,7 @@ impl TankGame {
                             let tank_position = *(self.engine.sprites()[idx].position());
                             //创建一个新的子弹精灵
                             let missile_idx =
-                                TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP);
+                                TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP, true);
                             self.add_sprite_event(SpriteEvent::Add, missile_idx);
 
                             //子弹的方向同玩家的方向

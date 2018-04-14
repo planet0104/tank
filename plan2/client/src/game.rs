@@ -4,25 +4,33 @@ use std::cell::RefCell;
 use tank::{KeyEvent, TankGame, CLIENT_HEIGHT, CLIENT_WIDTH};
 use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION__BITMAP, RES_TANK_BITMAP};
 use tank::utils::Timer;
-use ::Context2D;
-use {console_log, current_time_millis, draw_image, draw_image_at, fill_rect, fill_style,
-     fill_text, load_resource, request_animation_frame, set_canvas_font, set_canvas_height,
-     set_canvas_style_height, set_canvas_style_margin, set_canvas_style_width, set_canvas_width,
-     set_frame_callback, set_on_keydown_listener, set_on_keyup_listener,
-     set_on_resource_load_listener, set_on_window_resize_listener, window_inner_height,
-     window_inner_width};
+use serde_json::Value;
+use ::*;
+use tank::{
+    SpriteEvent,
+    SpriteInfo,
+    MSG_CONNECT,
+    MSG_DISCONNECT,
+    MSG_START,
+    MSG_KEY_EVENT,
+    MSG_MOUSE_EVENT,
+    SERVER_MSG_EVENT,
+    SERVER_MSG_UUID
+};
 
-struct Env {
+struct Client {
+    uuid: String,
     timer: Timer,
     game: TankGame,
     context: Context2D,
 }
 
 thread_local!{
-    static ENV: RefCell<Env> = RefCell::new(Env{
+    static CLIENT: RefCell<Client> = RefCell::new(Client{
+        uuid: String::new(),
         timer:Timer::new(1, ||{ current_time_millis() }),
         game:TankGame::new(),
-        context: Context2D{}
+        context: Context2D{},
     });
 }
 
@@ -38,6 +46,18 @@ pub fn start() {
     });
     set_on_keydown_listener(|key| handle_key(KeyEvent::KeyDown, key));
     set_on_keyup_listener(|key| handle_key(KeyEvent::KeyUp, key));
+    set_on_connect_listener(||{
+        console_log("websocket 链接成功");
+        //加入游戏
+        send_json_message(json!([
+            MSG_START,
+            json!({"name" : "planet"})
+        ]));
+    });
+    set_on_close_listener(||{
+        console_log("websocket 链接断开");
+    });
+    set_on_message_listener(|msg| { handle_message(msg); });
 
     //加载游戏资源
     set_on_resource_load_listener(|num: i32, total: i32| {
@@ -64,6 +84,7 @@ pub fn start() {
         if num == total {
             //资源加载完成, 启动游戏循环
             request_animation_frame();
+            connect("ws://127.0.0.1:8080");
         }
     });
 
@@ -76,11 +97,11 @@ pub fn start() {
 
     //游戏循环
     let frame_callback = |timestamp| {
-        ENV.with(|e| {
-            let mut env = e.borrow_mut();
-            if env.timer.ready_for_next_frame() {
-                env.game.update_sprites();
-                env.game.draw(&env.context);
+        CLIENT.with(|c| {
+            let mut client = c.borrow_mut();
+            if client.timer.ready_for_next_frame() {
+                client.game.update_sprites();
+                client.game.draw(&client.context);
                 console_log(&format!("游戏循环 {}", timestamp));
             }
             request_animation_frame();
@@ -89,6 +110,28 @@ pub fn start() {
 
     //添加事件
     set_frame_callback(frame_callback);
+}
+
+fn handle_message(msg:String){
+    console_log(&format!("on_message:{}", msg));
+    let value:Value = serde_json::from_str(&msg).unwrap();
+    let array = value.as_array().unwrap();
+    let msg_id = array[0].as_i64().unwrap() as isize;
+    CLIENT.with(|c| {
+        let mut client = c.borrow_mut();
+        match msg_id{
+            SERVER_MSG_EVENT => {
+                //更新精灵
+                let event = SpriteEvent::from_i64(array[1]["event"].as_i64().unwrap());
+                let info:SpriteInfo = serde_json::from_value(array[1]["info"].clone()).unwrap();
+                client.game.handle_server_event(event, info);
+            },
+            SERVER_MSG_UUID => {
+                client.uuid = array[1].as_str().unwrap().to_string();
+            }
+            _ => {}
+        }
+    });
 }
 
 //处理按键事件
