@@ -239,7 +239,7 @@ pub fn request_animation_frame() {
 }
 
 #[no_mangle]
-pub fn request_animation_frame_callback(timestamp: f64) {
+pub extern fn request_animation_frame_callback(timestamp: f64) {
     JS.with(|e| {
         if let Some(callback) = e.borrow().request_animation_frame_callback {
             callback(timestamp);
@@ -248,7 +248,7 @@ pub fn request_animation_frame_callback(timestamp: f64) {
 }
 
 #[no_mangle]
-pub fn on_window_resize() {
+pub extern fn on_window_resize() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_window_resize_listener {
             callback();
@@ -257,7 +257,7 @@ pub fn on_window_resize() {
 }
 
 #[no_mangle]
-pub fn on_resource_load(num: i32, total: i32) {
+pub extern fn on_resource_load(num: i32, total: i32) {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_resource_load_listener {
             callback(num, total);
@@ -266,7 +266,7 @@ pub fn on_resource_load(num: i32, total: i32) {
 }
 
 #[no_mangle]
-pub fn on_connect() {
+pub extern fn on_connect() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_connect_listener {
             callback();
@@ -275,7 +275,7 @@ pub fn on_connect() {
 }
 
 #[no_mangle]
-pub fn on_close() {
+pub extern fn on_close() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_close_listener {
             callback();
@@ -284,8 +284,8 @@ pub fn on_close() {
 }
 
 #[no_mangle]
-pub unsafe fn on_message(msg: *mut u8, length: usize) {
-    let msg = String::from_raw_parts(msg, length, length);
+pub extern fn on_message(msg: *mut u8, length: usize) {
+    let msg = unsafe { String::from_raw_parts(msg, length, length) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_message_listener {
             callback(msg);
@@ -294,8 +294,8 @@ pub unsafe fn on_message(msg: *mut u8, length: usize) {
 }
 
 #[no_mangle]
-pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
+pub extern fn on_keyup_event(key: *mut u8, length: usize) {
+    let key = unsafe { String::from_raw_parts(key, length, length) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_keyup_listener {
             callback(key);
@@ -304,8 +304,8 @@ pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
 }
 
 #[no_mangle]
-pub unsafe fn on_keydown_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
+pub extern fn on_keydown_event(key: *mut u8, length: usize) {
+    let key = unsafe { String::from_raw_parts(key, length, length) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_keydown_listener {
             callback(key);
@@ -314,7 +314,7 @@ pub unsafe fn on_keydown_event(key: *mut u8, length: usize) {
 }
 
 #[no_mangle]
-pub fn alloc(size: usize) -> *const u8 {
+pub extern fn alloc(size: usize) -> *const u8 {
     let mut buf = Vec::with_capacity(size);
     let ptr = buf.as_mut_ptr();
     mem::forget(buf);
@@ -322,7 +322,7 @@ pub fn alloc(size: usize) -> *const u8 {
 }
 
 #[no_mangle]
-pub fn start() {
+pub extern fn start() {
     game::start();
 }
 
@@ -369,4 +369,8 @@ impl CanvasContext for Context2D {
     fn fill_text(&self, text: &str, x: i32, y: i32) {
         fill_text(text, x, y);
     }
+}
+
+fn main(){
+    println!("hello!");
 }

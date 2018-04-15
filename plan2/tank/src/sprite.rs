@@ -1,8 +1,6 @@
 use std::cmp;
-extern crate uuid;
-use uuid::Uuid;
-use utils::rand_int;
 use engine::CanvasContext;
+use utils::rand_int;
 //use ::console_log;
 //精灵代码
 
@@ -95,6 +93,14 @@ pub struct Point {
     pub y: i32,
 }
 
+impl Point{
+    pub fn new() -> Point{
+        Point{
+            x: 0, y: 0
+        }
+    }
+}
+
 pub struct Sprite {
     pub id: String,
     bitmap: BitmapRes,
@@ -116,6 +122,7 @@ pub struct Sprite {
 
 impl Sprite {
     pub fn new(
+        id: String,
         bitmap: BitmapRes,
         position: Point,
         velocity: Point,
@@ -124,7 +131,7 @@ impl Sprite {
         bounds_action: BOUNDSACTION,
     ) -> Sprite {
         let mut sprite = Sprite {
-            id: Uuid::new_v4().hyphenated().to_string(),
+            id: id,
             position: Rect::new(
                 position.x,
                 position.y,
@@ -150,8 +157,9 @@ impl Sprite {
         sprite
     }
 
-    pub fn from_bitmap(bitmap: BitmapRes, bounds: Rect) -> Sprite {
+    pub fn from_bitmap(id:String, bitmap: BitmapRes, bounds: Rect) -> Sprite {
         Sprite::new(
+            id,
             bitmap,
             Point { x: 0, y: 0 },
             Point { x: 0, y: 0 },
@@ -162,17 +170,15 @@ impl Sprite {
     }
 
     pub fn with_bounds_action(
+        id: String,
         bitmap: BitmapRes,
         bounds: Rect,
-        bounds_action: BOUNDSACTION,
-        rand_position: bool,
+        bounds_action: BOUNDSACTION
     ) -> Sprite {
-        //计算随即位置
-        let x_pos = if rand_position { rand_int(0, bounds.right - bounds.left)} else {0};
-        let y_pos = if rand_position { rand_int(0, bounds.bottom - bounds.top)} else {0};
         Sprite::new(
+            id,
             bitmap,
-            Point { x: x_pos, y: y_pos },
+            Point::new(),
             Point { x: 0, y: 0 },
             0,
             bounds,
@@ -429,5 +435,17 @@ impl Sprite {
 
     pub fn kill(&mut self) {
         self.dying = true;
+    }
+
+    pub fn rand_pos(&mut self){
+        //计算随即位置
+        let x = rand_int(0, self.bounds.right - self.bounds.left);
+        let y = rand_int(0, self.bounds.bottom - self.bounds.top);
+        self.position = Rect::new(
+                x,
+                y,
+                x + self.bitmap.width(),
+                y + self.bitmap.height(),
+            );
     }
 }

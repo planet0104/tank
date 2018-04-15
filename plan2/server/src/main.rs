@@ -22,7 +22,8 @@ use tank::{
     MSG_KEY_EVENT,
     MSG_MOUSE_EVENT,
     SERVER_MSG_EVENT,
-    SERVER_MSG_UUID
+    SERVER_MSG_UUID,
+    SERVER_MSG_DATA
 };
 
 // 服务器Web处理程序
@@ -118,14 +119,17 @@ fn main() {
                                 })
                             );
                         }
-                        if let Ok(string) = serde_json::to_string(&array){
+                        if let Ok(string) = serde_json::to_string(&json!([
+                                    SERVER_MSG_DATA,
+                                    array
+                                ])){
                             let _ = sender.send(Message::text(string));
                         }
                     }
 
                     MSG_START => {
                         //玩家加入游戏
-                        game.join_game(&uuid, json["name"].as_str());
+                        game.join_game(uuid, json["name"].as_str());
                     }
 
                     MSG_DISCONNECT => {

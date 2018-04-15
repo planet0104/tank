@@ -7,6 +7,7 @@ extern crate uuid;
 pub mod utils;
 pub mod engine;
 mod sprite;
+use uuid::Uuid;
 use engine::{CanvasContext, GameEngine};
 use sprite::{BitmapRes, Rect, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
@@ -20,6 +21,7 @@ pub const MSG_MOUSE_EVENT: i64 = 5;
 //server发送给客户端的消息
 pub const SERVER_MSG_EVENT: isize = 1;
 pub const SERVER_MSG_UUID: isize = 2;
+pub const SERVER_MSG_DATA: isize = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 1000;
 pub const CLIENT_HEIGHT: i32 = 1000;
@@ -142,52 +144,50 @@ impl TankGame {
     }
 
     //创建游戏精灵
-    pub fn add_sprite(engine: &mut GameEngine, id: Option<&str>, res: i32, rand_pos: bool) -> usize {
+    pub fn add_sprite(engine: &mut GameEngine, id: String, res: i32) -> usize {
         match res {
             RES_TANK_BITMAP => {
                 //创建玩家坦克
                 let mut tank_sprite = Sprite::with_bounds_action(
+                    id,
                     BitmapRes::new(RES_TANK_BITMAP, 36, 144),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
-                    BA_WRAP,
-                    rand_pos,
+                    BA_WRAP
                 );
                 tank_sprite.set_num_frames(4, false);
                 tank_sprite.set_frame_delay(-1);
-                tank_sprite.id = String::from(id.unwrap_or(&tank_sprite.id));
                 engine.add_sprite(tank_sprite)
             }
             RES_MISSILE_BITMAP => {
                 //创建一个新的子弹精灵
                 let mut sprite = Sprite::with_bounds_action(
+                    id,
                     BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
-                    BA_DIE,
-                    rand_pos
+                    BA_DIE
                 );
                 sprite.set_num_frames(4, false);
                 sprite.set_frame_delay(-1);
-                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             }
             RES_SM_EXPLOSION__BITMAP => {
                 //创建小的爆炸精灵
                 let mut sprite = Sprite::from_bitmap(
+                    id,
                     BitmapRes::new(RES_SM_EXPLOSION__BITMAP, 17, 136),
-                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT)
                 );
                 sprite.set_num_frames(8, true);
-                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             }
             RES_LG_EXPLOSION_BITMAP => {
                 //创建一个大的爆炸精灵
                 let mut sprite = Sprite::from_bitmap(
+                    id,
                     BitmapRes::new(RES_LG_EXPLOSION_BITMAP, 33, 272),
                     Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                 );
                 sprite.set_num_frames(8, true);
-                sprite.id = String::from(id.unwrap_or(&sprite.id));
                 engine.add_sprite(sprite)
             }
             _ => 0,
@@ -195,19 +195,20 @@ impl TankGame {
     }
 
     //玩家加入游戏
-    pub fn join_game(&mut self, id: &String, name: Option<&str>) {
+    pub fn join_game(&mut self, id: String, name: Option<&str>) {
         //添加坦克精灵
         let sprite_index =
-            TankGame::add_sprite(&mut self.engine, Some(id.as_str()), RES_TANK_BITMAP, true);
-        self.add_sprite_event(SpriteEvent::Add, sprite_index); //添加事件
-        let sprite = &mut self.engine.sprites()[sprite_index];
+            TankGame::add_sprite(&mut self.engine, id, RES_TANK_BITMAP);
+        {let sprite = &mut self.engine.sprites()[sprite_index];
+        sprite.rand_pos();
         //添加玩家信息
         self.players.insert(
             sprite.id.clone(),
             Player {
                 name: String::from(name.unwrap_or("")),
             },
-        );
+        )};
+        self.add_sprite_event(SpriteEvent::Add, sprite_index); //添加事件
     }
 
     //离开游戏/断线
@@ -225,8 +226,8 @@ impl TankGame {
         if let Some(sprite_idx) = match event {
             SpriteEvent::Add => Some(TankGame::add_sprite(
                 &mut self.engine,
-                Some(&sprite_info.id),
-                sprite_info.res, false
+                sprite_info.id,
+                sprite_info.res
             )),
             SpriteEvent::Update => self.engine.query_sprite_idx(&sprite_info.id),
             SpriteEvent::Delete => {
@@ -271,7 +272,7 @@ impl TankGame {
                     RES_MISSILE_BITMAP => RES_SM_EXPLOSION__BITMAP,
                     _ => RES_LG_EXPLOSION_BITMAP,
                 };
-                let idx = TankGame::add_sprite(engine, None, res, true);
+                let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), res);
                 let pos = *engine.sprites()[idx_sprite_dying].position();
                 engine.sprites()[idx].set_position(pos.left, pos.top);
                 sprites_add.push(idx);
@@ -350,12 +351,11 @@ impl TankGame {
                             let tank_position = *(self.engine.sprites()[idx].position());
                             //创建一个新的子弹精灵
                             let missile_idx =
-                                TankGame::add_sprite(&mut self.engine, None, RES_MISSILE_BITMAP, true);
-                            self.add_sprite_event(SpriteEvent::Add, missile_idx);
-
+                                TankGame::add_sprite(&mut self.engine, Uuid::new_v4().hyphenated().to_string(), RES_MISSILE_BITMAP);
+                            
                             //子弹的方向同玩家的方向
                             let direction = self.engine.sprites()[idx].current_frame();
-                            let mut missile = &mut self.engine.sprites()[missile_idx];
+                            {let mut missile = &mut self.engine.sprites()[missile_idx];
                             missile.set_current_frame(direction);
                             match direction {
                                 0 => {
@@ -395,7 +395,8 @@ impl TankGame {
                                     );
                                 }
                                 _ => {}
-                            }
+                            }}
+                            self.add_sprite_event(SpriteEvent::Add, missile_idx);
                         }
                         "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" => {
                             self.engine.sprites()[idx].set_velocity(0, 0);
