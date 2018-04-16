@@ -1,2 +1,2 @@
-cargo build --target asmjs-unknown-emscripten --release
-#copy target\wasm32-unknown-unknown\release\client.wasm html\client.wasm
+cargo build --target asmjs-unknown-emscripten --release;
+cp ./target/asmjs-unknown-emscripten/release/client.js ./html/client.js;

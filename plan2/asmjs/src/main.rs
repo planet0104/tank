@@ -3,6 +3,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate stdweb;
 extern crate tank;
+use stdweb::unstable::TryInto;
 mod game;
 use std::cell::RefCell;
 use std::mem;
@@ -33,20 +34,20 @@ thread_local!{
 }
 
 pub fn random() -> f64 {
-    js!(_random())
+    js!(_random()).try_into().unwrap()
 }
 
 pub fn current_time_millis() -> u64 {
-    js!(_current_time_millis())
+    js!(_current_time_millis()).try_into().unwrap()
 }
 
 pub fn console_log(msg: &str) {
-    js!(_console_log(msg.as_ptr(), msg.len()));
+    js!(_console_log(@{msg}));
 }
 
 pub fn load_resource(map: serde_json::Value) {
     let json = serde_json::to_string(&map).unwrap();
-    js!(_load_resource(json.as_ptr(), json.len()));
+    js!(_load_resource(@{json}));
 }
 
 pub fn send_json_message(json: serde_json::Value) {
@@ -55,39 +56,39 @@ pub fn send_json_message(json: serde_json::Value) {
 }
 
 pub fn window_inner_width() -> i32 {
-    js!(_window_inner_width())
+    js!(_window_inner_width()).try_into().unwrap()
 }
 
 pub fn window_inner_height() -> i32 {
-    js!(_window_inner_height())
+    js!(_window_inner_height() ).try_into().unwrap()
 }
 
 pub fn fill_style(style: &str) {
-    js!(_fill_style(style.as_ptr(), style.len()));
+    js!(_fill_style(@{style}));
 }
 
 pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
-    js!(_fill_rect(x, y, width, height));
+    js!(_fill_rect(@{x}, @{y}, @{width}, @{height}));
 }
 
 pub fn fill_text(text: &str, x: i32, y: i32) {
-    js!(_fill_text(text.as_ptr(), text.len(), x, y));
+    js!(_fill_text(@{text}, @{x}, @{y}));
 }
 
 pub fn set_canvas_font(font: &str) {
-    js!(_set_canvas_font(font.as_ptr(), font.len()));
+    js!(_set_canvas_font(@{font}));
 }
 
 pub fn send_message(msg: &str) {
-    js!(_send_message(msg.as_ptr(), msg.len()));
+    js!(_send_message(@{msg}));
 }
 
 pub fn connect(url: &str) {
-    js!(_connect(url.as_ptr(), url.len()));
+    js!(_connect(@{url}));
 }
 
 pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
-    js!(_draw_image_at(res_id, x, y));
+    js!(_draw_image_at(@{res_id}, @{x}, @{y}));
 }
 pub fn draw_image(
     res_id: i32,
@@ -101,32 +102,32 @@ pub fn draw_image(
     dest_height: i32,
 ) {
     js!(_draw_image(
-            res_id,
-            source_x,
-            source_y,
-            source_width,
-            source_height,
-            dest_x,
-            dest_y,
-            dest_width,
-            dest_height,
+            @{res_id},
+            @{source_x},
+            @{source_y},
+            @{source_width},
+            @{source_height},
+            @{dest_x},
+            @{dest_y},
+            @{dest_width},
+            @{dest_height},
         ));
 }
 
 pub fn set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32) {
-    js!(_set_canvas_style_margin(left, top, right, bottom));
+    js!(_set_canvas_style_margin(@{left}, @{top}, @{right}, @{bottom}));
 }
 pub fn set_canvas_style_width(width: i32) {
-    js!(_set_canvas_style_width(width));
+    js!(_set_canvas_style_width(@{width}));
 }
 pub fn set_canvas_style_height(height: i32) {
-    js!(_set_canvas_style_height(height));
+    js!(_set_canvas_style_height(@{height}));
 }
 pub fn set_canvas_width(width: i32) {
-    js!(_set_canvas_width(width));
+    js!(_set_canvas_width(@{width}));
 }
 pub fn set_canvas_height(height: i32) {
-    js!(_set_canvas_height(height));
+    js!(_set_canvas_height(@{height}));
 }
 
 pub fn set_frame_callback(callback: fn(f64)) {
@@ -265,10 +266,10 @@ pub extern fn alloc(size: usize) -> *const u8 {
     return ptr;
 }
 
-#[no_mangle]
-pub extern fn start() {
-    game::start();
-}
+// #[no_mangle]
+// pub extern fn start() {
+//     game::start();
+// }
 
 pub struct Context2D {}
 
@@ -316,5 +317,9 @@ impl CanvasContext for Context2D {
 }
 
 fn main(){
-    println!("hello!");
+    stdweb::initialize();
+    println!("Hello stdweb!");
+    //game::start();
+
+    stdweb::event_loop();
 }
