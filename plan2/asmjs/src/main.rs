@@ -1,44 +1,12 @@
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate stdweb;
 extern crate tank;
 mod game;
 use std::cell::RefCell;
 use std::mem;
 use tank::engine::CanvasContext;
-
-//导入的JS帮助函数
-extern "C" {
-    pub fn _console_log(text: *const u8, len: usize);
-    pub fn _current_time_millis() -> f64;
-    pub fn _random() -> f64;
-    pub fn _request_animation_frame();
-    pub fn _window_inner_width() -> i32;
-    pub fn _window_inner_height() -> i32;
-    pub fn _set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32);
-    pub fn _set_canvas_style_width(width: i32);
-    pub fn _set_canvas_style_height(height: i32);
-    pub fn _set_canvas_width(width: i32);
-    pub fn _set_canvas_height(height: i32);
-    pub fn _set_canvas_font(font: *const u8, len: usize);
-    pub fn _load_resource(json: *const u8, len: usize);
-    pub fn _fill_style(text: *const u8, len: usize);
-    pub fn _fill_rect(x: i32, y: i32, width: i32, height: i32);
-    pub fn _fill_text(text: *const u8, len: usize, x: i32, y: i32);
-    pub fn _draw_image_at(res_id: i32, x: i32, y: i32);
-    pub fn _draw_image(
-        res_id: i32,
-        source_x: i32,
-        source_y: i32,
-        source_width: i32,
-        source_height: i32,
-        dest_x: i32,
-        dest_y: i32,
-        dest_width: i32,
-        dest_height: i32,
-    );
-    pub fn _send_message(text: *const u8, len: usize);
-    pub fn _connect(url: *const u8, len: usize);
-}
 
 struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
@@ -65,26 +33,20 @@ thread_local!{
 }
 
 pub fn random() -> f64 {
-    unsafe{
-        _random()
-    }
+    js!(_random())
 }
 
 pub fn current_time_millis() -> u64 {
-    unsafe { _current_time_millis() as u64 }
+    js!(_current_time_millis())
 }
 
 pub fn console_log(msg: &str) {
-    unsafe {
-        _console_log(msg.as_ptr(), msg.len());
-    }
+    js!(_console_log(msg.as_ptr(), msg.len()));
 }
 
 pub fn load_resource(map: serde_json::Value) {
     let json = serde_json::to_string(&map).unwrap();
-    unsafe {
-        _load_resource(json.as_ptr(), json.len());
-    }
+    js!(_load_resource(json.as_ptr(), json.len()));
 }
 
 pub fn send_json_message(json: serde_json::Value) {
@@ -93,53 +55,39 @@ pub fn send_json_message(json: serde_json::Value) {
 }
 
 pub fn window_inner_width() -> i32 {
-    unsafe { _window_inner_width() }
+    js!(_window_inner_width())
 }
 
 pub fn window_inner_height() -> i32 {
-    unsafe { _window_inner_height() }
+    js!(_window_inner_height())
 }
 
 pub fn fill_style(style: &str) {
-    unsafe {
-        _fill_style(style.as_ptr(), style.len());
-    }
+    js!(_fill_style(style.as_ptr(), style.len()));
 }
 
 pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
-    unsafe {
-        _fill_rect(x, y, width, height);
-    }
+    js!(_fill_rect(x, y, width, height));
 }
 
 pub fn fill_text(text: &str, x: i32, y: i32) {
-    unsafe {
-        _fill_text(text.as_ptr(), text.len(), x, y);
-    }
+    js!(_fill_text(text.as_ptr(), text.len(), x, y));
 }
 
 pub fn set_canvas_font(font: &str) {
-    unsafe {
-        _set_canvas_font(font.as_ptr(), font.len());
-    }
+    js!(_set_canvas_font(font.as_ptr(), font.len()));
 }
 
 pub fn send_message(msg: &str) {
-    unsafe {
-        _send_message(msg.as_ptr(), msg.len());
-    }
+    js!(_send_message(msg.as_ptr(), msg.len()));
 }
 
 pub fn connect(url: &str) {
-    unsafe {
-        _connect(url.as_ptr(), url.len());
-    }
+    js!(_connect(url.as_ptr(), url.len()));
 }
 
 pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
-    unsafe {
-        _draw_image_at(res_id, x, y);
-    }
+    js!(_draw_image_at(res_id, x, y));
 }
 pub fn draw_image(
     res_id: i32,
@@ -152,8 +100,7 @@ pub fn draw_image(
     dest_width: i32,
     dest_height: i32,
 ) {
-    unsafe {
-        _draw_image(
+    js!(_draw_image(
             res_id,
             source_x,
             source_y,
@@ -163,24 +110,23 @@ pub fn draw_image(
             dest_y,
             dest_width,
             dest_height,
-        );
-    }
+        ));
 }
 
 pub fn set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32) {
-    unsafe { _set_canvas_style_margin(left, top, right, bottom) };
+    js!(_set_canvas_style_margin(left, top, right, bottom));
 }
 pub fn set_canvas_style_width(width: i32) {
-    unsafe { _set_canvas_style_width(width) };
+    js!(_set_canvas_style_width(width));
 }
 pub fn set_canvas_style_height(height: i32) {
-    unsafe { _set_canvas_style_height(height) };
+    js!(_set_canvas_style_height(height));
 }
 pub fn set_canvas_width(width: i32) {
-    unsafe { _set_canvas_width(width) };
+    js!(_set_canvas_width(width));
 }
 pub fn set_canvas_height(height: i32) {
-    unsafe { _set_canvas_height(height) };
+    js!(_set_canvas_height(height));
 }
 
 pub fn set_frame_callback(callback: fn(f64)) {
@@ -233,9 +179,7 @@ pub fn set_on_message_listener(listener: fn(msg: String)) {
 
 
 pub fn request_animation_frame() {
-    unsafe {
-        _request_animation_frame();
-    }
+    js!(_request_animation_frame());
 }
 
 #[no_mangle]
