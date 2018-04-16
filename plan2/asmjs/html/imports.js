@@ -1,95 +1,79 @@
 //绘图画布
 var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext("2d");
-var exports; //Webassembly
-
-document.addEventListener("keyup", function(event){
-    var str = alloc_string(event.key);
-    exports.on_keyup_event(str.ptr, str.len);
-});
-
-document.addEventListener("keydown", function(event){
-    var str = alloc_string(event.key);
-    exports.on_keydown_event(str.ptr, str.len);
-});
 
 canvas.addEventListener("click", function(event){
-    exports.on_click_event(event.clientX, event.clientY);
+    Module._on_click_event(event.clientX, event.clientY);
 });
 
 canvas.addEventListener("touchmove", function(event){
-    exports.on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
+    Module._on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
 });
 
 //下面是要导入webassembly的JS帮助函数
-var imports = {
-    env: {
-        _console_log: function(str_ptr, len){
-            console.log(read_string(str_ptr, len));
-        },
-        _current_time_millis: function(){
-            return Date.now();
-        },
-        _random: function(){
-            return Math.random();
-        },
-        _window_inner_width: function(){ return window.innerWidth; },
-        _window_inner_height: function(){ return window.innerHeight; },
-        _request_animation_frame: function(){
-            window.requestAnimationFrame(exports.request_animation_frame_callback);
-        },
-        _load_resource: function(object, len){
-            var urls = JSON.parse(read_string(object, len));
-            loadResources(urls, function(map, num, total){
-                window.resMap = map;
-                exports.on_resource_load(num, total);
-            });
-        },
-        _set_canvas_height: function(height){
-            canvas.height = height;
-        },
-        _set_canvas_width: function(width){
-            canvas.width = width;
-        },
-        _set_canvas_style_margin: function(left, top, right, bottom){
-            canvas.style.marginLeft = left+'px';
-            canvas.style.marginTop = top+'px';
-            canvas.style.marginRight = right+'px';
-            canvas.style.marginBottom = bottom+'px';
-        },
-        _set_canvas_style_width: function(width){
-            canvas.style.width = width+'px';
-        },
-        _set_canvas_style_height: function(height){
-            canvas.style.height = height+'px';
-        },
-        _set_canvas_font: function(font_ptr, len){
-            var font = read_string(font_ptr, len);
-            ctx.font = font;
-        },
-        _fill_style: function(str, len){
-            ctx.fillStyle = read_string(str, len);
-        },
-        _fill_rect: function(x, y, width, height){
-            ctx.fillRect(x, y, width, height);
-        },
-        _fill_text: function(text_ptr, len, x, y){
-            ctx.fillText(read_string(text_ptr, len), x, y);
-        },
-        _draw_image_at: function(resId, x, y){
-            ctx.drawImage(window.resMap.get(resId+""), x, y);
-        },
-        _draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
-            ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
-        },
-        _send_message: function(str, len){
-            socket.send(read_string(str, len));
-        },
-        _connect: function(url, len){
-            connect(read_string(url, len));
-        }
-    }
-};
+function console_log(str){
+    console.log(str);
+}
+function current_time_millis(){
+    return Date.now();
+}
+function random(){
+    return Math.random();
+}
+
+function request_animation_frame(){
+    window.requestAnimationFrame(Module._request_animation_frame_callback);
+}
+
+function load_resource(object){
+    var urls = JSON.parse(object);
+    loadResources(urls, function(map, num, total){
+        window.resMap = map;
+        Module._on_resource_load(num, total);
+    });
+}
+function set_canvas_height(height){
+    canvas.height = height;
+}
+function set_canvas_width(width){
+    canvas.width = width;
+}
+function set_canvas_style_margin(left, top, right, bottom){
+    canvas.style.marginLeft = left+'px';
+    canvas.style.marginTop = top+'px';
+    canvas.style.marginRight = right+'px';
+    canvas.style.marginBottom = bottom+'px';
+}
+function set_canvas_style_width(width){
+    canvas.style.width = width+'px';
+}
+function set_canvas_style_height(height){
+    canvas.style.height = height+'px';
+}
+function set_canvas_font(font){
+    ctx.font = font;
+}
+function fill_style(st){
+    ctx.fillStyle = st;
+}
+function fill_rect(x, y, width, height){
+    ctx.fillRect(x, y, width, height);
+}
+function fill_text(text, x, y){
+    ctx.fillText(text, x, y);
+}
+function draw_image_at(resId, x, y){
+    ctx.drawImage(window.resMap.get(resId+""), x, y);
+}
+function draw_image(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
+    ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+}
+function send_message(str){
+    socket.send(str);
+}
+function connect(url){
+    connect(url);
+}
 
 //从wasm内存读取字符串
 //offset 指针
@@ -114,7 +98,7 @@ function alloc_string(string){
     }else{
         encoded = encode_utf8(string);
     }
-    var offset = exports.alloc(encoded.length);
+    var offset = Module._alloc(encoded.length);
     const bytes = new Uint8Array(exports.memory.buffer, offset, encoded.length);
     bytes.set(encoded);
     return { ptr:offset, len:bytes.length };
@@ -247,21 +231,19 @@ function decode_utf8(bytes) {
 
 var socket;
 
+mergeInto(LibraryManager.library, {
+    my_js: function() {
+        alert('hi');
+    },
+});
+
 //连接websocket
 function connect(url){
     socket = new WebSocket(url);
-    console.log("连接服务器...");
-
     socket.onopen = function(event) {
-        exports.on_connect();
-
-        socket.onmessage = function(event){
-            var msg = alloc_string(event.data);
-            exports.on_message(msg.ptr, msg.len);
-        };
-
+        Module._on_connect();
         socket.onclose = function(event) {
-            exports.on_close();
+            Module._on_close();
         };
     }
 
@@ -269,3 +251,48 @@ function connect(url){
         alert("连接失败，请重试");
     }
 }
+
+var Module = {
+    preRun: [],
+    postRun: [],
+    print: (function() {
+      return function(text) {
+        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+        console.log(text);
+      };
+    })(),
+    printErr: function(text) {
+      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
+      if (0) { // XXX disabled for safety typeof dump == 'function') {
+        dump(text + '\n'); // fast, straight to the real console
+      } else {
+        console.error(text);
+      }
+    },
+    canvas: (function() {
+    })(),
+    setStatus: function(text) {
+    },
+    totalDependencies: 0,
+    monitorRunDependencies: function(left) {
+      this.totalDependencies = Math.max(this.totalDependencies, left);
+      Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+    },
+    onRuntimeInitialized: function(){
+        console.log('onRuntimeInitialized');
+        
+        mergeInto(LibraryManager.library, {
+            my_js: function alertTest(){
+                console.log("alertTest");
+            },
+        });        
+    }
+  };
+  Module.setStatus('Downloading...');
+  window.onerror = function(event) {
+    // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+    Module.setStatus('Exception thrown, see JavaScript console');
+    Module.setStatus = function(text) {
+      if (text) Module.printErr('[post-exception status] ' + text);
+    };
+  };

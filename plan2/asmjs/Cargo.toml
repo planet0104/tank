@@ -6,4 +6,4 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 [dependencies]
 tank = { path = "../tank" }
 serde_json = "1.0.13"
-stdweb = "0.4.3"
+#stdweb = "0.4.4"
