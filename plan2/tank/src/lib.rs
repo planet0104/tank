@@ -176,16 +176,14 @@ impl TankGame {
     }
 
     //玩家加入游戏
-    pub fn join_game(&mut self, id: String, name: Option<&str>) {
+    pub fn join_game(&mut self, id: String, name: String) {
         //添加坦克精灵
         let sprite_index =
             TankGame::add_sprite(&mut self.engine, id, RES_TANK_BITMAP);
         //添加玩家信息
         self.players.insert(
             self.engine.sprites()[sprite_index].id.clone(),
-            Player {
-                name: String::from(name.unwrap_or("")),
-            },
+            Player { name },
         );
         self.add_sprite_event(SpriteEvent::Add, sprite_index); //添加事件
     }

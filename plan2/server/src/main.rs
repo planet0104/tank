@@ -65,10 +65,13 @@ impl Handler for Client {
         if let Ok(text) = msg.into_text(){
             //分离消息ID
             if let Some(lf) = text.find('␊'){
-                let msgs: Vec<&str> = text.split('X').collect();
-                let v = String::from("🗻∈🌏");
-                let _ = self.sender.send((self.out.clone(), self.uuid.clone(), text));
-                return  Ok(());
+                if let Some(msg_id) = text.get(0..lf){
+                    let data = if let Some(d) = text.get(lf..){
+                        Some(d.to_string())
+                    }else{ None};
+                    let _ = self.sender.send((self.out.clone(), format!("{}", msg_id), self.uuid.clone(), data));
+                    return  Ok(());
+                }
             }
         }
         return self.out.send(Message::text("消息格式错误"));
@@ -93,13 +96,13 @@ fn main() {
         let mut game = TankGame::new();
         loop{
             //处理websocket传来的消息
-            if let Ok((sender, msg_id, uuid, json)) = game_receiver.try_recv(){
+            if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
                 match msg_id{
                     MSG_CONNECT => {
                         println!("玩家连接 {}", uuid);
                         /*
                             玩家连线，返回所有精灵列表
-                            MSGID␊ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame␊...
+                            SERVER_MSG_ID␊ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame␊...
                         */
                         let sprites = game.sprites();
                         let mut msg = format!("{}␊", SERVER_MSG_DATA);
@@ -123,7 +126,7 @@ fn main() {
 
                     MSG_START => {
                         //玩家加入游戏
-                        game.join_game(uuid, json["name"].as_str());
+                        game.join_game(uuid, data.unwrap_or(String::from("无名氏")));
                     }
 
                     MSG_DISCONNECT => {
@@ -132,11 +135,12 @@ fn main() {
                     }
 
                     MSG_KEY_EVENT => {
+                        let slices:Vec<&str> = data.unwrap_or("".to_string()).split("␟").collect();
                         //玩家上传按键事件
-                        let event = json[0].as_i64();
-                        let key = json[1].as_str();
-                        if event.is_some() && key.is_some(){
-                            game.on_key_event(KeyEvent::from_i64(event.unwrap()), key.unwrap(), &uuid);
+                        if slices.len() == 2{
+                            if let Ok(event) = slices[0].parse::<i64>(){
+                                game.on_key_event(KeyEvent::from_i64(event), slices[1], &uuid);
+                            }
                         }
                     }
 
@@ -151,26 +155,31 @@ fn main() {
             if timer.ready_for_next_frame(){
                 game.update();
 
-                //游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
+                /*
+                    游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
+                    SERVER_MSG_ID␊EventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame␊...
+                */
                 {
                     let events = game.events();
                     if events.len()>0{
-                        let mut array = vec![];
+                        let mut msg = format!("{}␊", SERVER_MSG_EVENT);
                         for event in events{
-                            println!("{:?}", event);
-                            array.push(
-                                json!({
-                                    "event" : event.0.to_i64(),
-                                    "info" : json!{event.1}
-                                    })
-                            );
+                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␊",
+                                event.0.to_i64(),
+                                event.1.id.clone(),
+                                event.1.res_id,
+                                event.1.position.left,
+                                event.1.position.top,
+                                event.1.position.right,
+                                event.1.position.bottom,
+                                event.1.velocity.x,
+                                event.1.velocity.y,
+                                event.1.current_frame
+                            ));
                         }
-                        if let Ok(string) = serde_json::to_string(&json!([
-                                    SERVER_MSG_EVENT,
-                                    array
-                                ])){
-                            let _ = broadcaster.broadcast(Message::text(string));
-                        }
+                        //删掉最后一个换行键
+                        let _ = msg.pop();
+                        let _ = broadcaster.broadcast(Message::text(msg));
                     }
                 }
                 //清空事件
