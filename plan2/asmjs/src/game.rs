@@ -97,7 +97,7 @@ pub fn start() {
     }));
 
     //游戏循环
-    let frame_callback = |timestamp:f64| {
+    let frame_callback = |timestamp| {
         CLIENT.with(|c| {
             let mut client = c.borrow_mut();
             if client.timer.ready_for_next_frame() {

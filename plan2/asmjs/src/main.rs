@@ -1,18 +1,52 @@
 #[macro_use]
 extern crate serde_json;
-//#[macro_use]
-//extern crate stdweb;
 extern crate tank;
-//use stdweb::unstable::TryInto;
-
 mod game;
 use std::cell::RefCell;
-use std::mem;
 use tank::engine::CanvasContext;
+use std::ffi::CString;
+use std::os::raw::c_char;
+
+//导入的JS帮助函数
+extern "C" {
+    pub fn emscripten_console_log(text: *const c_char);
+    pub fn emscripten_current_time_millis() -> f64;
+    pub fn emscripten_random() -> f64;
+    pub fn emscripten_request_animation_frame();
+    pub fn emscripten_window_inner_width() -> i32;
+    pub fn emscripten_window_inner_height() -> i32;
+    pub fn emscripten_set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32);
+    pub fn emscripten_set_canvas_style_width(width: i32);
+    pub fn emscripten_set_canvas_style_height(height: i32);
+    pub fn emscripten_set_canvas_width(width: i32);
+    pub fn emscripten_set_canvas_height(height: i32);
+    pub fn emscripten_set_canvas_font(font: *const c_char);
+    pub fn emscripten_load_resource(json: *const c_char);
+    pub fn emscripten_fill_style(text: *const c_char);
+    pub fn emscripten_fill_rect(x: i32, y: i32, width: i32, height: i32);
+    pub fn emscripten_fill_text(text: *const c_char, x: i32, y: i32);
+    pub fn emscripten_draw_image_at(res_id: i32, x: i32, y: i32);
+    pub fn emscripten_draw_image(
+        res_id: i32,
+        source_x: i32,
+        source_y: i32,
+        source_width: i32,
+        source_height: i32,
+        dest_x: i32,
+        dest_y: i32,
+        dest_width: i32,
+        dest_height: i32,
+    );
+    pub fn emscripten_send_message(text: *const c_char);
+    pub fn emscripten_connect(url: *const c_char);
+}
 
 struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
+    on_window_resize_listener: Option<fn()>,
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
+    on_keyup_listener: Option<fn(key: String)>,
+    on_keydown_listener: Option<fn(key: String)>,
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
     on_message_listener: Option<fn(msg: String)>,
@@ -21,7 +55,10 @@ struct JS {
 thread_local!{
     static JS: RefCell<JS> = RefCell::new(JS{
         request_animation_frame_callback: None,
+        on_window_resize_listener: None,
         on_resource_load_listener: None,
+        on_keyup_listener: None,
+        on_keydown_listener: None,
         on_connect_listener: None,
         on_close_listener: None,
         on_message_listener: None,
@@ -29,24 +66,26 @@ thread_local!{
 }
 
 pub fn random() -> f64 {
-    //js!(random()).try_into().unwrap()
-    0.0
+    unsafe{
+        emscripten_random()
+    }
 }
 
 pub fn current_time_millis() -> u64 {
-    // js!({
-    //     return current_time_millis();
-    // }).try_into().unwrap()
-    0
+    unsafe { emscripten_current_time_millis() as u64 }
 }
 
 pub fn console_log(msg: &str) {
-    //js!(console_log(@{msg}));
+    unsafe {
+        emscripten_console_log(CString::new(msg).unwrap().as_ptr());
+    }
 }
 
 pub fn load_resource(map: serde_json::Value) {
     let json = serde_json::to_string(&map).unwrap();
-    //js!(load_resource(@{json}));
+    unsafe {
+        emscripten_load_resource(CString::new(json).unwrap().as_ptr());
+    }
 }
 
 pub fn send_json_message(json: serde_json::Value) {
@@ -55,45 +94,53 @@ pub fn send_json_message(json: serde_json::Value) {
 }
 
 pub fn window_inner_width() -> i32 {
-    // js!({
-    //     return window.innerWidth;
-    // }).try_into().unwrap()
-    100
+    unsafe { emscripten_window_inner_width() }
 }
 
 pub fn window_inner_height() -> i32 {
-    // js!({
-    //     return window.innerHeight;
-    // }).try_into().unwrap()
-    100
+    unsafe { emscripten_window_inner_height() }
 }
 
 pub fn fill_style(style: &str) {
-    //js!(fill_style(@{style}));
+    unsafe {
+        emscripten_fill_style(CString::new(style).unwrap().as_ptr());
+    }
 }
 
 pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
-    //js!(fill_rect(@{x}, @{y}, @{width}, @{height}));
+    unsafe {
+        emscripten_fill_rect(x, y, width, height);
+    }
 }
 
 pub fn fill_text(text: &str, x: i32, y: i32) {
-    //js!(fill_text(@{text}, @{x}, @{y}));
+    unsafe {
+        emscripten_fill_text(CString::new(text).unwrap().as_ptr(), x, y);
+    }
 }
 
 pub fn set_canvas_font(font: &str) {
-    //js!(set_canvas_font(@{font}));
+    unsafe {
+        emscripten_set_canvas_font(CString::new(font).unwrap().as_ptr());
+    }
 }
 
 pub fn send_message(msg: &str) {
-    //js!(send_message(@{msg}));
+    unsafe {
+        emscripten_send_message(CString::new(msg).unwrap().as_ptr());
+    }
 }
 
 pub fn connect(url: &str) {
-    //js!(connect(@{url}));
+    unsafe {
+        emscripten_connect(CString::new(url).unwrap().as_ptr());
+    }
 }
 
 pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
-    //js!(draw_image_at(@{res_id}, @{x}, @{y}));
+    unsafe {
+        emscripten_draw_image_at(res_id, x, y);
+    }
 }
 pub fn draw_image(
     res_id: i32,
@@ -106,33 +153,35 @@ pub fn draw_image(
     dest_width: i32,
     dest_height: i32,
 ) {
-    // js!(draw_image(
-    //         @{res_id},
-    //         @{source_x},
-    //         @{source_y},
-    //         @{source_width},
-    //         @{source_height},
-    //         @{dest_x},
-    //         @{dest_y},
-    //         @{dest_width},
-    //         @{dest_height},
-    //     ));
+    unsafe {
+        emscripten_draw_image(
+            res_id,
+            source_x,
+            source_y,
+            source_width,
+            source_height,
+            dest_x,
+            dest_y,
+            dest_width,
+            dest_height,
+        );
+    }
 }
 
 pub fn set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32) {
-    //js!(set_canvas_style_margin(@{left}, @{top}, @{right}, @{bottom}));
+    unsafe { emscripten_set_canvas_style_margin(left, top, right, bottom) };
 }
 pub fn set_canvas_style_width(width: i32) {
-    //js!(set_canvas_style_width(@{width}));
+    unsafe { emscripten_set_canvas_style_width(width) };
 }
 pub fn set_canvas_style_height(height: i32) {
-    //js!(set_canvas_style_height(@{height}));
+    unsafe { emscripten_set_canvas_style_height(height) };
 }
 pub fn set_canvas_width(width: i32) {
-    //js!(set_canvas_width(@{width}));
+    unsafe { emscripten_set_canvas_width(width) };
 }
 pub fn set_canvas_height(height: i32) {
-    //js!(set_canvas_height(@{height}));
+    unsafe { emscripten_set_canvas_height(height) };
 }
 
 pub fn set_frame_callback(callback: fn(f64)) {
@@ -142,10 +191,9 @@ pub fn set_frame_callback(callback: fn(f64)) {
 }
 
 pub fn set_on_window_resize_listener(listener: fn()) {
-    // js!({
-    //     var listener = @{listener};
-    //     window.onresize = function(){ listener() };
-    // });
+    JS.with(|e| {
+        e.borrow_mut().on_window_resize_listener = Some(listener);
+    });
 }
 
 pub fn set_on_connect_listener(listener: fn()) {
@@ -167,21 +215,15 @@ pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
 }
 
 pub fn set_on_keyup_listener(listener: fn(key: String)) {
-    // js!({
-    //     var listener = @{listener};
-    //     document.addEventListener("keyup", function(event){
-    //         listener(event.key);
-    //     });
-    // });
+    JS.with(|e| {
+        e.borrow_mut().on_keyup_listener = Some(listener);
+    });
 }
 
 pub fn set_on_keydown_listener(listener: fn(key: String)) {
-    // js!({
-    //     var listener = @{listener};
-    //     document.addEventListener("keydown", function(event){
-    //         listener(event.key);
-    //     });
-    // });
+    JS.with(|e| {
+        e.borrow_mut().on_keydown_listener = Some(listener);
+    });
 }
 
 pub fn set_on_message_listener(listener: fn(msg: String)) {
@@ -190,12 +232,15 @@ pub fn set_on_message_listener(listener: fn(msg: String)) {
     });
 }
 
+
 pub fn request_animation_frame() {
-    //js!(request_animation_frame());
+    unsafe {
+        emscripten_request_animation_frame();
+    }
 }
 
 #[no_mangle]
-pub extern fn request_animation_frame_callback(timestamp: f64) {
+pub fn request_animation_frame_callback(timestamp: f64) {
     JS.with(|e| {
         if let Some(callback) = e.borrow().request_animation_frame_callback {
             callback(timestamp);
@@ -204,7 +249,16 @@ pub extern fn request_animation_frame_callback(timestamp: f64) {
 }
 
 #[no_mangle]
-pub extern fn on_resource_load(num: i32, total: i32) {
+pub fn on_window_resize() {
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_window_resize_listener {
+            callback();
+        }
+    });
+}
+
+#[no_mangle]
+pub fn on_resource_load(num: i32, total: i32) {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_resource_load_listener {
             callback(num, total);
@@ -213,22 +267,7 @@ pub extern fn on_resource_load(num: i32, total: i32) {
 }
 
 #[no_mangle]
-pub extern fn on_connect() {
-    let msg_listener = |msg:String|{
-        JS.with(|e| {
-            if let Some(callback) = e.borrow().on_message_listener {
-                callback(msg);
-            }
-        });
-    };
-
-    // js!({
-    //     var msg_listener = @{msg_listener};
-    //     socket.onmessage = function(event){
-    //         msg_listener(event.data);
-    //     };
-    // });
-
+pub fn on_connect() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_connect_listener {
             callback();
@@ -237,7 +276,7 @@ pub extern fn on_connect() {
 }
 
 #[no_mangle]
-pub extern fn on_close() {
+pub fn on_close() {
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_close_listener {
             callback();
@@ -246,18 +285,45 @@ pub extern fn on_close() {
 }
 
 #[no_mangle]
-pub extern fn alloc(size: usize) -> *const u8 {
-    let mut buf = Vec::with_capacity(size);
-    let ptr = buf.as_mut_ptr();
-    mem::forget(buf);
-    return ptr;
+pub unsafe fn on_message(msg: *mut u8, length: usize) {
+    let msg = String::from_raw_parts(msg, length, length);
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_message_listener {
+            callback(msg);
+        }
+    });
+}
+
+#[no_mangle]
+pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
+    let key = String::from_raw_parts(key, length, length);
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_keyup_listener {
+            callback(key);
+        }
+    });
+}
+
+#[no_mangle]
+pub unsafe fn on_keydown_event(key: *mut u8, length: usize) {
+    let key = String::from_raw_parts(key, length, length);
+    JS.with(|e| {
+        if let Some(callback) = e.borrow().on_keydown_listener {
+            callback(key);
+        }
+    });
+}
+
+#[no_mangle]
+pub fn start() {
+    game::start();
 }
 
 pub struct Context2D {}
 
 impl CanvasContext for Context2D {
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
-        //draw_image_at(res_id, x, y);
+        draw_image_at(res_id, x, y);
     }
 
     fn draw_image(
@@ -272,50 +338,32 @@ impl CanvasContext for Context2D {
         dest_width: i32,
         dest_height: i32,
     ) {
-        // draw_image(
-        //     res_id,
-        //     source_x,
-        //     source_y,
-        //     source_width,
-        //     source_height,
-        //     dest_x,
-        //     dest_y,
-        //     dest_width,
-        //     dest_height,
-        // );
+        draw_image(
+            res_id,
+            source_x,
+            source_y,
+            source_width,
+            source_height,
+            dest_x,
+            dest_y,
+            dest_width,
+            dest_height,
+        );
     }
 
     fn fill_style(&self, style: &str) {
-        //fill_style(style);
+        fill_style(style);
     }
 
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
-        //fill_rect(x, y, width, height);
+        fill_rect(x, y, width, height);
     }
 
     fn fill_text(&self, text: &str, x: i32, y: i32) {
-        //fill_text(text, x, y);
+        fill_text(text, x, y);
     }
-}
-
-
-/*
-Module使用说明:
-https://davidmcneil.gitbooks.io/the-rusty-web/content/counter-example.html
-*/
-extern "C" {
-    fn __js_a();
 }
 
 fn main(){
-    //stdweb::initialize();
-    // js!({
-    //     console.log(Module);
-    // });
-    unsafe{
-        __js_a();
-    }
-    game::start();
 
-    //stdweb::event_loop();
 }
