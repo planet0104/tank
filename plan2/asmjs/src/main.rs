@@ -326,9 +326,11 @@ console.log(hello_world(41));
 
 */
 
-//导入的JS帮助函数
-extern "C" {
-    pub fn alertTest();
+//#[link(name = "-s EXPORTED_FUNCTIONS=['_test_alert']")]
+//#[link_args = "-s EXPORTED_FUNCTIONS=['_test_alert']"]
+#[link(name = "-s EXPORTED_FUNCTIONS=['_test_alert']")]
+extern {
+    fn test_alert();
 }
 
 fn main(){
@@ -336,7 +338,9 @@ fn main(){
     // js!({
     //     console.log(Module);
     // });
-    unsafe{ alertTest(); }
+    unsafe{
+        test_alert();
+    }
     game::start();
 
     //stdweb::event_loop();

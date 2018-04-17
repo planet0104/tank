@@ -252,47 +252,8 @@ function connect(url){
     }
 }
 
-var Module = {
-    preRun: [],
-    postRun: [],
-    print: (function() {
-      return function(text) {
-        if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-        console.log(text);
-      };
-    })(),
-    printErr: function(text) {
-      if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-      if (0) { // XXX disabled for safety typeof dump == 'function') {
-        dump(text + '\n'); // fast, straight to the real console
-      } else {
-        console.error(text);
-      }
+mergeInto(LibraryManager.library, {
+    test_alert: function() {
+        window.alert("hello!");
     },
-    canvas: (function() {
-    })(),
-    setStatus: function(text) {
-    },
-    totalDependencies: 0,
-    monitorRunDependencies: function(left) {
-      this.totalDependencies = Math.max(this.totalDependencies, left);
-      Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
-    },
-    onRuntimeInitialized: function(){
-        console.log('onRuntimeInitialized');
-        
-        mergeInto(LibraryManager.library, {
-            my_js: function alertTest(){
-                console.log("alertTest");
-            },
-        });        
-    }
-  };
-  Module.setStatus('Downloading...');
-  window.onerror = function(event) {
-    // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
-    Module.setStatus('Exception thrown, see JavaScript console');
-    Module.setStatus = function(text) {
-      if (text) Module.printErr('[post-exception status] ' + text);
-    };
-  };
+});
