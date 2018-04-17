@@ -17,7 +17,7 @@ fn main() {
     
     for line in delete_contents.lines(){
         if line.trim().len() > 0{
-            println!("删除:{}", line);
+            //println!("删除:{}", line);
             target_contents = target_contents.replace(line, "");
         }
     }

@@ -29,7 +29,7 @@ struct Client {
 thread_local!{
     static CLIENT: RefCell<Client> = RefCell::new(Client{
         uuid: String::new(),
-        timer:Timer::new(1, ||{ current_time_millis() }),
+        timer:Timer::new(1),
         game:TankGame::new(),
         context: Context2D{},
     });
@@ -97,13 +97,12 @@ pub fn start() {
     }));
 
     //游戏循环
-    let frame_callback = |timestamp| {
+    let frame_callback = |_timestamp| {
         CLIENT.with(|c| {
             let mut client = c.borrow_mut();
             if client.timer.ready_for_next_frame() {
                 client.game.update_sprites();
                 client.game.draw(&client.context);
-                console_log(&format!("游戏循环 {}", timestamp));
             }
             request_animation_frame();
         });
@@ -113,8 +112,8 @@ pub fn start() {
     set_frame_callback(frame_callback);
 }
 
-fn handle_message(msg:String){
-    let value:Value = serde_json::from_str(&msg).unwrap();
+fn handle_message(msg: &str){
+    let value:Value = serde_json::from_str(msg).unwrap();
     let array = value.as_array().unwrap();
     let msg_id = array[0].as_i64().unwrap() as isize;
 
@@ -122,21 +121,39 @@ fn handle_message(msg:String){
         let mut client = c.borrow_mut();
         match msg_id{
             SERVER_MSG_EVENT => {
+                console_log("更新精灵");
                 //更新精灵
                 let events:&Vec<Value> = array[1].as_array().unwrap();
                 for value in events{
                     let event = SpriteEvent::from_i64(value["event"].as_i64().unwrap());
-                    let info:SpriteInfo = serde_json::from_value(value["info"].clone()).unwrap();
+                    console_log(&format!("event:{:?}", event));
+                    //let info:SpriteInfo = serde_json::from_value(value["info"].clone()).unwrap();
+                    let info = SpriteInfo{
+                        b: value["info"]["b"].as_i64().unwrap() as i32,
+                        frame: value["info"]["frame"].as_i64().unwrap() as i32,
+                        id: value["info"]["id"].as_str().unwrap().to_string(),
+                        l: value["info"]["l"].as_i64().unwrap() as i32,
+                        r: value["info"]["r"].as_i64().unwrap() as i32,
+                        res: value["info"]["res"].as_i64().unwrap() as i32,
+                        t: value["info"]["t"].as_i64().unwrap() as i32,
+                        vx: value["info"]["vx"].as_i64().unwrap() as i32,
+                        vy: value["info"]["vy"].as_i64().unwrap() as i32,
+                    };
                     client.game.handle_server_event(event, info);
                 }
             },
             SERVER_MSG_UUID => {
                 client.uuid = array[1].as_str().unwrap().to_string();
                 console_log(&format!("client.uuid={}", client.uuid));
-
             },
             SERVER_MSG_DATA => {
-                console_log("msg_data");
+                console_log("绘制所有精灵");
+                //绘制所有精灵
+                let events:&Vec<Value> = array[1].as_array().unwrap();
+                for value in events{
+                    let info:SpriteInfo = serde_json::from_value(value.clone()).unwrap();
+                    client.game.handle_server_event(SpriteEvent::Add, info);
+                }
             }
             _ => {}
         }
@@ -144,7 +161,7 @@ fn handle_message(msg:String){
 }
 
 //处理按键事件
-fn handle_key(event: KeyEvent, key: String) {
+fn handle_key(event: KeyEvent, key: &str) {
     console_log(&format!("event={:?} key={}", event, key));
 }
 

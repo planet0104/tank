@@ -1,15 +1,11 @@
 extern crate rand;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
 extern crate uuid;
 pub mod utils;
 pub mod engine;
 mod sprite;
 use uuid::Uuid;
 use engine::{CanvasContext, GameEngine};
-use sprite::{BitmapRes, Rect, Sprite, BA_DIE, BA_WRAP};
+use sprite::{BitmapRes, Rect, Point, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
 //socket消息
 pub const MSG_CONNECT: i64 = 1;
@@ -36,16 +32,6 @@ pub const RES_SM_EXPLOSION__BITMAP: i32 = 3;
 
 pub const TANK_VELOCITY: i32 = 6;
 pub const MISSILE_VELOCITY: i32 = 2;
-
-// extern "C" {
-//     pub fn _console_log(text: *const u8, len: usize);
-// }
-
-// pub fn console_log(msg: &str) {
-//     unsafe {
-//         _console_log(msg.as_ptr(), msg.len());
-//     }
-// }
 
 pub enum MouseEvent {
     MouseMove,
@@ -103,17 +89,12 @@ impl SpriteEvent{
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
 pub struct SpriteInfo {
     pub id: String,
-    pub res: i32, //资源ID
-    pub l: i32,
-    pub t: i32,
-    pub r: i32,
-    pub b: i32,
-    pub vx: i32,    //x速度
-    pub vy: i32,    //y速度
-    pub frame: i32, //当前帧
+    pub res_id: i32, //资源ID
+    pub position: Rect,
+    pub velocity: Point,
+    pub current_frame: i32, //当前帧
 }
 
 pub struct Player {
@@ -199,25 +180,24 @@ impl TankGame {
         //添加坦克精灵
         let sprite_index =
             TankGame::add_sprite(&mut self.engine, id, RES_TANK_BITMAP);
-        {let sprite = &mut self.engine.sprites()[sprite_index];
-        sprite.rand_pos();
         //添加玩家信息
         self.players.insert(
-            sprite.id.clone(),
+            self.engine.sprites()[sprite_index].id.clone(),
             Player {
                 name: String::from(name.unwrap_or("")),
             },
-        )};
+        );
         self.add_sprite_event(SpriteEvent::Add, sprite_index); //添加事件
     }
 
     //离开游戏/断线
     pub fn leave_game(&mut self, id: &String) {
+        println!("leave_game {}", id);
         //查找玩家id对应的精灵, 将其删除
         self.players.remove(id);
         if let Some(index) = self.engine.query_sprite_idx(id) {
             self.add_sprite_event(SpriteEvent::Delete, index); //事件
-            self.engine.sprites()[index].kill();
+            self.engine.sprites().remove(index); //直接删除, 不kill
         }
     }
 
@@ -227,7 +207,7 @@ impl TankGame {
             SpriteEvent::Add => Some(TankGame::add_sprite(
                 &mut self.engine,
                 sprite_info.id,
-                sprite_info.res
+                sprite_info.res_id
             )),
             SpriteEvent::Update => self.engine.query_sprite_idx(&sprite_info.id),
             SpriteEvent::Delete => {
@@ -239,14 +219,9 @@ impl TankGame {
         } {
             //设置精灵信息
             let mut sprite = &mut self.engine.sprites()[sprite_idx];
-            sprite.set_position_rect(Rect::new(
-                sprite_info.l,
-                sprite_info.t,
-                sprite_info.r,
-                sprite_info.b,
-            ));
-            sprite.set_velocity(sprite_info.vx, sprite_info.vy);
-            sprite.set_current_frame(sprite_info.frame);
+            sprite.set_position_rect(sprite_info.position);
+            sprite.set_velocity_point(&sprite_info.velocity);
+            sprite.set_current_frame(sprite_info.current_frame);
         }
     }
 
@@ -317,19 +292,18 @@ impl TankGame {
 
     //添加要分发的事件
     fn add_sprite_event(&mut self, event: SpriteEvent, sprite_idx: usize) {
+        if sprite_idx >= self.engine.sprites().len(){
+            return;
+        }
         let sprite = &self.engine.sprites()[sprite_idx];
         self.events.push((
             event,
             SpriteInfo {
                 id: sprite.id.clone(),
-                res: sprite.bitmap().id(),
-                l: sprite.position().left,
-                t: sprite.position().top,
-                r: sprite.position().right,
-                b: sprite.position().bottom,
-                vx: sprite.velocity().x,
-                vy: sprite.velocity().y,
-                frame: sprite.current_frame(),
+                res_id: sprite.bitmap().id(),
+                position: sprite.position().clone(),
+                velocity: sprite.velocity().clone(),
+                current_frame: sprite.current_frame(),
             },
         ));
     }

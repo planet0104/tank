@@ -1,10 +1,7 @@
 extern crate ws;
-#[macro_use]
-extern crate serde_json;
 extern crate tank;
 extern crate uuid;
 extern crate num;
-use serde_json::value::Value;
 use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
 use std::sync::mpsc::channel;
@@ -13,7 +10,6 @@ use std::time::Duration;
 use tank::TankGame;
 use tank::utils::Timer;
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tank::{
     KeyEvent,
     MSG_CONNECT,
@@ -29,8 +25,15 @@ use tank::{
 // 服务器Web处理程序
 struct Client {
     out: Sender,
-    //isize 是玩家发送给服务器的消息ID, String是玩家的uuid, JsonValue是附加消息(如 keycode、鼠标坐标等等)
-    sender: GameSender<(Sender, i64, String, Value)>,
+    //i64 是玩家发送给服务器的消息ID, String是玩家的uuid, String是附加消息(如 keycode、鼠标坐标等等)
+    /*
+        client来的消息格式:
+        MSG_ID␊内容
+
+        server下发的消息格式:
+        SERVER_MSG_ID␊内容
+    */
+    sender: GameSender<(Sender, i64, String, Option<String>)>,
     uuid: String //玩家连线以后，创建uuid，此uuid也用于玩家精灵的id
 }
 
@@ -41,37 +44,34 @@ impl Handler for Client {
     fn on_open(&mut self, shake: Handshake) -> Result<()> {
         println!("客户端连接:{:?}", shake.remote_addr());
 
-        //玩家连线，从游戏拉去精灵数据，发送给客户端
-        if let Ok(string) = serde_json::to_string(&json!([
-                    SERVER_MSG_UUID,
-                    self.uuid
-                ])){
-            let _ = self.out.send(Message::text(string));
-        }
-        let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), json!(null)));
+        //玩家连线，从游戏拉去精灵数据，发送给客户端: SERVER_MSG_ID␊UUID
+        let _ = self.out.send(Message::text(format!("{}␊{}", SERVER_MSG_UUID, self.uuid)));
+        let _ = self.sender.send((self.out.clone(), MSG_CONNECT, self.uuid.clone(), None));
         Ok(())
     }
 
     fn on_close(&mut self, _code: CloseCode, _reason: &str){
         //玩家下线
-        let _ = self.sender.send((self.out.clone(), MSG_DISCONNECT, self.uuid.clone(), json!(null)));
+        let _ = self.sender.send((self.out.clone(), MSG_DISCONNECT, self.uuid.clone(), None));
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
         println!("on_message:{:?}", msg);
-        //服务器端接收的消息，只有两种 1、玩家加入游戏， 2、玩家键盘操作
+        /*
+            服务器端接收的消息:
+                 玩家加入游戏=> MSG_START␊NAME
+                 玩家键盘操作=> MSG_KEY_EVENT␊KeyEvent␟Key
+        */
         if let Ok(text) = msg.into_text(){
-            let value:Value = serde_json::from_str(text.as_str()).unwrap();
-            if let Some(array) = value.as_array(){
-                if let Some(msg_id) = array[0].as_i64(){
-                    //玩家开始游戏，通知游戏添加精灵，然后广播
-                    //玩家键盘操作，通知游戏更新，然后广播
-                    let _ = self.sender.send((self.out.clone(), msg_id, self.uuid.clone(), array[1].clone()));
-                    return  Ok(());
-                }
+            //分离消息ID
+            if let Some(lf) = text.find('␊'){
+                let msgs: Vec<&str> = text.split('X').collect();
+                let v = String::from("🗻∈🌏");
+                let _ = self.sender.send((self.out.clone(), self.uuid.clone(), text));
+                return  Ok(());
             }
         }
-        return self.out.send(Message::text("JSON格式错误"));
+        return self.out.send(Message::text("消息格式错误"));
     }
 }
 
@@ -89,11 +89,7 @@ fn main() {
     let _gs  = thread::spawn(move || {
         let delay_ms = Duration::from_millis(10);
 
-        let mut timer = Timer::new(2, ||->u64{
-                //当前时间戳
-                let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-                since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000
-        });
+        let mut timer = Timer::new(2);
         let mut game = TankGame::new();
         loop{
             //处理websocket传来的消息
@@ -101,30 +97,28 @@ fn main() {
                 match msg_id{
                     MSG_CONNECT => {
                         println!("玩家连接 {}", uuid);
-                        //玩家连线，返回所有精灵列表
+                        /*
+                            玩家连线，返回所有精灵列表
+                            MSGID␊ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame␊...
+                        */
                         let sprites = game.sprites();
-                        let mut array = vec![];
+                        let mut msg = format!("{}␊", SERVER_MSG_DATA);
                         for sprite in sprites{
-                            array.push(
-                                json!({
-                                    "id" : sprite.id.clone(),
-                                    "res" : sprite.bitmap().id(),
-                                    "l" : sprite.position().left,
-                                    "t" : sprite.position().top,
-                                    "r" : sprite.position().right,
-                                    "b" : sprite.position().bottom,
-                                    "vx" : sprite.velocity().x,
-                                    "vy" : sprite.velocity().y,
-                                    "frame" : sprite.current_frame()
-                                })
-                            );
+                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␊",
+                                sprite.id.clone(),
+                                sprite.bitmap().id(),
+                                sprite.position().left,
+                                sprite.position().top,
+                                sprite.position().right,
+                                sprite.position().bottom,
+                                sprite.velocity().x,
+                                sprite.velocity().y,
+                                sprite.current_frame()
+                            ));
                         }
-                        if let Ok(string) = serde_json::to_string(&json!([
-                                    SERVER_MSG_DATA,
-                                    array
-                                ])){
-                            let _ = sender.send(Message::text(string));
-                        }
+                        //删掉最后一个换行键
+                        let _ = msg.pop();
+                        let _ = sender.send(Message::text(msg));
                     }
 
                     MSG_START => {
@@ -163,6 +157,7 @@ fn main() {
                     if events.len()>0{
                         let mut array = vec![];
                         for event in events{
+                            println!("{:?}", event);
                             array.push(
                                 json!({
                                     "event" : event.0.to_i64(),

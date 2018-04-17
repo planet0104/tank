@@ -100,6 +100,12 @@ function connect(url){
     socket = new WebSocket(url);
     socket.onopen = function(event) {
         Module._on_connect();
+        
+        socket.onmessage = function(event){
+            console.log("onmessage", event.data);
+            Module._on_message(allocateUTF8OnStack(event.data));
+        };
+
         socket.onclose = function(event) {
             Module._on_close();
         };

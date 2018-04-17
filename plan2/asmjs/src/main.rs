@@ -6,11 +6,11 @@ use std::cell::RefCell;
 use tank::engine::CanvasContext;
 use std::ffi::CString;
 use std::os::raw::c_char;
+//use std::time::{SystemTime, UNIX_EPOCH};
 
 //导入的JS帮助函数
 extern "C" {
     pub fn emscripten_console_log(text: *const c_char);
-    pub fn emscripten_current_time_millis() -> f64;
     pub fn emscripten_random() -> f64;
     pub fn emscripten_request_animation_frame();
     pub fn emscripten_window_inner_width() -> i32;
@@ -45,11 +45,11 @@ struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
     on_window_resize_listener: Option<fn()>,
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
-    on_keyup_listener: Option<fn(key: String)>,
-    on_keydown_listener: Option<fn(key: String)>,
+    on_keyup_listener: Option<fn(key: &str)>,
+    on_keydown_listener: Option<fn(key: &str)>,
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
-    on_message_listener: Option<fn(msg: String)>,
+    on_message_listener: Option<fn(msg: &str)>,
 }
 
 thread_local!{
@@ -69,10 +69,6 @@ pub fn random() -> f64 {
     unsafe{
         emscripten_random()
     }
-}
-
-pub fn current_time_millis() -> u64 {
-    unsafe { emscripten_current_time_millis() as u64 }
 }
 
 pub fn console_log(msg: &str) {
@@ -214,19 +210,19 @@ pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
     });
 }
 
-pub fn set_on_keyup_listener(listener: fn(key: String)) {
+pub fn set_on_keyup_listener(listener: fn(key: &str)) {
     JS.with(|e| {
         e.borrow_mut().on_keyup_listener = Some(listener);
     });
 }
 
-pub fn set_on_keydown_listener(listener: fn(key: String)) {
+pub fn set_on_keydown_listener(listener: fn(key: &str)) {
     JS.with(|e| {
         e.borrow_mut().on_keydown_listener = Some(listener);
     });
 }
 
-pub fn set_on_message_listener(listener: fn(msg: String)) {
+pub fn set_on_message_listener(listener: fn(msg: &str)) {
     JS.with(|e| {
         e.borrow_mut().on_message_listener = Some(listener);
     });
@@ -285,31 +281,31 @@ pub fn on_close() {
 }
 
 #[no_mangle]
-pub unsafe fn on_message(msg: *mut u8, length: usize) {
-    let msg = String::from_raw_parts(msg, length, length);
+pub fn on_message(msg: *mut c_char) {
+    let c_string = unsafe{ CString::from_raw(msg) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_message_listener {
-            callback(msg);
+            callback(c_string.to_str().unwrap());
         }
     });
 }
 
 #[no_mangle]
-pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
+pub fn on_keyup_event(key: *mut c_char) {
+    let key = unsafe{ CString::from_raw(key) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_keyup_listener {
-            callback(key);
+            callback(key.to_str().unwrap());
         }
     });
 }
 
 #[no_mangle]
-pub unsafe fn on_keydown_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
+pub fn on_keydown_event(key: *mut c_char) {
+    let key = unsafe{ CString::from_raw(key) };
     JS.with(|e| {
         if let Some(callback) = e.borrow().on_keydown_listener {
-            callback(key);
+            callback(key.to_str().unwrap());
         }
     });
 }
@@ -365,5 +361,8 @@ impl CanvasContext for Context2D {
 }
 
 fn main(){
-
+    println!("main.");
+    // let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
+    // let elapsed = since_the_epoch.as_secs() * 1000 + since_the_epoch.subsec_nanos() as u64 / 1_000_000;
+    // println!("elapsed={}", elapsed);
 }

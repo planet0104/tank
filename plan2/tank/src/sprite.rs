@@ -1,7 +1,6 @@
 use std::cmp;
 use engine::CanvasContext;
 use utils::rand_int;
-//use ::console_log;
 //精灵代码
 
 pub type SPRITEACTION = u32;
@@ -175,10 +174,13 @@ impl Sprite {
         bounds: Rect,
         bounds_action: BOUNDSACTION
     ) -> Sprite {
+        //计算随即位置
+        let x = rand_int(0, bounds.right - bounds.left);
+        let y = rand_int(0, bounds.bottom - bounds.top);
         Sprite::new(
             id,
             bitmap,
-            Point::new(),
+            Point { x: x, y: y },
             Point { x: 0, y: 0 },
             0,
             bounds,
@@ -435,17 +437,5 @@ impl Sprite {
 
     pub fn kill(&mut self) {
         self.dying = true;
-    }
-
-    pub fn rand_pos(&mut self){
-        //计算随即位置
-        let x = rand_int(0, self.bounds.right - self.bounds.left);
-        let y = rand_int(0, self.bounds.bottom - self.bounds.top);
-        self.position = Rect::new(
-                x,
-                y,
-                x + self.bitmap.width(),
-                y + self.bitmap.height(),
-            );
     }
 }

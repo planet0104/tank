@@ -1,6 +1,5 @@
 function _emscripten_connect(){Module["printErr"]("missing function: emscripten_connect");abort(-1)}
 function _emscripten_console_log(){Module["printErr"]("missing function: emscripten_console_log");abort(-1)}
-function _emscripten_current_time_millis(){Module["printErr"]("missing function: emscripten_current_time_millis");abort(-1)}
 function _emscripten_draw_image(){Module["printErr"]("missing function: emscripten_draw_image");abort(-1)}
 function _emscripten_draw_image_at(){Module["printErr"]("missing function: emscripten_draw_image_at");abort(-1)}
 function _emscripten_fill_rect(){Module["printErr"]("missing function: emscripten_fill_rect");abort(-1)}
