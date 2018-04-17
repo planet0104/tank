@@ -300,37 +300,11 @@ impl CanvasContext for Context2D {
 
 
 /*
-https://users.rust-lang.org/t/compiling-to-the-web-with-rust-and-emscripten/7627/31
-
-http://floooh.github.io/2016/08/27/asmjs-diet.html
-
-Yes, correct.
-
-Basically you have this boilerplate right now:
-
-#[link_args = "-s EXPORTED_FUNCTIONS=['_hello_world']"]
-extern {}
-
-fn main() {}
-
-#[no_mangle]
-pub extern fn hello_world(n: c_int) -> c_int {
-    n + 1
-}
-
-Then you can use this in your javascript to access and call the function:
-
-var hello_world = cwrap('hello_world', 'number', ['number']);
-
-console.log(hello_world(41));
-
+Module使用说明:
+https://davidmcneil.gitbooks.io/the-rusty-web/content/counter-example.html
 */
-
-//#[link(name = "-s EXPORTED_FUNCTIONS=['_test_alert']")]
-//#[link_args = "-s EXPORTED_FUNCTIONS=['_test_alert']"]
-#[link(name = "-s EXPORTED_FUNCTIONS=['_test_alert']")]
-extern {
-    fn test_alert();
+extern "C" {
+    fn __js_a();
 }
 
 fn main(){
@@ -339,7 +313,7 @@ fn main(){
     //     console.log(Module);
     // });
     unsafe{
-        test_alert();
+        __js_a();
     }
     game::start();
 

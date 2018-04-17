@@ -1,0 +1,1 @@
+function _emscripten_console_log(){Module["printErr"]("missing function: emscripten_console_log");abort(-1)}
