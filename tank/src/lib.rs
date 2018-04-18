@@ -31,8 +31,8 @@ pub const RES_MISSILE_BITMAP: i32 = 1;
 pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
 pub const RES_SM_EXPLOSION__BITMAP: i32 = 3;
 
-pub const TANK_VELOCITY: i32 = 6;
-pub const MISSILE_VELOCITY: i32 = 2;
+pub const TANK_VELOCITY: i32 = 3;
+pub const MISSILE_VELOCITY: i32 = 7;
 
 pub enum MouseEvent {
     MouseMove,

@@ -57,7 +57,7 @@ impl Handler for Client {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        println!("on_message:{:?}", msg);
+        //println!("on_message:{:?}", msg);
         /*
             服务器端接收的消息:
                  玩家加入游戏=> MSG_START\nNAME
@@ -149,7 +149,9 @@ fn main() {
                         //玩家上传鼠标事件
                     }
 
-                    _ => {}
+                    other => {
+                        println!("未定义消息: id={}", other)
+                    }
                 }
             }
             
@@ -165,7 +167,7 @@ fn main() {
                     if events.len()>0{
                         let mut msg = format!("{}\n", SERVER_MSG_EVENT);
                         for event in events{
-                            println!("分发事件 {:?} {:?}", event.0, event.1.id);
+                            //println!("分发事件 {:?} {:?}", event.0, event.1.id);
                             msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                                 event.0.to_i64(),
                                 event.1.id.clone(),
