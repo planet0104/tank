@@ -1,6 +1,0 @@
-[package]
-name = "simpleasmjs"
-version = "0.1.0"
-authors = ["planet"]
-
-[dependencies]
