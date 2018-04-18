@@ -10,14 +10,18 @@ var ctx = canvas.getContext("2d");
 //     Module._on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
 // });
 
+var keyPress = {};
+
 document.addEventListener("keyup", function(event){
-    if(!event.repeat)
+    keyPress[event.key] = false;
     Module._on_keyup_event(allocateUTF8OnStack(event.key));
 });
 
 document.addEventListener("keydown", function(event){
-    if(!event.repeat)
-    Module._on_keydown_event(allocateUTF8OnStack(event.key));
+    if(!keyPress[event.key]){
+        keyPress[event.key] = true;
+        Module._on_keydown_event(allocateUTF8OnStack(event.key));
+    }
 });
 
 //下面是要导入webassembly的JS帮助函数

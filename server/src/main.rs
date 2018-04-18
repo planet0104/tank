@@ -91,9 +91,9 @@ fn main() {
 
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let _gs  = thread::spawn(move || {
-        let delay_ms = Duration::from_millis(10);
+        let delay_ms = Duration::from_millis(5);
 
-        let mut timer = Timer::new(30);
+        let mut timer = Timer::new(25);
         let mut game = TankGame::new();
         loop{
             //处理websocket传来的消息
@@ -140,6 +140,7 @@ fn main() {
                         //玩家上传按键事件
                         if slices.len() == 2{
                             if let Ok(event) = slices[0].parse::<i64>(){
+                                println!("key event {} {:?} {}", event, slices[1], uuid);
                                 game.on_key_event(KeyEvent::from_i64(event), slices[1], &uuid);
                             }
                         }
@@ -196,6 +197,7 @@ fn main() {
 
     //启动websocket服务
     let address = "127.0.0.1:8080";
+    //let address = "50.3.18.60:8080";
 
     println!("游戏服务已启动: {}", address);
     ws.listen(address).unwrap();

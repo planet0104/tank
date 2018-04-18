@@ -1,5 +1,5 @@
 extern crate tank;
-mod game;
+mod client;
 use std::cell::RefCell;
 use tank::engine::CanvasContext;
 use std::ffi::CString;
@@ -311,7 +311,7 @@ pub fn on_keydown_event(key: *mut c_char) {
 
 #[no_mangle]
 pub fn start() {
-    game::start();
+    client::start();
 }
 
 pub struct Context2D {}

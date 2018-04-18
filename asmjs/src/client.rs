@@ -24,6 +24,7 @@ struct Client {
     name: Option<String>,
     timer: Timer,
     game: TankGame,
+    last_time: f64,
     context: Context2D,
 }
 
@@ -36,9 +37,10 @@ fn client<'a>() -> &'a mut Client {
             CLIENT = transmute(Box::new(Client{
                 uuid: String::new(),
                 name: None,
-                timer:Timer::new(30),
+                timer:Timer::new(25),
                 game:TankGame::new(),
                 context: Context2D{},
+                last_time: 0.0,
             }));
         }
         transmute(CLIENT)
@@ -104,6 +106,7 @@ pub fn start() {
         if num == total {
             //资源加载完成, 启动游戏循环
             request_animation_frame();
+            //connect("ws://50.3.18.60:8080");
             connect("ws://127.0.0.1:8080");
         }
     });
@@ -115,11 +118,20 @@ pub fn start() {
         RES_SM_EXPLOSION__BITMAP));
 
     //游戏循环
-    let frame_callback = |_timestamp| {
+    let frame_callback = |timestamp| {
         let client = client();
         if client.timer.ready_for_next_frame() {
             client.game.update_sprites();
             client.game.draw(&client.context);
+            
+            if client.last_time!=0.0 {
+                let frame_time = timestamp-client.last_time;
+                fill_style("#ff0000");
+                fill_text(&format!("{}fps", 1000.0/frame_time), 100, 150);
+                client.last_time = timestamp;
+            }else{
+                client.last_time = timestamp;
+            }
         }
         request_animation_frame();
     };
@@ -150,9 +162,10 @@ fn handle_message(msg: &str){
             console_log(&format!("服务器错误:{}", data));
         }
         SERVER_MSG_EVENT => {
-            console_log("更新精灵");
+            console_log("更新精灵-0");
             //更新精灵
             let events:Vec<&str> = data.split('\n').collect();
+            console_log(&format!("更新精灵-1 events.len()={}", events.len()));
             for value in events{
                 //EventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame
                 let items:Vec<&str> = value.split('␟').collect();
@@ -186,6 +199,7 @@ fn handle_message(msg: &str){
 
                 client.game.handle_server_event(event, info);
             }
+            console_log("更新精灵-2");
         },
         SERVER_MSG_UUID => {
             client.uuid = data.to_string();

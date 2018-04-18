@@ -31,7 +31,7 @@ pub const RES_MISSILE_BITMAP: i32 = 1;
 pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
 pub const RES_SM_EXPLOSION__BITMAP: i32 = 3;
 
-pub const TANK_VELOCITY: i32 = 3;
+pub const TANK_VELOCITY: i32 = 4;
 pub const MISSILE_VELOCITY: i32 = 7;
 
 pub enum MouseEvent {
@@ -331,37 +331,37 @@ impl TankGame {
                             {let mut missile = &mut self.engine.sprites()[missile_idx];
                             missile.set_current_frame(direction);
                             match direction {
-                                0 => {
+                                0 => {//上
                                     missile.set_velocity(0, -MISSILE_VELOCITY);
                                     missile.set_position(
                                         tank_position.left
                                             + (tank_position.right - tank_position.left) / 2
                                             - 8,
-                                        tank_position.top - 17,
+                                        tank_position.top - 25,
                                     );
                                 }
-                                1 => {
+                                1 => {//下
                                     missile.set_velocity(0, MISSILE_VELOCITY);
                                     missile.set_position(
                                         tank_position.left
                                             + (tank_position.right - tank_position.left) / 2
                                             - 8,
-                                        tank_position.bottom,
+                                        tank_position.bottom + 10,
                                     );
                                 }
-                                2 => {
+                                2 => {//左
                                     missile.set_velocity(-MISSILE_VELOCITY, 0);
                                     missile.set_position(
-                                        tank_position.left - 17,
+                                        tank_position.left - 25,
                                         tank_position.top
                                             - (tank_position.top - tank_position.bottom) / 2
                                             - 8,
                                     );
                                 }
-                                3 => {
+                                3 => {//右
                                     missile.set_velocity(MISSILE_VELOCITY, 0);
                                     missile.set_position(
-                                        tank_position.right,
+                                        tank_position.right + 10,
                                         tank_position.top
                                             - (tank_position.top - tank_position.bottom) / 2
                                             - 8,
@@ -371,27 +371,29 @@ impl TankGame {
                             }}
                             self.events.push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[missile_idx]));
                         }
-                        "ArrowLeft" => {
+                        "ArrowLeft" | "Left" => {
                             self.engine.sprites()[idx].set_current_frame(2);
                             self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowRight" => {
+                        "ArrowRight" | "Right" => {
                             self.engine.sprites()[idx].set_current_frame(3);
                             self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowUp" => {
+                        "ArrowUp" | "Up" => {
                             self.engine.sprites()[idx].set_current_frame(0);
                             self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowDown" => {
+                        "ArrowDown" | "Down" => {
                             self.engine.sprites()[idx].set_current_frame(1);
                             self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        _ => {}
+                        other => {
+                            println!("未定义按键 {}", other);
+                        }
                     }
                 }
 
@@ -399,7 +401,10 @@ impl TankGame {
                     //键盘弹起坦克停止走动
                     let do_update = {
                         match key {
-                            "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" => {
+                            "ArrowLeft" | "Left"
+                            | "ArrowRight" | "Right"
+                            | "ArrowUp" | "Up"
+                            | "ArrowDown" | "Down" => {
                                 self.engine.sprites()[idx].set_velocity(0, 0);
                                 true
                             }
@@ -411,6 +416,8 @@ impl TankGame {
                     }
                 }
             }
+        }else{
+            println!("没有找到ID {}", sprite_id);
         }
     }
 
