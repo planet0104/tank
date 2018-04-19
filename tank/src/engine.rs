@@ -15,6 +15,7 @@ pub trait CanvasContext {
         dest_width: i32,
         dest_height: i32,
     );
+    fn set_canvas_font(&self, font: &str);
     fn fill_style(&self, style: &str);
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32);
     fn fill_text(&self, text: &str, x: i32, y: i32);

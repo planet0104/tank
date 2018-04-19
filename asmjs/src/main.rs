@@ -1,13 +1,15 @@
 extern crate tank;
 mod client;
-use std::cell::RefCell;
 use tank::engine::CanvasContext;
 use std::ffi::CString;
 use std::os::raw::c_char;
-//use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Arc, Mutex};
+#[macro_use]
+extern crate lazy_static;
 
 //导入的JS帮助函数
 extern "C" {
+    pub fn emscripten_prompt(title: *const c_char, default_msg: *const c_char)->*mut c_char;
     pub fn emscripten_current_time_millis()->f64;
     pub fn emscripten_alert(text: *const c_char);
     pub fn emscripten_console_log(text: *const c_char);
@@ -41,6 +43,41 @@ extern "C" {
     pub fn emscripten_connect(url: *const c_char);
 }
 
+lazy_static! {
+    static ref JSENV: Arc<Mutex<JS>> = Arc::new(Mutex::new(JS{
+        request_animation_frame_callback: None,
+        on_window_resize_listener: None,
+        on_resource_load_listener: None,
+        on_keyup_listener: None,
+        on_keydown_listener: None,
+        on_connect_listener: None,
+        on_close_listener: None,
+        on_message_listener: None,
+        //on_prompt_listener: None,
+    }));
+}
+
+// static mut JS:*const JS = ptr::null_mut();
+
+// fn js<'a>() -> &'a mut JS {
+//     unsafe {
+//         if js..is_null() {
+//             JS = transmute(Box::new(JS{
+//                 request_animation_frame_callback: None,
+//                 on_window_resize_listener: None,
+//                 on_resource_load_listener: None,
+//                 on_keyup_listener: None,
+//                 on_keydown_listener: None,
+//                 on_connect_listener: None,
+//                 on_close_listener: None,
+//                 on_message_listener: None,
+//                 //on_prompt_listener: None,
+//             }));
+//         }
+//         transmute(JS)
+//     }
+// }
+
 struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
     on_window_resize_listener: Option<fn()>,
@@ -50,20 +87,21 @@ struct JS {
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
     on_message_listener: Option<fn(msg: &str)>,
+    //on_prompt_listener: Option<fn(msg: &str)>,
 }
 
-thread_local!{
-    static JS: RefCell<JS> = RefCell::new(JS{
-        request_animation_frame_callback: None,
-        on_window_resize_listener: None,
-        on_resource_load_listener: None,
-        on_keyup_listener: None,
-        on_keydown_listener: None,
-        on_connect_listener: None,
-        on_close_listener: None,
-        on_message_listener: None,
-    });
-}
+// thread_local!{
+//     static JS: RefCell<JS> = RefCell::new(JS{
+//         request_animation_frame_callback: None,
+//         on_window_resize_listener: None,
+//         on_resource_load_listener: None,
+//         on_keyup_listener: None,
+//         on_keydown_listener: None,
+//         on_connect_listener: None,
+//         on_close_listener: None,
+//         on_message_listener: None,
+//     });
+// }
 
 pub fn random() -> f64 {
     unsafe{
@@ -73,7 +111,9 @@ pub fn random() -> f64 {
 
 pub fn console_log(msg: &str) {
     unsafe {
-        emscripten_console_log(CString::new(msg).unwrap().as_ptr());
+        if let Ok(string) = CString::new(msg){
+            emscripten_console_log(string.as_ptr());
+        }
     }
 }
 
@@ -85,13 +125,17 @@ pub fn current_time_millis()->u64{
 
 pub fn alert(msg: &str) {
     unsafe {
-        emscripten_alert(CString::new(msg).unwrap().as_ptr());
+        if let Ok(string) = CString::new(msg){
+            emscripten_alert(string.as_ptr());
+        }
     }
 }
 
 pub fn load_resource(json: String) {
     unsafe {
-        emscripten_load_resource(CString::new(json).unwrap().as_ptr());
+        if let Ok(string) = CString::new(json){
+            emscripten_load_resource(string.as_ptr());
+        }
     }
 }
 
@@ -105,7 +149,9 @@ pub fn window_inner_height() -> i32 {
 
 pub fn fill_style(style: &str) {
     unsafe {
-        emscripten_fill_style(CString::new(style).unwrap().as_ptr());
+        if let Ok(string) = CString::new(style){
+            emscripten_fill_style(string.as_ptr());
+        }
     }
 }
 
@@ -117,25 +163,33 @@ pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
 
 pub fn fill_text(text: &str, x: i32, y: i32) {
     unsafe {
-        emscripten_fill_text(CString::new(text).unwrap().as_ptr(), x, y);
+        if let Ok(string) = CString::new(text){
+            emscripten_fill_text(string.as_ptr(), x, y);
+        }
     }
 }
 
 pub fn set_canvas_font(font: &str) {
     unsafe {
-        emscripten_set_canvas_font(CString::new(font).unwrap().as_ptr());
+        if let Ok(string) = CString::new(font){
+            emscripten_set_canvas_font(string.as_ptr());
+        }
     }
 }
 
 pub fn send_message(msg: &str) {
     unsafe {
-        emscripten_send_message(CString::new(msg).unwrap().as_ptr());
+        if let Ok(string) = CString::new(msg){
+            emscripten_send_message(string.as_ptr());
+        }
     }
 }
 
 pub fn connect(url: &str) {
     unsafe {
-        emscripten_connect(CString::new(url).unwrap().as_ptr());
+        if let Ok(string) = CString::new(url){
+            emscripten_connect(string.as_ptr());
+        }
     }
 }
 
@@ -186,52 +240,70 @@ pub fn set_canvas_height(height: i32) {
     unsafe { emscripten_set_canvas_height(height) };
 }
 
-pub fn set_frame_callback(callback: fn(f64)) {
-    JS.with(|e| {
-        e.borrow_mut().request_animation_frame_callback = Some(callback);
-    });
+pub fn prompt(title:&str, default_msg:&str)->String{
+    if let Ok(title) = CString::new(title){
+        if let Ok(msg) = CString::new(default_msg){
+            let c_string = unsafe{ CString::from_raw(emscripten_prompt(title.as_ptr(), msg.as_ptr())) };
+            return String::from(c_string.to_str().unwrap_or(""));
+        }
+    }
+    String::new()
 }
 
+pub fn set_frame_callback(callback: fn(f64)) {
+    if let Ok(mut js) = JSENV.lock(){
+        js.request_animation_frame_callback = Some(callback);
+    }
+}
+
+// pub fn set_on_prompt_listener(listener: fn(&str)) {
+//     js..on_prompt_listener = Some(listener);
+// }
+
 pub fn set_on_window_resize_listener(listener: fn()) {
-    JS.with(|e| {
-        e.borrow_mut().on_window_resize_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_window_resize_listener = Some(listener);
+    }
 }
 
 pub fn set_on_connect_listener(listener: fn()) {
-    JS.with(|e| {
-        e.borrow_mut().on_connect_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_connect_listener = Some(listener);
+    }
 }
 
 pub fn set_on_close_listener(listener: fn()) {
-    JS.with(|e| {
-        e.borrow_mut().on_close_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_close_listener = Some(listener);
+    }
 }
 
 pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
-    JS.with(|e| {
-        e.borrow_mut().on_resource_load_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_resource_load_listener = Some(listener);
+    }
 }
 
 pub fn set_on_keyup_listener(listener: fn(key: &str)) {
-    JS.with(|e| {
-        e.borrow_mut().on_keyup_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_keyup_listener = Some(listener);
+    }else{
+        console_log("JSENV.lock()失败.")
+    }
 }
 
 pub fn set_on_keydown_listener(listener: fn(key: &str)) {
-    JS.with(|e| {
-        e.borrow_mut().on_keydown_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_keydown_listener = Some(listener);
+    }else{
+        console_log("JSENV.lock()失败.")
+    }
 }
 
 pub fn set_on_message_listener(listener: fn(msg: &str)) {
-    JS.with(|e| {
-        e.borrow_mut().on_message_listener = Some(listener);
-    });
+    if let Ok(mut js) = JSENV.lock(){
+        js.on_message_listener = Some(listener);
+    }
 }
 
 
@@ -243,78 +315,105 @@ pub fn request_animation_frame() {
 
 #[no_mangle]
 pub fn request_animation_frame_callback(timestamp: f64) {
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().request_animation_frame_callback {
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.request_animation_frame_callback {
             callback(timestamp);
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_window_resize() {
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_window_resize_listener {
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_window_resize_listener {
             callback();
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_resource_load(num: i32, total: i32) {
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_resource_load_listener {
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_resource_load_listener {
             callback(num, total);
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_connect() {
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_connect_listener {
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_connect_listener {
             callback();
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_close() {
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_close_listener {
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_close_listener {
             callback();
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_message(msg: *mut c_char) {
     let c_string = unsafe{ CString::from_raw(msg) };
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_message_listener {
-            callback(c_string.to_str().unwrap());
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_message_listener {
+            if let Ok(string) = c_string.to_str(){
+                callback(string);
+            }
         }
-    });
+    }
 }
 
 #[no_mangle]
 pub fn on_keyup_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_keyup_listener {
-            callback(key.to_str().unwrap());
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_keyup_listener {
+            if let Ok(key) = key.to_str(){
+                callback(key);
+            }else{
+                console_log("CString to str失败")
+            }
+        }else{
+            console_log("没有callback.")
         }
-    });
+    }else{
+        console_log("JSENV.lock()失败.")
+    }
 }
 
 #[no_mangle]
 pub fn on_keydown_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_keydown_listener {
-            callback(key.to_str().unwrap());
+    if let Ok(js) = JSENV.lock(){
+        if let Some(callback) = js.on_keydown_listener {
+            if let Ok(key) = key.to_str(){
+                callback(key);
+            }else{
+                console_log("CString to str失败")
+            }
+        }else{
+            console_log("没有callback.")
         }
-    });
+    }else{
+        console_log("JSENV.lock()失败.")
+    }
 }
+
+// #[no_mangle]
+// pub fn on_prompt(value: *mut c_char) {
+//     let c_string = unsafe{ CString::from_raw(value) };
+//     if let Some(callback) = js..on_message_listener {
+//         callback(c_string.to_str().unwrap());
+//     }
+// }
+
 
 #[no_mangle]
 pub fn start() {
@@ -355,6 +454,10 @@ impl CanvasContext for Context2D {
 
     fn fill_style(&self, style: &str) {
         fill_style(style);
+    }
+
+    fn set_canvas_font(&self, font: &str) {
+        set_canvas_font(font);
     }
 
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {

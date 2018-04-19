@@ -97,7 +97,6 @@ impl ServerTimer{
             let ft = elapsed-self.last_time;
             println!("frame_time={:?}", ft.as_secs() as f64 * 1000.0 + ft.subsec_nanos() as f64 / 1_000_000.0);
             self.last_time = elapsed;
-            //self.next_time = elapsed + self.frame_time-self.delay;
             self.next_time = elapsed + self.frame_time;
             true
         }else{

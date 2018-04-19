@@ -15,6 +15,18 @@ pub const BA_WRAP: BOUNDSACTION = 1;
 pub const BA_BOUNCE: BOUNDSACTION = 2;
 pub const BA_DIE: BOUNDSACTION = 3;
 
+//导入的JS帮助函数
+// use std::ffi::CString;
+// use std::os::raw::c_char;
+// extern "C" {
+//     pub fn emscripten_console_log(text: *const c_char);
+// }
+// pub fn console_log(msg: &str) {
+//     unsafe {
+//         emscripten_console_log(CString::new(msg).unwrap().as_ptr());
+//     }
+// }
+
 pub struct BitmapRes {
     id: i32,
     width: i32,
@@ -103,6 +115,7 @@ impl Point{
 
 pub struct Sprite {
     pub id: String,
+    pub parent: Option<String>,
     bitmap: BitmapRes,
     num_frames: i32,
     cur_frame: i32,
@@ -117,7 +130,9 @@ pub struct Sprite {
     hidden: bool,
     dying: bool,
     one_cycle: bool,
-    name: Option<String>,
+    name: String,
+    score: i32,
+    killer: String,
 }
 
 impl Sprite {
@@ -132,6 +147,7 @@ impl Sprite {
     ) -> Sprite {
         let mut sprite = Sprite {
             id: id,
+            parent: None,
             position: Rect::new(
                 position.x,
                 position.y,
@@ -150,8 +166,10 @@ impl Sprite {
             hidden: false,
             dying: false,
             one_cycle: false,
-            name: None,
+            name: "".to_string(),
             collision: Rect::zero(),
+            score: 0,
+            killer: "".to_string(),
         };
         sprite.calc_collision_rect();
         sprite
@@ -318,8 +336,10 @@ impl Sprite {
                 ),
             }
             context.fill_style("#fff");
-            if let Some(ref name) = self.name {
-                context.fill_text(name, self.position.right, self.position.top);
+            context.set_canvas_font("16px 微软雅黑");
+            if self.name.len()>0&&self.score>=0{
+                //console_log(&format!("{} score===={}", self.name, self.score));
+                context.fill_text(&format!("{}({})", self.name, self.score), self.position.right, self.position.top-2);
             }
         }
     }
@@ -423,8 +443,20 @@ impl Sprite {
     //     self.id
     // }
 
-    pub fn name(&self) -> Option<&String> {
-        self.name.as_ref()
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name:String){
+        self.name = name;
+    }
+
+    pub fn set_killer(&mut self, killer:String){
+        self.killer = killer;
+    }
+
+    pub fn killer(&self) -> String{
+        self.killer.clone()
     }
 
     pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {
@@ -438,5 +470,18 @@ impl Sprite {
 
     pub fn kill(&mut self) {
         self.dying = true;
+    }
+    
+    pub fn add_score(&mut self){
+        self.score += 1;
+    }
+
+    pub fn set_score(&mut self, score:i32){
+        self.score = score;
+    }
+
+
+    pub fn score(&self)->i32{
+        self.score
     }
 }

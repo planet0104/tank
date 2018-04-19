@@ -8,10 +8,10 @@ use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as GameSender;
 use tank::TankGame;
 use std::time::{ Duration, Instant};
-use tank::utils::{ ServerTimer as Timer };
 //use std::time::{SystemTime, UNIX_EPOCH};
 use std::thread;
 use tank::{
+    FPS,
     KeyEvent,
     MSG_CONNECT,
     MSG_DISCONNECT,
@@ -94,8 +94,7 @@ fn main() {
     let _gs  = thread::spawn(move || {
         //let mut timer = Timer::new(30.0, Duration::from_millis(10));
         let mut game = TankGame::new();
-        let fps = 30;
-        let frame_time = Duration::from_secs(1)/fps;
+        let frame_time = Duration::from_secs(1)/FPS;
         loop{
             let now = Instant::now();
 
@@ -111,7 +110,7 @@ fn main() {
                         let sprites = game.sprites();
                         let mut msg = format!("{}\n", SERVER_MSG_DATA);
                         for sprite in sprites{
-                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                                 sprite.id.clone(),
                                 sprite.bitmap().id(),
                                 sprite.position().left,
@@ -120,7 +119,9 @@ fn main() {
                                 sprite.position().bottom,
                                 sprite.velocity().x,
                                 sprite.velocity().y,
-                                sprite.current_frame()
+                                sprite.current_frame(),
+                                sprite.name().clone(),
+                                sprite.score()
                             ));
                         }
                         //删掉最后一个换行键
@@ -130,6 +131,7 @@ fn main() {
 
                     MSG_START => {
                         //玩家加入游戏
+                        println!("join_game {} {}", uuid, data);
                         game.join_game(uuid, data);
                     }
 
@@ -170,7 +172,7 @@ fn main() {
                     let mut msg = format!("{}\n", SERVER_MSG_EVENT);
                     for event in events{
                         //println!("分发事件 {:?} {:?}", event.0, event.1.id);
-                        msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                        msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                             event.0.to_i64(),
                             event.1.id.clone(),
                             event.1.res_id,
@@ -180,7 +182,9 @@ fn main() {
                             event.1.position.bottom,
                             event.1.velocity.x,
                             event.1.velocity.y,
-                            event.1.current_frame
+                            event.1.current_frame,
+                            event.1.name,
+                            event.1.score
                         ));
                     }
                     //删掉最后一个换行键
@@ -198,7 +202,7 @@ fn main() {
 
     //启动websocket服务
     let address = "127.0.0.1:8080";
-    //let address = "50.3.18.60:8080";
+    // let address = "50.3.18.60:8080";
 
     println!("游戏服务已启动: {}", address);
     ws.listen(address).unwrap();

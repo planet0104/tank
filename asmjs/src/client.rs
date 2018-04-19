@@ -1,8 +1,7 @@
 extern crate tank;
-use std::ptr;
-use std::mem::transmute;
+extern crate lazy_static;
 use tank::{KeyEvent, TankGame, CLIENT_HEIGHT, CLIENT_WIDTH};
-use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION__BITMAP, RES_TANK_BITMAP};
+use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION_BITMAP, RES_TANK_BITMAP};
 use tank::utils::Timer;
 use tank::sprite::{Rect, Point};
 use ::*;
@@ -28,23 +27,15 @@ struct Client {
     last_time: f64
 }
 
-static mut CLIENT:*const Client = ptr::null_mut();
-
-//获取全局的Client实例
-fn client<'a>() -> &'a mut Client {
-    unsafe {
-        if CLIENT.is_null() {
-            CLIENT = transmute(Box::new(Client{
-                uuid: String::new(),
-                name: None,
-                timer:Timer::new(30.0),
-                game:TankGame::new(),
-                context: Context2D{},
-                last_time: 0.0
-            }));
-        }
-        transmute(CLIENT)
-    }
+lazy_static! {
+    static ref CLIENT: Arc<Mutex<Client>> = Arc::new(Mutex::new(Client{
+        uuid: String::new(),
+        name: None,
+        timer:Timer::new(20.0),
+        game:TankGame::new(),
+        context: Context2D{},
+        last_time: 0.0
+    }));
 }
 
 // thread_local!{
@@ -69,11 +60,19 @@ pub fn start() {
     });
     set_on_keydown_listener(|key| handle_key(KeyEvent::KeyDown, key));
     set_on_keyup_listener(|key| handle_key(KeyEvent::KeyUp, key));
+
     set_on_connect_listener(||{
         console_log("websocket 链接成功");
         //加入游戏
-        let name = format!("Player{}", random());
-        client().name = Some(name.clone()); 
+        let name = prompt("请输入你的名字", "未命名");
+        if name.len() == 0{
+            on_connect();
+            return;
+        }
+        console_log(&format!("玩家姓名:{}", name));
+        if let Ok(mut client) = CLIENT.lock(){
+            client.name = Some(name.clone()); 
+        }
         send_message(&format!("{}\n{}", 3, name));
     });
     set_on_close_listener(||{
@@ -115,23 +114,22 @@ pub fn start() {
         RES_TANK_BITMAP,
         RES_MISSILE_BITMAP,
         RES_LG_EXPLOSION_BITMAP,
-        RES_SM_EXPLOSION__BITMAP));
+        RES_SM_EXPLOSION_BITMAP));
 
     //游戏循环
     let frame_callback = |timestamp:f64| {
-        let client = client();
-        if client.timer.ready_for_next_frame(timestamp) {
-            client.game.update_sprites();
-            client.game.draw(&client.context);
-            if client.last_time > 0.0 {
-                let frame_time = timestamp-client.last_time;
-                fill_style("#fff");
-                set_canvas_font("24px 微软雅黑");
-                fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
-                set_canvas_font("18px 微软雅黑");
-                fill_text("↑ ↓ ← → ：移动  空格：开炮(死了请刷新网页)", 230, 30);
+        if let Ok(mut client) = CLIENT.lock(){
+            if client.timer.ready_for_next_frame(timestamp) {
+                client.game.update_sprites();
+                client.game.draw(&client.context);
+                if client.last_time > 0.0 {
+                    let frame_time = timestamp-client.last_time;
+                    fill_style("#fff");
+                    set_canvas_font("24px 微软雅黑");
+                    fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
+                }
+                client.last_time = timestamp;
             }
-            client.last_time = timestamp;
         }
         request_animation_frame();
     };
@@ -142,95 +140,116 @@ pub fn start() {
 
 //服务器下发的消息不用验证
 fn handle_message(msg: &str){
+    console_log(&format!("handle_message {}", msg));
     
     let lf = msg.find('\n');
+    if !lf.is_some(){
+        console_log("lf空");
+        return;
+    }
+    let lf = lf.unwrap();
+    let msg_id = msg.get(0..lf);
+    if msg_id.is_none(){
+        console_log("msg_id空");
+        return;
+    }
+    let msg_id = msg_id.unwrap().parse::<isize>();
+    if msg_id.is_err() {
+        console_log("msg_id解析失败");
+        return;
+    }
+    let msg_id = msg_id.unwrap();
+    let data = msg.get(lf+1..).unwrap_or("");
 
-    let msg_id = if lf.is_some() {
-        msg.get(0..lf.unwrap()).unwrap().parse::<isize>().unwrap()
-    }else{
-        msg.parse::<isize>().unwrap()
-    };
-    let data = if lf.is_some() {
-        msg.get(lf.unwrap()+1..).unwrap()
-    }else{
-        ""
-    };
+    let lock_client = CLIENT.lock();
 
-    let client = client();
-    match msg_id{
-        SERVER_MSG_ERR => {
-            console_log(&format!("服务器错误:{}", data));
-        }
-        SERVER_MSG_EVENT => {
-            //console_log("更新精灵-0");
-            //更新精灵
-            let events:Vec<&str> = data.split('\n').collect();
-            //console_log(&format!("更新精灵-1 events.len()={}", events.len()));
-            for value in events{
-                //EventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame
-                let items:Vec<&str> = value.split('␟').collect();
-                let event = SpriteEvent::from_i64(items[0].parse::<i64>().unwrap());
-                let info = SpriteInfo{
-                    id: items[1].to_string(),
-                    res_id: items[2].parse::<i32>().unwrap(),
-                    position: Rect{
-                        left: items[3].parse::<i32>().unwrap(),
-                        top: items[4].parse::<i32>().unwrap(),
-                        right: items[5].parse::<i32>().unwrap(),
-                        bottom: items[6].parse::<i32>().unwrap(),
-                    },
-                    velocity: Point{
-                        x: items[7].parse::<i32>().unwrap(),
-                        y: items[8].parse::<i32>().unwrap(),
-                    },
-                    current_frame: items[9].parse::<i32>().unwrap()
-                };
+    if lock_client.is_ok() {
+        let mut client = lock_client.unwrap();
+        match msg_id{
+            SERVER_MSG_ERR => {
+                console_log(&format!("服务器错误:{}", data));
+            }
+            SERVER_MSG_EVENT => {
+                //console_log("更新精灵-0");
+                //更新精灵
+                let events:Vec<&str> = data.split('\n').collect();
+                //console_log(&format!("更新精灵-1 events.len()={}", events.len()));
+                for value in events{
+                    //EventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame
+                    let items:Vec<&str> = value.split('␟').collect();
+                    if items.len() != 12{ return; }
+                    if let Ok(event_id) = items[0].parse::<i64>(){
+                        let event = SpriteEvent::from_i64(event_id);
+                        let info = SpriteInfo{
+                            id: items[1].to_string(),
+                            res_id: items[2].parse::<i32>().unwrap_or(-1),
+                            position: Rect{
+                                left: items[3].parse::<i32>().unwrap_or(0),
+                                top: items[4].parse::<i32>().unwrap_or(0),
+                                right: items[5].parse::<i32>().unwrap_or(0),
+                                bottom: items[6].parse::<i32>().unwrap_or(0),
+                            },
+                            velocity: Point{
+                                x: items[7].parse::<i32>().unwrap_or(0),
+                                y: items[8].parse::<i32>().unwrap_or(0),
+                            },
+                            current_frame: items[9].parse::<i32>().unwrap_or(0),
+                            name: String::from(items[10]),
+                            score: items[11].parse::<i32>().unwrap_or(0),
+                        };
 
-                //检查玩家是否死亡
-                match event{
-                    SpriteEvent::Delete => {
-                        if info.id == client.uuid{
-                            //alert(client.name.as_ref().unwrap());
-                            alert("你死了!");
+                        //检查玩家是否死亡
+                        match event{
+                            SpriteEvent::Delete => {
+                                if info.id == client.uuid{
+                                    //alert(client.name.as_ref().unwrap());
+                                    alert("你死了!");
+                                }
+                            }
+                            _ => {}
                         }
-                    }
-                    _ => {}
-                }
 
-                client.game.handle_server_event(event, info);
+                        client.game.handle_server_event(event, info);
+                    }
+                }
+                //console_log("更新精灵-2");
+            },
+            SERVER_MSG_UUID => {
+                client.uuid = data.to_string();
+                console_log(&format!("client.uuid={}", client.uuid));
+            },
+            SERVER_MSG_DATA => {
+                console_log("绘制所有精灵");
+                //绘制所有精灵
+                //ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n
+                let sprites:Vec<&str> = data.split('\n').collect();
+                for sprite in sprites{
+                    let items:Vec<&str> = sprite.split('␟').collect();
+                    if items.len() != 11{ return; }
+                    let info = SpriteInfo{
+                        id: items[0].to_string(),
+                        res_id: items[1].parse::<i32>().unwrap_or(0),
+                        position: Rect{
+                            left: items[2].parse::<i32>().unwrap_or(0),
+                            top: items[3].parse::<i32>().unwrap_or(0),
+                            right: items[4].parse::<i32>().unwrap_or(0),
+                            bottom: items[5].parse::<i32>().unwrap_or(0),
+                        },
+                        velocity: Point{
+                            x: items[6].parse::<i32>().unwrap_or(0),
+                            y: items[7].parse::<i32>().unwrap_or(0),
+                        },
+                        current_frame: items[8].parse::<i32>().unwrap_or(0),
+                        name: String::from(items[9]),
+                        score: items[10].parse::<i32>().unwrap_or(0),
+                    };
+                    client.game.handle_server_event(SpriteEvent::Add, info);
+                }
             }
-            //console_log("更新精灵-2");
-        },
-        SERVER_MSG_UUID => {
-            client.uuid = data.to_string();
-            console_log(&format!("client.uuid={}", client.uuid));
-        },
-        SERVER_MSG_DATA => {
-            console_log("绘制所有精灵");
-            //绘制所有精灵
-            //ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n
-            let sprites:Vec<&str> = data.split('\n').collect();
-            for sprite in sprites{
-                let items:Vec<&str> = sprite.split('␟').collect();
-                let info = SpriteInfo{
-                    id: items[0].to_string(),
-                    res_id: items[1].parse::<i32>().unwrap(),
-                    position: Rect{
-                        left: items[2].parse::<i32>().unwrap(),
-                        top: items[3].parse::<i32>().unwrap(),
-                        right: items[4].parse::<i32>().unwrap(),
-                        bottom: items[5].parse::<i32>().unwrap(),
-                    },
-                    velocity: Point{
-                        x: items[6].parse::<i32>().unwrap(),
-                        y: items[7].parse::<i32>().unwrap(),
-                    },
-                    current_frame: items[8].parse::<i32>().unwrap()
-                };
-                client.game.handle_server_event(SpriteEvent::Add, info);
-            }
-        }
-        _ => {}
+            _ => {}
+        }   
+    }else{
+        console_log(&format!("lock失败{:?}", lock_client.err()));
     }
 }
 

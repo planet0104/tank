@@ -13,18 +13,26 @@ var ctx = canvas.getContext("2d");
 var keyPress = {};
 
 document.addEventListener("keyup", function(event){
+    //console.log("keyup:", event.key);
     keyPress[event.key] = false;
     Module._on_keyup_event(allocateUTF8OnStack(event.key));
 });
 
 document.addEventListener("keydown", function(event){
+    //console.log("keydown", event.key);
     if(!keyPress[event.key]){
+        //console.log("keydown into:", event.key);
         keyPress[event.key] = true;
         Module._on_keydown_event(allocateUTF8OnStack(event.key));
     }
 });
 
 //下面是要导入webassembly的JS帮助函数
+function _emscripten_prompt(title, default_msg){
+    var val = prompt(UTF8ToString(title), UTF8ToString(default_msg));
+    return allocateUTF8OnStack(val);
+}
+
 function _emscripten_alert(str){
     alert(UTF8ToString(str));
 }
@@ -82,15 +90,21 @@ function _emscripten_fill_text(text, x, y){
     ctx.fillText(UTF8ToString(text), x, y);
 }
 function _emscripten_draw_image_at(resId, x, y){
-    ctx.drawImage(window.resMap.get(resId+""), x, y);
+    if(window.resMap[resId]){
+        ctx.drawImage(window.resMap[resId], x, y);
+    }
 }
 function _emscripten_draw_image(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
-    ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+    if(window.resMap[resId]){
+        ctx.drawImage(window.resMap[resId], sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+    }
 }
 function _emscripten_send_message(str){
-    let msg = UTF8ToString(str);
-    console.log("send_message:", msg);
-    socket.send(msg);
+    if(socket){
+        let msg = UTF8ToString(str);
+        //console.log("send_message:", msg);
+        socket.send(msg);
+    }
 }
 function _emscripten_connect(url){
     connect(UTF8ToString(url));
@@ -101,17 +115,17 @@ function _emscripten_window_inner_height(){ return window.innerHeight; }
 //加载图片资源 srcMap为json对象
 function loadResources(srcMap, listener){
     var total = Object.keys(srcMap).length;
-    var resMap = new Map();
+    var resMap = {};
     function check(listener){
         if(listener)
-            listener(resMap, resMap.size, total);
+            listener(resMap, Object.keys(resMap).length, total);
     }
     for(var key in srcMap){
             var image = new Image();
             image.key = key;
             image.src = srcMap[key];
             image.onload = function(){
-                resMap.set(this.key, this);
+                resMap[this.key] = this;
                 check(listener);
             };
     }
@@ -125,7 +139,7 @@ function connect(url){
         Module._on_connect();
         
         socket.onmessage = function(event){
-            console.log("onmessage", event.data);
+            //console.log("onmessage", event.data);
             Module._on_message(allocateUTF8OnStack(event.data));
         };
 
