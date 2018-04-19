@@ -1,5 +1,6 @@
 use std::cmp;
 use engine::CanvasContext;
+//use utils::js_rand_int as rand_int;
 use utils::rand_int;
 //精灵代码
 
