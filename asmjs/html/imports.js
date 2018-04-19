@@ -28,6 +28,9 @@ document.addEventListener("keydown", function(event){
 function _emscripten_alert(str){
     alert(UTF8ToString(str));
 }
+function _emscripten_current_time_millis(){
+    return Date.now();
+}
 function _emscripten_console_log(str){
     console.log(UTF8ToString(str));
 }
@@ -143,3 +146,36 @@ var Module = {
         Module._start();
     },
 };
+
+
+/*
+//启动游戏循环
+        // var timer = new Timer(20);
+        // timer.start();
+        var frame_time = 1000/30;
+        //var start_time = Date.now();
+        var start_time = null;
+        var next_time = 0;
+        var last_time = 0;
+        (function drawFrame (timestamp) {
+            if(start_time==null){
+                start_time = timestamp;
+                next_time = start_time + frame_time;
+                last_time = start_time;
+            }
+            if (timestamp>next_time) {
+                console.log("frame_time=", timestamp-last_time);
+                next_time = timestamp+frame_time;
+                //next_time = now+frameTime;
+                last_time = timestamp;
+                //显示帧率
+                //Module._request_animation_frame_callback();
+                // ctx.fillStyle = '#ccc';
+                // ctx.fillRect(0, 0, 1000, 1000);
+                // ctx.fillStyle = '#fff';
+                // ctx.fillText('FPS:'+(1000/(now-start_time)), 20, 30);
+                // start_time = now;
+            }
+            window.requestAnimationFrame(drawFrame, canvas);
+        }());
+*/

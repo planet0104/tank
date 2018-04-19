@@ -8,6 +8,7 @@ use std::os::raw::c_char;
 
 //导入的JS帮助函数
 extern "C" {
+    pub fn emscripten_current_time_millis()->f64;
     pub fn emscripten_alert(text: *const c_char);
     pub fn emscripten_console_log(text: *const c_char);
     pub fn emscripten_random() -> f64;
@@ -73,6 +74,12 @@ pub fn random() -> f64 {
 pub fn console_log(msg: &str) {
     unsafe {
         emscripten_console_log(CString::new(msg).unwrap().as_ptr());
+    }
+}
+
+pub fn current_time_millis()->u64{
+    unsafe{
+        emscripten_current_time_millis() as u64
     }
 }
 

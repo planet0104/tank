@@ -6,9 +6,10 @@ use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as GameSender;
-use std::time::Duration;
 use tank::TankGame;
-use tank::utils::Timer;
+use std::time::{ Duration, Instant};
+use tank::utils::{ ServerTimer as Timer };
+//use std::time::{SystemTime, UNIX_EPOCH};
 use std::thread;
 use tank::{
     KeyEvent,
@@ -91,11 +92,13 @@ fn main() {
 
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let _gs  = thread::spawn(move || {
-        let delay_ms = Duration::from_millis(5);
-
-        let mut timer = Timer::new(25);
+        //let mut timer = Timer::new(30.0, Duration::from_millis(10));
         let mut game = TankGame::new();
+        let fps = 30;
+        let frame_time = Duration::from_secs(1)/fps;
         loop{
+            let now = Instant::now();
+
             //处理websocket传来的消息
             if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
                 match msg_id{
@@ -140,7 +143,7 @@ fn main() {
                         //玩家上传按键事件
                         if slices.len() == 2{
                             if let Ok(event) = slices[0].parse::<i64>(){
-                                println!("key event {} {:?} {}", event, slices[1], uuid);
+                                //println!("key event {} {:?} {}", event, slices[1], uuid);
                                 game.on_key_event(KeyEvent::from_i64(event), slices[1], &uuid);
                             }
                         }
@@ -155,43 +158,41 @@ fn main() {
                     }
                 }
             }
-            
-            if timer.ready_for_next_frame(){
-                game.update();
+            game.update();
 
-                /*
-                    游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
-                    SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
-                */
-                {
-                    let events = game.events();
-                    if events.len()>0{
-                        let mut msg = format!("{}\n", SERVER_MSG_EVENT);
-                        for event in events{
-                            //println!("分发事件 {:?} {:?}", event.0, event.1.id);
-                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
-                                event.0.to_i64(),
-                                event.1.id.clone(),
-                                event.1.res_id,
-                                event.1.position.left,
-                                event.1.position.top,
-                                event.1.position.right,
-                                event.1.position.bottom,
-                                event.1.velocity.x,
-                                event.1.velocity.y,
-                                event.1.current_frame
-                            ));
-                        }
-                        //删掉最后一个换行键
-                        let _ = msg.pop();
-                        let _ = broadcaster.broadcast(Message::text(msg));
+            /*
+                游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
+                SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
+            */
+            {
+                let events = game.events();
+                if events.len()>0{
+                    let mut msg = format!("{}\n", SERVER_MSG_EVENT);
+                    for event in events{
+                        //println!("分发事件 {:?} {:?}", event.0, event.1.id);
+                        msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                            event.0.to_i64(),
+                            event.1.id.clone(),
+                            event.1.res_id,
+                            event.1.position.left,
+                            event.1.position.top,
+                            event.1.position.right,
+                            event.1.position.bottom,
+                            event.1.velocity.x,
+                            event.1.velocity.y,
+                            event.1.current_frame
+                        ));
                     }
+                    //删掉最后一个换行键
+                    let _ = msg.pop();
+                    let _ = broadcaster.broadcast(Message::text(msg));
                 }
-                //清空事件
-                game.events().clear();
             }
-            //给一些延迟, 降低CPU使用率
-            thread::sleep(delay_ms);
+            //清空事件
+            game.events().clear();
+
+            //空闲时间sleep
+            thread::sleep(frame_time-now.elapsed()-Duration::from_millis(1));
         }
     });
 
