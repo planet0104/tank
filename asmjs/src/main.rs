@@ -360,20 +360,32 @@ pub fn on_close() {
 
 #[no_mangle]
 pub fn on_message(msg: *mut c_char) {
+    console_log("on_message>>>110");
     let c_string = unsafe{ CString::from_raw(msg) };
-    if let Ok(js) = JSENV.lock(){
+    console_log("on_message>>>111");
+    let js_lock= JSENV.lock();
+    console_log("on_message>>>112");
+    if let Ok(js) = js_lock{
         if let Some(callback) = js.on_message_listener {
             if let Ok(string) = c_string.to_str(){
                 callback(string);
+            }else{
+                console_log("CString to str失败")
             }
+        }else{
+            console_log("没有callback.")
         }
+    }else{
+        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
     }
 }
 
 #[no_mangle]
 pub fn on_keyup_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    if let Ok(js) = JSENV.lock(){
+    console_log(&format!("on_keyup_event>>>{:?}", key));
+    let js_lock= JSENV.lock();
+    if let Ok(js) = js_lock{
         if let Some(callback) = js.on_keyup_listener {
             if let Ok(key) = key.to_str(){
                 callback(key);
@@ -384,14 +396,16 @@ pub fn on_keyup_event(key: *mut c_char) {
             console_log("没有callback.")
         }
     }else{
-        console_log("JSENV.lock()失败.")
+        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
     }
 }
 
 #[no_mangle]
 pub fn on_keydown_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    if let Ok(js) = JSENV.lock(){
+    console_log(&format!("on_keydown_event>>>{:?}", key));
+    let js_lock= JSENV.lock();
+    if let Ok(js) = js_lock{
         if let Some(callback) = js.on_keydown_listener {
             if let Ok(key) = key.to_str(){
                 callback(key);
@@ -402,7 +416,7 @@ pub fn on_keydown_event(key: *mut c_char) {
             console_log("没有callback.")
         }
     }else{
-        console_log("JSENV.lock()失败.")
+        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
     }
 }
 
