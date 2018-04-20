@@ -11,6 +11,7 @@ use std::time::{ Duration, Instant};
 //use std::time::{SystemTime, UNIX_EPOCH};
 use std::thread;
 use tank::{
+    SERVER_IP,
     FPS,
     KeyEvent,
     MSG_CONNECT,
@@ -206,10 +207,7 @@ fn main() {
     });
 
     //启动websocket服务
-    let address = "127.0.0.1:8080";
-    //let address = "50.3.18.60:8080";
-
-    println!("游戏服务已启动: {}", address);
-    ws.listen(address).unwrap();
+    println!("游戏服务已启动: {}", SERVER_IP);
+    ws.listen(SERVER_IP).unwrap();
     println!("游戏服务结束.");
 }

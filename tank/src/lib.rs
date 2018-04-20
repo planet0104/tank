@@ -46,6 +46,9 @@ pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
 pub const TANK_VELOCITY: i32 = 7;
 pub const MISSILE_VELOCITY: i32 = 10;
 
+//pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "50.3.18.60:8080";
+
 pub enum MouseEvent {
     MouseMove,
     MouseClick,
@@ -203,7 +206,7 @@ impl TankGame {
             //资源加载完成, 启动游戏循环
             context.request_animation_frame();
             //connect("ws://50.3.18.60:8080");
-            context.connect("ws://127.0.0.1:8080");
+            context.connect(&format!("ws://{}", SERVER_IP));
         }
     }
 
