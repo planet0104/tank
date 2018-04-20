@@ -23,6 +23,7 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
 }
 
 pub struct Timer{
+    fps:f64,
     frame_time: f64,
     start_time: f64,
     next_time: f64,
@@ -32,11 +33,16 @@ pub struct Timer{
 impl Timer{
     pub fn new(fps:f64)->Timer{
         Timer{
+            fps: fps,
             frame_time: 1000.0 / fps,
             start_time: 0.0,
             next_time: 0.0,
             last_time: 0.0,
         }
+    }
+
+    pub fn fps(&self) -> f64{
+        self.fps
     }
 
     pub fn ready_for_next_frame(&mut self, timestamp:f64)->bool{

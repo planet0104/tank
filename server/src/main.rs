@@ -6,7 +6,7 @@ use uuid::Uuid;
 use ws::{WebSocket, CloseCode, Handler, Message, Result, Sender, Handshake};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::Sender as GameSender;
-use tank::TankGame;
+use tank::GAME;
 use std::time::{ Duration, Instant};
 //use std::time::{SystemTime, UNIX_EPOCH};
 use std::thread;
@@ -93,118 +93,121 @@ fn main() {
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let _gs  = thread::spawn(move || {
         //let mut timer = Timer::new(30.0, Duration::from_millis(10));
-        let mut game = TankGame::new();
-        let frame_time = Duration::from_secs(1)/FPS;
-        loop{
-            let now = Instant::now();
+        GAME.with(|game|{
+            let mut game = game.borrow_mut();
+            let frame_time = Duration::from_secs(1)/FPS;
+            loop{
+                let now = Instant::now();
+                //处理websocket传来的消息
+                if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
+                    match msg_id{
+                        MSG_CONNECT => {
+                            println!("玩家连接 {}", uuid);
+                            /*
+                                玩家连线，返回所有精灵列表
+                                SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
+                            */
+                            let sprites = game.sprites();
+                            let mut msg = format!("{}\n", SERVER_MSG_DATA);
+                            for sprite in sprites{
+                                msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                                    sprite.id.clone(),
+                                    sprite.bitmap().id(),
+                                    sprite.position().left,
+                                    sprite.position().top,
+                                    sprite.position().right,
+                                    sprite.position().bottom,
+                                    sprite.velocity().x,
+                                    sprite.velocity().y,
+                                    sprite.current_frame(),
+                                    sprite.name().clone(),
+                                    sprite.score(),
+                                    sprite.killer_name()
+                                ));
+                            }
+                            //删掉最后一个换行键
+                            let _ = msg.pop();
+                            let _ = sender.send(Message::text(msg));
+                        }
 
-            //处理websocket传来的消息
-            if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
-                match msg_id{
-                    MSG_CONNECT => {
-                        println!("玩家连接 {}", uuid);
-                        /*
-                            玩家连线，返回所有精灵列表
-                            SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
-                        */
-                        let sprites = game.sprites();
-                        let mut msg = format!("{}\n", SERVER_MSG_DATA);
-                        for sprite in sprites{
-                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
-                                sprite.id.clone(),
-                                sprite.bitmap().id(),
-                                sprite.position().left,
-                                sprite.position().top,
-                                sprite.position().right,
-                                sprite.position().bottom,
-                                sprite.velocity().x,
-                                sprite.velocity().y,
-                                sprite.current_frame(),
-                                sprite.name().clone(),
-                                sprite.score()
+                        MSG_START => {
+                            //玩家加入游戏
+                            println!("join_game {} {}", uuid, data);
+                            game.server_join_game(uuid, data);
+                        }
+
+                        MSG_DISCONNECT => {
+                            //玩家断开连接
+                            game.server_leave_game(&uuid)
+                        }
+
+                        MSG_KEY_EVENT => {
+                            let slices:Vec<&str> = data.split("␟").collect();
+                            //玩家上传按键事件
+                            if slices.len() == 2{
+                                if let Ok(event) = slices[0].parse::<i64>(){
+                                    if let Ok(key) = slices[1].parse::<i32>(){
+                                        //println!("key event {} {:?} {}", event, slices[1], uuid);
+                                        game.on_key_event(KeyEvent::from_i64(event), key, &uuid);
+                                    }
+                                }
+                            }
+                        }
+
+                        MSG_MOUSE_EVENT => {
+                            //玩家上传鼠标事件
+                        }
+
+                        other => {
+                            println!("未定义消息: id={}", other)
+                        }
+                    }
+                }
+                game.server_update();
+
+                /*
+                    游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
+                    SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
+                */
+                {
+                    let events = game.events();
+                    if events.len()>0{
+                        //println!("分发事件 {:?}", events);
+                        let mut msg = format!("{}\n", SERVER_MSG_EVENT);
+                        for event in events{
+                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                                event.0.to_i64(),
+                                event.1.id.clone(),
+                                event.1.res_id,
+                                event.1.position.left,
+                                event.1.position.top,
+                                event.1.position.right,
+                                event.1.position.bottom,
+                                event.1.velocity.x,
+                                event.1.velocity.y,
+                                event.1.current_frame,
+                                event.1.name,
+                                event.1.score,
+                                event.1.killer_name
                             ));
                         }
                         //删掉最后一个换行键
                         let _ = msg.pop();
-                        let _ = sender.send(Message::text(msg));
-                    }
-
-                    MSG_START => {
-                        //玩家加入游戏
-                        println!("join_game {} {}", uuid, data);
-                        game.join_game(uuid, data);
-                    }
-
-                    MSG_DISCONNECT => {
-                        //玩家断开连接
-                        game.leave_game(&uuid)
-                    }
-
-                    MSG_KEY_EVENT => {
-                        let slices:Vec<&str> = data.split("␟").collect();
-                        //玩家上传按键事件
-                        if slices.len() == 2{
-                            if let Ok(event) = slices[0].parse::<i64>(){
-                                if let Ok(key) = slices[1].parse::<i32>(){
-                                    //println!("key event {} {:?} {}", event, slices[1], uuid);
-                                    game.on_key_event(KeyEvent::from_i64(event), key, &uuid);
-                                }
-                            }
-                        }
-                    }
-
-                    MSG_MOUSE_EVENT => {
-                        //玩家上传鼠标事件
-                    }
-
-                    other => {
-                        println!("未定义消息: id={}", other)
+                        let _ = broadcaster.broadcast(Message::text(msg));
                     }
                 }
-            }
-            game.update();
+                //清空事件
+                game.events().clear();
 
-            /*
-                游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
-                SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
-            */
-            {
-                let events = game.events();
-                if events.len()>0{
-                    //println!("分发事件 {:?}", events);
-                    let mut msg = format!("{}\n", SERVER_MSG_EVENT);
-                    for event in events{
-                        msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
-                            event.0.to_i64(),
-                            event.1.id.clone(),
-                            event.1.res_id,
-                            event.1.position.left,
-                            event.1.position.top,
-                            event.1.position.right,
-                            event.1.position.bottom,
-                            event.1.velocity.x,
-                            event.1.velocity.y,
-                            event.1.current_frame,
-                            event.1.name,
-                            event.1.score
-                        ));
-                    }
-                    //删掉最后一个换行键
-                    let _ = msg.pop();
-                    let _ = broadcaster.broadcast(Message::text(msg));
-                }
+                //空闲时间sleep
+                thread::sleep(frame_time-now.elapsed()-Duration::from_millis(1));
             }
-            //清空事件
-            game.events().clear();
-
-            //空闲时间sleep
-            thread::sleep(frame_time-now.elapsed()-Duration::from_millis(1));
-        }
+        });
     });
 
     //启动websocket服务
-    //let address = "127.0.0.1:8080";
-    let address = "50.3.18.60:8080";
+    let address = "127.0.0.1:8080";
+    //let address = "50.3.18.60:8080";
 
     println!("游戏服务已启动: {}", address);
     ws.listen(address).unwrap();

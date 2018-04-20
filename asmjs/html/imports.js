@@ -182,7 +182,7 @@ function connect(url){
     }
 
     socket.onerror = function(){
-        alert("连接失败，请重试");
+        console.log("连接失败，请重试");
     }
 }
 

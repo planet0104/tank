@@ -1,7 +1,8 @@
 use sprite::{Sprite, SA_KILL};
-
+use std::rc::Rc;
+use ::KeyEvent;
 //GameEngine 绘制和更新精灵
-pub trait CanvasContext {
+pub trait GameContext {
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32);
     fn draw_image(
         &self,
@@ -19,6 +20,30 @@ pub trait CanvasContext {
     fn fill_style(&self, style: &str);
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32);
     fn fill_text(&self, text: &str, x: i32, y: i32);
+    fn console_log(&self, msg: &str);
+    fn set_canvas_style_margin(&self, left: i32, top: i32, right: i32, bottom: i32);
+    fn set_canvas_style_width(&self, width: i32);
+    fn set_canvas_style_height(&self, height: i32);
+    fn set_canvas_width(&self, width: i32);
+    fn set_canvas_height(&self, height: i32);
+    fn alert(&self, msg: &str);
+    fn load_resource(&self, json: String);
+    fn window_inner_width(&self) -> i32;
+    fn window_inner_height(&self) -> i32;
+    fn set_on_window_resize_listener(&self, listener: fn());
+    fn set_on_connect_listener(&self, listener: fn());
+    fn set_on_resource_load_listener(&self, listener: fn(num: i32, total: i32));
+    //fn set_on_key_up_listener(&self, listener: fn(key: i32));
+    //fn set_on_key_down_listener(&self, listener: fn(key: i32));
+    fn send_message(&self, msg: &str);
+    fn prompt(&self, title:&str, default_msg:&str)->String;
+    fn set_on_close_listener(&self, listener: fn());
+    fn request_animation_frame(&self);
+    fn connect(&self, url: &str);
+    fn set_frame_callback(&self, callback: fn(f64));
+    //fn set_on_message_listener(&self, callback: fn(&str));
+    fn pick_key_events(&self)->Vec<(KeyEvent, i32)>;
+    fn pick_messages(&self)->Vec<String>;
 }
 
 pub struct GameEngine {
@@ -45,10 +70,10 @@ impl GameEngine {
         self.sprites.len() - 1
     }
 
-    pub fn draw_sprites(&self, context: &CanvasContext) {
+    pub fn draw_sprites(&self, context: Rc<Box<GameContext>>) {
         //绘制所有的精灵
         for sprite in &self.sprites {
-            sprite.draw(context);
+            sprite.draw(context.clone());
         }
     }
 

@@ -1,17 +1,17 @@
 extern crate tank;
-mod client;
-use tank::engine::CanvasContext;
+#[macro_use]
+extern crate lazy_static;
+use tank::engine::GameContext;
 use std::ffi::CString;
 use std::os::raw::c_char;
-use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
+use tank::GAME;
 use tank::KeyEvent;
-use std::fmt::Display;
-use std::fmt::Debug;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 //导入的JS帮助函数
 extern "C" {
-    //pub fn emscripten_pick_message()->*mut c_char;
     pub fn emscripten_prompt(title: *const c_char, default_msg: *const c_char)->*mut c_char;
     pub fn emscripten_current_time_millis()->f64;
     pub fn emscripten_alert(text: *const c_char);
@@ -46,290 +46,36 @@ extern "C" {
     pub fn emscripten_connect(url: *const c_char);
 }
 
-// static mut JS:*const JS = ptr::null_mut();
-
-// fn js<'a>() -> &'a mut JS {
-//     unsafe {
-//         if js..is_null() {
-//             JS = transmute(Box::new(JS{
-//                 request_animation_frame_callback: None,
-//                 on_window_resize_listener: None,
-//                 on_resource_load_listener: None,
-//                 on_keyup_listener: None,
-//                 on_keydown_listener: None,
-//                 on_connect_listener: None,
-//                 on_close_listener: None,
-//                 on_message_listener: None,
-//                 //on_prompt_listener: None,
-//             }));
-//         }
-//         transmute(JS)
-//     }
-// }
-
 struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
     on_window_resize_listener: Option<fn()>,
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
+    // on_message_listener: Option<fn(msg: &str)>,
+    // on_key_up_listener: Option<fn(key: i32)>,
+    // on_key_down_listener: Option<fn(key: i32)>,
+}
+
+lazy_static! {
+    static ref KEY_EVENTS: Arc<Mutex<Vec<(KeyEvent, i32)>>> = Arc::new(Mutex::new(vec![]));
+    static ref MESSAGES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 thread_local!{
-    static KEY_EVENTS: RefCell<Vec<(KeyEvent, i32)>> = RefCell::new(vec![]);
-    static MESSAGES: RefCell<Vec<String>> =  RefCell::new(vec![]);
+    // static KEY_EVENTS: Rc<Vec<(KeyEvent, i32)>> = Rc::new(vec![]);
+    // static MESSAGES: RefCell<Vec<String>> = RefCell::new(vec![]);
     static JS: RefCell<JS> = RefCell::new(JS{
         request_animation_frame_callback: None,
         on_window_resize_listener: None,
         on_resource_load_listener: None,
         on_connect_listener: None,
         on_close_listener: None,
-        //on_prompt_listener: None,
+        // on_message_listener: None,
+        // on_key_up_listener: None,
+        // on_key_down_listener: None
     });
-}
-
-// pub fn pick_messages()->Vec<String>{
-//     let mut msgs = vec![];
-//     MESSAGES.with(|m|{
-//         let mut messages = m.borrow_mut();
-//         //console_log(&format!("msg_len={}", messages.len()));
-//         msgs.append(&mut messages);
-//     });
-//     msgs
-// }
-
-pub fn pick_key_events()->Vec<(KeyEvent, i32)>{
-    let mut events = vec![];
-    KEY_EVENTS.with(|es|{
-        let mut es = es.borrow_mut();
-        //console_log(&format!("es_len={}", es.len()));
-        events.append(&mut es);
-    });
-    events
-}
-
-pub fn random() -> f64 {
-    unsafe{
-        emscripten_random()
-    }
-}
-
-pub fn console_log(msg: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(msg){
-            emscripten_console_log(string.as_ptr());
-        }
-    }
-}
-
-pub fn console_log_1<A:Display+Debug, B:Display+Debug>(msg: A, obj:B) {
-    let msg = format!("{:?} {:?}", msg, obj);
-    unsafe {
-        if let Ok(string) = CString::new(msg){
-            emscripten_console_log(string.as_ptr());
-        }
-    }
-}
-
-pub fn console_log_2<A:Display+Debug, B:Display+Debug, C:Display+Debug>(msg: A, obj:B, obj2:C) {
-    let msg = format!("{:?} {:?} {:?}", msg, obj, obj2);
-    unsafe {
-        if let Ok(string) = CString::new(msg){
-            emscripten_console_log(string.as_ptr());
-        }
-    }
-}
-
-pub fn current_time_millis()->u64{
-    unsafe{
-        emscripten_current_time_millis() as u64
-    }
-}
-
-pub fn alert(msg: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(msg){
-            emscripten_alert(string.as_ptr());
-        }
-    }
-}
-
-pub fn load_resource(json: String) {
-    unsafe {
-        if let Ok(string) = CString::new(json){
-            emscripten_load_resource(string.as_ptr());
-        }
-    }
-}
-
-pub fn window_inner_width() -> i32 {
-    unsafe { emscripten_window_inner_width() }
-}
-
-pub fn window_inner_height() -> i32 {
-    unsafe { emscripten_window_inner_height() }
-}
-
-pub fn fill_style(style: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(style){
-            emscripten_fill_style(string.as_ptr());
-        }
-    }
-}
-
-pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
-    unsafe {
-        emscripten_fill_rect(x, y, width, height);
-    }
-}
-
-pub fn fill_text(text: &str, x: i32, y: i32) {
-    unsafe {
-        if let Ok(string) = CString::new(text){
-            emscripten_fill_text(string.as_ptr(), x, y);
-        }
-    }
-}
-
-pub fn set_canvas_font(font: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(font){
-            emscripten_set_canvas_font(string.as_ptr());
-        }
-    }
-}
-
-pub fn send_message(msg: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(msg){
-            emscripten_send_message(string.as_ptr());
-        }
-    }
-}
-
-pub fn connect(url: &str) {
-    unsafe {
-        if let Ok(string) = CString::new(url){
-            emscripten_connect(string.as_ptr());
-        }
-    }
-}
-
-pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
-    unsafe {
-        emscripten_draw_image_at(res_id, x, y);
-    }
-}
-pub fn draw_image(
-    res_id: i32,
-    source_x: i32,
-    source_y: i32,
-    source_width: i32,
-    source_height: i32,
-    dest_x: i32,
-    dest_y: i32,
-    dest_width: i32,
-    dest_height: i32,
-) {
-    unsafe {
-        emscripten_draw_image(
-            res_id,
-            source_x,
-            source_y,
-            source_width,
-            source_height,
-            dest_x,
-            dest_y,
-            dest_width,
-            dest_height,
-        );
-    }
-}
-
-pub fn set_canvas_style_margin(left: i32, top: i32, right: i32, bottom: i32) {
-    unsafe { emscripten_set_canvas_style_margin(left, top, right, bottom) };
-}
-pub fn set_canvas_style_width(width: i32) {
-    unsafe { emscripten_set_canvas_style_width(width) };
-}
-pub fn set_canvas_style_height(height: i32) {
-    unsafe { emscripten_set_canvas_style_height(height) };
-}
-pub fn set_canvas_width(width: i32) {
-    unsafe { emscripten_set_canvas_width(width) };
-}
-pub fn set_canvas_height(height: i32) {
-    unsafe { emscripten_set_canvas_height(height) };
-}
-
-pub fn prompt(title:&str, default_msg:&str)->String{
-    if let Ok(title) = CString::new(title){
-        if let Ok(msg) = CString::new(default_msg){
-            let c_string = unsafe{ CString::from_raw(emscripten_prompt(title.as_ptr(), msg.as_ptr())) };
-            let name = c_string.to_str().unwrap_or("");
-            return String::from(name.clone());
-        }
-    }
-    String::new()
-}
-
-pub fn pick_messages()->Vec<String>{
-    let mut msgs = vec![];
-    MESSAGES.with(|messages|{
-        msgs.append(&mut messages.borrow_mut());
-    });
-    msgs
-}
-
-// pub fn pick_message()->Option<String>{
-//     let c_string = unsafe{ CString::from_raw(emscripten_pick_message()) };
-//     let s = c_string.to_str().unwrap_or("NULL");
-//     let s1 = s.clone();
-//     drop(s);
-//     if &s1 == &"NULL"{
-//         console_log("pick_message 空.");
-//         None
-//     }else{
-//         console_log_1("pick_message", s);
-//         Some(s.to_string())
-//     }
-// }
-
-pub fn set_frame_callback(callback: fn(f64)) {
-    JS.with(|js|{
-        js.borrow_mut().request_animation_frame_callback = Some(callback);
-    });
-}
-
-pub fn set_on_window_resize_listener(listener: fn()) {
-    JS.with(|js|{
-        js.borrow_mut().on_window_resize_listener = Some(listener);
-    });
-}
-
-pub fn set_on_connect_listener(listener: fn()) {
-    JS.with(|js|{
-        js.borrow_mut().on_connect_listener = Some(listener);
-    });
-}
-
-pub fn set_on_close_listener(listener: fn()) {
-    JS.with(|js|{
-        js.borrow_mut().on_close_listener = Some(listener);
-    });
-}
-
-pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
-    JS.with(|js|{
-        js.borrow_mut().on_resource_load_listener = Some(listener);
-    });
-}
-
-pub fn request_animation_frame() {
-    unsafe {
-        emscripten_request_animation_frame();
-    }
+    static CONTEXT: JSGameContext = JSGameContext{};
 }
 
 #[no_mangle]
@@ -378,47 +124,101 @@ pub fn on_close() {
 }
 
 #[no_mangle]
-pub fn on_message(msg: *mut c_char) {
-    let c_string = unsafe{ CString::from_raw(msg) };
-    let s = c_string.to_str().unwrap_or("NULL");
-    MESSAGES.with(|messages|{
-        messages.borrow_mut().push(s.clone().to_string());
-    });
-}
-
-#[no_mangle]
 pub fn on_keyup_event(key: i32) {
-    KEY_EVENTS.with(|events|{
-        events.borrow_mut().push((KeyEvent::KeyUp, key));
-    });
+    //console_log("on_keydown_up");
+    if let Ok(mut events) = KEY_EVENTS.lock(){
+        events.push((KeyEvent::KeyUp, key));
+    }
 }
 
 #[no_mangle]
 pub fn on_keydown_event(key: i32) {
-    KEY_EVENTS.with(|events|{
-        events.borrow_mut().push((KeyEvent::KeyDown, key));
-    });
+    //console_log("on_keydown");
+    if let Ok(mut events) = KEY_EVENTS.lock(){
+        events.push((KeyEvent::KeyDown, key));
+    }
+}
+
+#[no_mangle]
+pub fn on_message(msg: *mut c_char) {
+    let c_string = unsafe{ CString::from_raw(msg) };
+    let s = c_string.to_str().unwrap_or("NULL");
+    let s2 = s.clone();
+    drop(s);
+    //console_log("on_message 111");
+    if !(s=="NULL") {
+        if let Ok(mut messages) = MESSAGES.lock(){
+            messages.push(s2.to_string());
+        }
+    }
+    //console_log("on_message 222");
 }
 
 // #[no_mangle]
-// pub fn on_prompt(value: *mut c_char) {
-//     let c_string = unsafe{ CString::from_raw(value) };
-//     if let Some(callback) = js..on_message_listener {
-//         callback(c_string.to_str().unwrap());
-//     }
+// pub fn on_message(msg: *mut c_char) {
+//     let c_string = unsafe{ CString::from_raw(msg) };
+//     let s = c_string.to_str().unwrap_or("NULL");
+//     JS.with(|js|{
+//         if let Some(callback) = js.borrow().on_message_listener {
+//             callback(s);
+//         }
+//     });
 // }
 
+// #[no_mangle]
+// pub fn on_keyup_event(key: i32) {
+//     CONTEXT.with(|context|{
+//             context.console_log("on_key_up 001");
+//     });
+//     JS.with(|js|{
+//         if let Some(callback) = js.borrow().on_key_up_listener {
+//             callback(key);
+//         }
+//     });
+//     CONTEXT.with(|context|{
+//             context.console_log("on_key_up 002");
+//     });
+// }
+
+// #[no_mangle]
+// pub fn on_keydown_event(key: i32) {
+//     CONTEXT.with(|context|{
+//             context.console_log("on_key_down 001");
+//     });
+//     JS.with(|js|{
+//         if let Some(callback) = js.borrow().on_key_down_listener {
+//             callback(key);
+//         }
+//     });
+//     CONTEXT.with(|context|{
+//             context.console_log("on_key_down 002");
+//     });
+// }
+
+fn console_log( msg: &str) {
+    unsafe {
+        if let Ok(string) = CString::new(msg){
+            emscripten_console_log(string.as_ptr());
+        }
+    }
+}
 
 #[no_mangle]
 pub fn start() {
-    client::start();
+    GAME.with(|game|{
+        let mut game = game.borrow_mut();
+        game.set_game_context(Box::new(JSGameContext{}));
+        game.client_start();
+    });
 }
 
-pub struct Context2D {}
+pub struct JSGameContext {}
 
-impl CanvasContext for Context2D {
+impl GameContext for JSGameContext {
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
-        draw_image_at(res_id, x, y);
+        unsafe {
+            emscripten_draw_image_at(res_id, x, y);
+        }
     }
 
     fn draw_image(
@@ -433,33 +233,207 @@ impl CanvasContext for Context2D {
         dest_width: i32,
         dest_height: i32,
     ) {
-        draw_image(
-            res_id,
-            source_x,
-            source_y,
-            source_width,
-            source_height,
-            dest_x,
-            dest_y,
-            dest_width,
-            dest_height,
-        );
+        unsafe {
+            emscripten_draw_image(
+                res_id,
+                source_x,
+                source_y,
+                source_width,
+                source_height,
+                dest_x,
+                dest_y,
+                dest_width,
+                dest_height,
+            );
+        }
     }
 
     fn fill_style(&self, style: &str) {
-        fill_style(style);
+        unsafe {
+            if let Ok(string) = CString::new(style){
+                emscripten_fill_style(string.as_ptr());
+            }
+        }
     }
 
     fn set_canvas_font(&self, font: &str) {
-        set_canvas_font(font);
+        unsafe {
+            if let Ok(string) = CString::new(font){
+                emscripten_set_canvas_font(string.as_ptr());
+            }
+        }
     }
 
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
-        fill_rect(x, y, width, height);
+        unsafe {
+            emscripten_fill_rect(x, y, width, height);
+        }
     }
 
     fn fill_text(&self, text: &str, x: i32, y: i32) {
-        fill_text(text, x, y);
+        unsafe {
+            if let Ok(string) = CString::new(text){
+                emscripten_fill_text(string.as_ptr(), x, y);
+            }
+        }
+    }
+
+    fn set_frame_callback(&self, callback: fn(f64)) {
+        JS.with(|js|{
+            js.borrow_mut().request_animation_frame_callback = Some(callback);
+        });
+    }
+
+    fn set_on_window_resize_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_window_resize_listener = Some(listener);
+        });
+    }
+
+    fn set_on_connect_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_connect_listener = Some(listener);
+        });
+    }
+
+    fn set_on_close_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_close_listener = Some(listener);
+        });
+    }
+
+    fn set_on_resource_load_listener(&self, listener: fn(num: i32, total: i32)) {
+        JS.with(|js|{
+            js.borrow_mut().on_resource_load_listener = Some(listener);
+        });
+    }
+
+    // fn set_on_message_listener(&self, listener: fn(msg: &str)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_message_listener = Some(listener);
+    //     });
+    // }
+
+    // fn set_on_key_up_listener(&self, listener: fn(key: i32)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_key_up_listener = Some(listener);
+    //     });
+    // }
+
+    // fn set_on_key_down_listener(&self, listener: fn(key: i32)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_key_down_listener = Some(listener);
+    //     });
+    // }
+    
+    fn pick_key_events(&self)->Vec<(KeyEvent, i32)>{
+        let mut events = vec![];
+        //console_log(&format!("es_len={}", es.len()));
+        if let Ok(mut e) = KEY_EVENTS.lock(){
+            events.append(&mut e);
+        }
+        events
+    }
+
+    fn pick_messages(&self)->Vec<String>{
+        let mut msgs = vec![];
+        if let Ok(mut m) = MESSAGES.lock(){
+            msgs.append(&mut m);
+        }
+        msgs
+    }
+
+    fn request_animation_frame(&self) {
+        unsafe {
+            emscripten_request_animation_frame();
+        }
+    }
+
+    // fn random(&self) -> f64 {
+    //     unsafe{
+    //         emscripten_random()
+    //     }
+    // }
+
+    fn console_log(&self, msg: &str) {
+        unsafe {
+            if let Ok(string) = CString::new(msg){
+                emscripten_console_log(string.as_ptr());
+            }
+        }
+    }
+
+    // fn current_time_millis(&self, )->u64{
+    //     unsafe{
+    //         emscripten_current_time_millis() as u64
+    //     }
+    // }
+
+    fn alert(&self, msg: &str) {
+        unsafe {
+            if let Ok(string) = CString::new(msg){
+                emscripten_alert(string.as_ptr());
+            }
+        }
+    }
+
+    fn load_resource(&self, json: String) {
+        unsafe {
+            if let Ok(string) = CString::new(json){
+                emscripten_load_resource(string.as_ptr());
+            }
+        }
+    }
+
+    fn window_inner_width(&self, ) -> i32 {
+        unsafe { emscripten_window_inner_width() }
+    }
+
+    fn window_inner_height(&self, ) -> i32 {
+        unsafe { emscripten_window_inner_height() }
+    }
+
+    fn send_message(&self, msg: &str) {
+        unsafe {
+            if let Ok(string) = CString::new(msg){
+                emscripten_send_message(string.as_ptr());
+            }
+        }
+    }
+
+    fn connect(&self, url: &str) {
+        unsafe {
+            if let Ok(string) = CString::new(url){
+                emscripten_connect(string.as_ptr());
+            }
+        }
+    }
+
+    fn set_canvas_style_margin(&self, left: i32, top: i32, right: i32, bottom: i32) {
+        unsafe { emscripten_set_canvas_style_margin(left, top, right, bottom) };
+    }
+    fn set_canvas_style_width(&self, width: i32) {
+        unsafe { emscripten_set_canvas_style_width(width) };
+    }
+    fn set_canvas_style_height(&self, height: i32) {
+        unsafe { emscripten_set_canvas_style_height(height) };
+    }
+    fn set_canvas_width(&self, width: i32) {
+        unsafe { emscripten_set_canvas_width(width) };
+    }
+    fn set_canvas_height(&self, height: i32) {
+        unsafe { emscripten_set_canvas_height(height) };
+    }
+
+    fn prompt(&self, title:&str, default_msg:&str)->String{
+        if let Ok(title) = CString::new(title){
+            if let Ok(msg) = CString::new(default_msg){
+                let c_string = unsafe{ CString::from_raw(emscripten_prompt(title.as_ptr(), msg.as_ptr())) };
+                let name = c_string.to_str().unwrap_or("");
+                return String::from(name.clone());
+            }
+        }
+        String::new()
     }
 }
 

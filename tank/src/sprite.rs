@@ -1,7 +1,8 @@
 use std::cmp;
-use engine::CanvasContext;
+use engine::GameContext;
 //use utils::js_rand_int as rand_int;
 use utils::rand_int;
+use std::rc::Rc;
 //精灵代码
 
 pub type SPRITEACTION = u32;
@@ -133,6 +134,7 @@ pub struct Sprite {
     name: String,
     score: i32,
     killer: String,
+    killer_name: String,
 }
 
 impl Sprite {
@@ -169,7 +171,8 @@ impl Sprite {
             name: "".to_string(),
             collision: Rect::zero(),
             score: 0,
-            killer: "".to_string(),
+            killer: String::new(),
+            killer_name: String::new(),
         };
         sprite.calc_collision_rect();
         sprite
@@ -317,7 +320,7 @@ impl Sprite {
         SA_NONE
     }
 
-    pub fn draw(&self, context: &CanvasContext) {
+    pub fn draw(&self, context: Rc<Box<GameContext>>) {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
@@ -455,12 +458,17 @@ impl Sprite {
         self.name = name;
     }
 
-    pub fn set_killer(&mut self, killer:String){
+    pub fn set_killer(&mut self, killer:String, name:String){
         self.killer = killer;
+        self.killer_name = name;
     }
 
     pub fn killer(&self) -> String{
         self.killer.clone()
+    }
+
+    pub fn killer_name(&self) -> &String{
+        &self.killer_name
     }
 
     pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {
