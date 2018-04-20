@@ -24,6 +24,12 @@ pub const CLIENT_WIDTH: i32 = 600;
 pub const CLIENT_HEIGHT: i32 = 850;
 pub const FPS: u32 = 20;
 
+pub const VK_SPACE:i32 = 32;
+pub const VK_LEFT:i32 = 37;
+pub const VK_RIGHT:i32 = 39;
+pub const VK_UP:i32 = 38;
+pub const VK_DOWN:i32 = 40;
+
 //--------------------------------------------
 //-------------游戏资源ID----------------------
 //--------------------------------------------
@@ -365,12 +371,12 @@ impl TankGame {
     }
 
     //键盘按下，坦克移动、发射子弹
-    pub fn on_key_event(&mut self, event: KeyEvent, key: &str, sprite_id: &String) {
+    pub fn on_key_event(&mut self, event: KeyEvent, key: i32, sprite_id: &String) {
         if let Some(idx) = self.engine.query_sprite_idx(sprite_id) {
             match event {
                 KeyEvent::KeyDown => {
                     match key {
-                        " " => {
+                        VK_SPACE => {
                             let tank_position = *(self.engine.sprites()[idx].position());
                             //创建一个新的子弹精灵
                             let missile_idx =
@@ -422,22 +428,22 @@ impl TankGame {
                             }}
                             self.events.push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[missile_idx]));
                         }
-                        "ArrowLeft" | "Left" => {
+                        VK_LEFT => {
                             self.engine.sprites()[idx].set_current_frame(2);
                             self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowRight" | "Right" => {
+                        VK_RIGHT => {
                             self.engine.sprites()[idx].set_current_frame(3);
                             self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowUp" | "Up" => {
+                        VK_UP => {
                             self.engine.sprites()[idx].set_current_frame(0);
                             self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        "ArrowDown" | "Down" => {
+                        VK_DOWN => {
                             self.engine.sprites()[idx].set_current_frame(1);
                             self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
                             self.events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
@@ -452,10 +458,10 @@ impl TankGame {
                     //键盘弹起坦克停止走动
                     let do_update = {
                         match key {
-                            "ArrowLeft" | "Left"
-                            | "ArrowRight" | "Right"
-                            | "ArrowUp" | "Up"
-                            | "ArrowDown" | "Down" => {
+                            VK_LEFT
+                            | VK_RIGHT
+                            | VK_UP
+                            | VK_DOWN => {
                                 self.engine.sprites()[idx].set_velocity(0, 0);
                                 true
                             }

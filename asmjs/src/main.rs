@@ -5,12 +5,13 @@ use std::ffi::CString;
 use std::os::raw::c_char;
 use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
-#[macro_use]
-extern crate lazy_static;
 use tank::KeyEvent;
+use std::fmt::Display;
+use std::fmt::Debug;
 
 //导入的JS帮助函数
 extern "C" {
+    //pub fn emscripten_pick_message()->*mut c_char;
     pub fn emscripten_prompt(title: *const c_char, default_msg: *const c_char)->*mut c_char;
     pub fn emscripten_current_time_millis()->f64;
     pub fn emscripten_alert(text: *const c_char);
@@ -45,17 +46,6 @@ extern "C" {
     pub fn emscripten_connect(url: *const c_char);
 }
 
-lazy_static! {
-    static ref JSENV: Arc<Mutex<JS>> = Arc::new(Mutex::new(JS{
-        request_animation_frame_callback: None,
-        on_window_resize_listener: None,
-        on_resource_load_listener: None,
-        on_connect_listener: None,
-        on_close_listener: None,
-        //on_prompt_listener: None,
-    }));
-}
-
 // static mut JS:*const JS = ptr::null_mut();
 
 // fn js<'a>() -> &'a mut JS {
@@ -86,22 +76,34 @@ struct JS {
 }
 
 thread_local!{
-    static KEY_EVENTS: RefCell<Vec<(KeyEvent, String)>> = RefCell::new(vec![]);
+    static KEY_EVENTS: RefCell<Vec<(KeyEvent, i32)>> = RefCell::new(vec![]);
     static MESSAGES: RefCell<Vec<String>> =  RefCell::new(vec![]);
-}
-
-pub fn pick_messages()->Vec<String>{
-    let mut msgs = vec![];
-    MESSAGES.with(|messages|{
-        msgs.append(&mut messages.borrow_mut());
+    static JS: RefCell<JS> = RefCell::new(JS{
+        request_animation_frame_callback: None,
+        on_window_resize_listener: None,
+        on_resource_load_listener: None,
+        on_connect_listener: None,
+        on_close_listener: None,
+        //on_prompt_listener: None,
     });
-    msgs
 }
 
-pub fn pick_key_events()->Vec<(KeyEvent, String)>{
+// pub fn pick_messages()->Vec<String>{
+//     let mut msgs = vec![];
+//     MESSAGES.with(|m|{
+//         let mut messages = m.borrow_mut();
+//         //console_log(&format!("msg_len={}", messages.len()));
+//         msgs.append(&mut messages);
+//     });
+//     msgs
+// }
+
+pub fn pick_key_events()->Vec<(KeyEvent, i32)>{
     let mut events = vec![];
     KEY_EVENTS.with(|es|{
-        events.append(&mut es.borrow_mut());
+        let mut es = es.borrow_mut();
+        //console_log(&format!("es_len={}", es.len()));
+        events.append(&mut es);
     });
     events
 }
@@ -113,6 +115,24 @@ pub fn random() -> f64 {
 }
 
 pub fn console_log(msg: &str) {
+    unsafe {
+        if let Ok(string) = CString::new(msg){
+            emscripten_console_log(string.as_ptr());
+        }
+    }
+}
+
+pub fn console_log_1<A:Display+Debug, B:Display+Debug>(msg: A, obj:B) {
+    let msg = format!("{:?} {:?}", msg, obj);
+    unsafe {
+        if let Ok(string) = CString::new(msg){
+            emscripten_console_log(string.as_ptr());
+        }
+    }
+}
+
+pub fn console_log_2<A:Display+Debug, B:Display+Debug, C:Display+Debug>(msg: A, obj:B, obj2:C) {
+    let msg = format!("{:?} {:?} {:?}", msg, obj, obj2);
     unsafe {
         if let Ok(string) = CString::new(msg){
             emscripten_console_log(string.as_ptr());
@@ -247,44 +267,63 @@ pub fn prompt(title:&str, default_msg:&str)->String{
     if let Ok(title) = CString::new(title){
         if let Ok(msg) = CString::new(default_msg){
             let c_string = unsafe{ CString::from_raw(emscripten_prompt(title.as_ptr(), msg.as_ptr())) };
-            return String::from(c_string.to_str().unwrap_or(""));
+            let name = c_string.to_str().unwrap_or("");
+            return String::from(name.clone());
         }
     }
     String::new()
 }
 
-pub fn set_frame_callback(callback: fn(f64)) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.request_animation_frame_callback = Some(callback);
-    }
+pub fn pick_messages()->Vec<String>{
+    let mut msgs = vec![];
+    MESSAGES.with(|messages|{
+        msgs.append(&mut messages.borrow_mut());
+    });
+    msgs
 }
 
-// pub fn set_on_prompt_listener(listener: fn(&str)) {
-//     js..on_prompt_listener = Some(listener);
+// pub fn pick_message()->Option<String>{
+//     let c_string = unsafe{ CString::from_raw(emscripten_pick_message()) };
+//     let s = c_string.to_str().unwrap_or("NULL");
+//     let s1 = s.clone();
+//     drop(s);
+//     if &s1 == &"NULL"{
+//         console_log("pick_message 空.");
+//         None
+//     }else{
+//         console_log_1("pick_message", s);
+//         Some(s.to_string())
+//     }
 // }
 
+pub fn set_frame_callback(callback: fn(f64)) {
+    JS.with(|js|{
+        js.borrow_mut().request_animation_frame_callback = Some(callback);
+    });
+}
+
 pub fn set_on_window_resize_listener(listener: fn()) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_window_resize_listener = Some(listener);
-    }
+    JS.with(|js|{
+        js.borrow_mut().on_window_resize_listener = Some(listener);
+    });
 }
 
 pub fn set_on_connect_listener(listener: fn()) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_connect_listener = Some(listener);
-    }
+    JS.with(|js|{
+        js.borrow_mut().on_connect_listener = Some(listener);
+    });
 }
 
 pub fn set_on_close_listener(listener: fn()) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_close_listener = Some(listener);
-    }
+    JS.with(|js|{
+        js.borrow_mut().on_close_listener = Some(listener);
+    });
 }
 
 pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_resource_load_listener = Some(listener);
-    }
+    JS.with(|js|{
+        js.borrow_mut().on_resource_load_listener = Some(listener);
+    });
 }
 
 pub fn request_animation_frame() {
@@ -295,70 +334,69 @@ pub fn request_animation_frame() {
 
 #[no_mangle]
 pub fn request_animation_frame_callback(timestamp: f64) {
-    if let Ok(js) = JSENV.lock(){
-        if let Some(callback) = js.request_animation_frame_callback {
+    JS.with(|js|{
+        if let Some(callback) = js.borrow().request_animation_frame_callback {
             callback(timestamp);
         }
-    }
+    });
 }
 
 #[no_mangle]
 pub fn on_window_resize() {
-    if let Ok(js) = JSENV.lock(){
-        if let Some(callback) = js.on_window_resize_listener {
+    JS.with(|js|{
+        if let Some(callback) = js.borrow().on_window_resize_listener {
             callback();
         }
-    }
+    });
 }
 
 #[no_mangle]
 pub fn on_resource_load(num: i32, total: i32) {
-    if let Ok(js) = JSENV.lock(){
-        if let Some(callback) = js.on_resource_load_listener {
+    JS.with(|js|{
+        if let Some(callback) = js.borrow().on_resource_load_listener {
             callback(num, total);
         }
-    }
+    });
 }
 
 #[no_mangle]
 pub fn on_connect() {
-    if let Ok(js) = JSENV.lock(){
-        if let Some(callback) = js.on_connect_listener {
+    JS.with(|js|{
+        if let Some(callback) = js.borrow().on_connect_listener {
             callback();
         }
-    }
+    });
 }
 
 #[no_mangle]
 pub fn on_close() {
-    if let Ok(js) = JSENV.lock(){
-        if let Some(callback) = js.on_close_listener {
+    JS.with(|js|{
+        if let Some(callback) = js.borrow().on_close_listener {
             callback();
         }
-    }
+    });
 }
 
 #[no_mangle]
 pub fn on_message(msg: *mut c_char) {
+    let c_string = unsafe{ CString::from_raw(msg) };
+    let s = c_string.to_str().unwrap_or("NULL");
     MESSAGES.with(|messages|{
-        let msg = unsafe{ CString::from_raw(msg) };
-        messages.borrow_mut().push(msg.to_str().unwrap().to_string());
+        messages.borrow_mut().push(s.clone().to_string());
     });
 }
 
 #[no_mangle]
-pub fn on_keyup_event(key: *mut c_char) {
-    let key = unsafe{ CString::from_raw(key) };
+pub fn on_keyup_event(key: i32) {
     KEY_EVENTS.with(|events|{
-        events.borrow_mut().push((KeyEvent::KeyUp, key.to_str().unwrap().to_string()));
+        events.borrow_mut().push((KeyEvent::KeyUp, key));
     });
 }
 
 #[no_mangle]
-pub fn on_keydown_event(key: *mut c_char) {
-    let key = unsafe{ CString::from_raw(key) };
+pub fn on_keydown_event(key: i32) {
     KEY_EVENTS.with(|events|{
-        events.borrow_mut().push((KeyEvent::KeyDown, key.to_str().unwrap().to_string()));
+        events.borrow_mut().push((KeyEvent::KeyDown, key));
     });
 }
 

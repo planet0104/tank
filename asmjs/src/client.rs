@@ -1,5 +1,4 @@
 extern crate tank;
-extern crate lazy_static;
 use tank::{KeyEvent, TankGame, CLIENT_HEIGHT, CLIENT_WIDTH};
 use tank::{RES_LG_EXPLOSION_BITMAP, RES_MISSILE_BITMAP, RES_SM_EXPLOSION_BITMAP, RES_TANK_BITMAP};
 use tank::utils::Timer;
@@ -30,7 +29,7 @@ struct Client {
 impl Client{
     //服务器下发的消息不用验证
     fn handle_message(&mut self, msg: &str){
-        console_log(&format!("handle_message {}", msg));
+        //console_log(&format!("handle_message {}", msg));
         
         let lf = msg.find('\n');
         if !lf.is_some(){
@@ -50,17 +49,17 @@ impl Client{
         }
         let msg_id = msg_id.unwrap();
         let data = msg.get(lf+1..).unwrap_or("");
-        console_log(&format!("handle_message  msg_id={} data={}", msg_id, data));
+        //console_log(&format!("handle_message  msg_id={} data={}", msg_id, data));
 
         match msg_id{
             SERVER_MSG_ERR => {
                 console_log(&format!("服务器错误:{}", data));
             }
             SERVER_MSG_EVENT => {
-                console_log("lock 成功>>>31.");
+                //console_log("lock 成功>>>31.");
                 //更新精灵
                 let events:Vec<&str> = data.clone().split('\n').collect();
-                console_log("lock 成功>>>32.");
+               // console_log("lock 成功>>>32.");
                 for value in events{
                     //EventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame
                     let items:Vec<&str> = value.split('␟').collect();
@@ -99,7 +98,7 @@ impl Client{
                         self.game.handle_server_event(event, info);
                     }
                 }
-                console_log("lock 成功>>>33.");
+                //console_log("lock 成功>>>33.");
                 //console_log("更新精灵-2");
             },
             SERVER_MSG_UUID => {
@@ -139,26 +138,16 @@ impl Client{
     }
 }
 
-lazy_static! {
-    static ref CLIENT: Arc<Mutex<Client>> = Arc::new(Mutex::new(Client{
+thread_local!{
+    static CLIENT: RefCell<Client> = RefCell::new(Client{
         uuid: String::new(),
         name: None,
         timer:Timer::new(20.0),
         game:TankGame::new(),
         context: Context2D{},
         last_time: 0.0
-    }));
+    });
 }
-
-// thread_local!{
-//     static CLIENT: RefCell<Client> = RefCell::new(Client{
-//         uuid: String::new(),
-//         name: None,
-//         timer:Timer::new(30),
-//         game:TankGame::new(),
-//         context: Context2D{},
-//     });
-// }
 
 pub fn start() {
     console_log("游戏启动!!!");
@@ -180,9 +169,9 @@ pub fn start() {
             return;
         }
         console_log(&format!("玩家姓名:{}", name));
-        if let Ok(mut client) = CLIENT.lock(){
-            client.name = Some(name.clone()); 
-        }
+        CLIENT.with(|client|{
+            client.borrow_mut().name = Some(name.clone()); 
+        });
         send_message(&format!("{}\n{}", 3, name));
     });
     set_on_close_listener(||{
@@ -214,8 +203,8 @@ pub fn start() {
         if num == total {
             //资源加载完成, 启动游戏循环
             request_animation_frame();
-            //connect("ws://50.3.18.60:8080");
-            connect("ws://127.0.0.1:8080");
+            connect("ws://50.3.18.60:8080");
+            //connect("ws://127.0.0.1:8080");
         }
     });
     
@@ -227,7 +216,8 @@ pub fn start() {
 
     //游戏循环
     let frame_callback = |timestamp:f64| {
-        if let Ok(mut client) = CLIENT.lock(){
+        CLIENT.with(|client|{
+            let mut client = client.borrow_mut();
             if client.timer.ready_for_next_frame(timestamp) {
                 //处理消息
                 let messages = pick_messages();
@@ -237,7 +227,7 @@ pub fn start() {
                 //键盘事件
                 let key_events = pick_key_events();
                 for key_event in key_events{
-                    handle_key(key_event.0, &key_event.1)
+                    handle_key(key_event.0, key_event.1)
                 }
 
                 client.game.update_sprites();
@@ -250,7 +240,7 @@ pub fn start() {
                 }
                 client.last_time = timestamp;
             }
-        }
+        });
         request_animation_frame();
     };
 
@@ -281,6 +271,7 @@ fn resize_window() {
 }
 
 //处理按键事件
-fn handle_key(event: KeyEvent, key: &str) {
+fn handle_key(event: KeyEvent, key: i32) {
+    //console_log_1("handle_key", key);
     send_message(&format!("{}\n{}␟{}", 4, event.to_i64(), key));
 }

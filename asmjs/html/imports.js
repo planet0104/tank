@@ -10,24 +10,56 @@ var ctx = canvas.getContext("2d");
 //     Module._on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
 // });
 
+const VK_SPACE = 32;
+const VK_LEFT = 37;
+const VK_RIGHT = 39;
+const VK_UP = 38;
+const VK_DOWN = 40;
+
+const KEY_MAP = {
+    "Left": VK_LEFT,
+    "ArrowLeft": VK_LEFT,
+    "Right": VK_RIGHT,
+    "ArrowRight": VK_RIGHT,
+    "Up": VK_UP,
+    "ArrowUp": VK_UP,
+    "Down": VK_DOWN,
+    "ArrowDown": VK_DOWN,
+    " ": VK_SPACE,
+};
+
 var keyPress = {};
+//var messages = [];
 
 document.addEventListener("keyup", function(event){
-    //console.log("keyup:", event.key);
-    keyPress[event.key] = false;
-    Module._on_keyup_event(allocateUTF8OnStack(event.key));
+    //console.log("keyup:", event.keyCode);
+    if (KEY_MAP[event.key]){
+        if(keyPress[event.key]){
+            keyPress[event.key] = false;
+            Module._on_keyup_event(KEY_MAP[event.key]);
+        }
+    }
 });
 
 document.addEventListener("keydown", function(event){
     //console.log("keydown", event.key);
-    if(!keyPress[event.key]){
-        //console.log("keydown into:", event.key);
-        keyPress[event.key] = true;
-        Module._on_keydown_event(allocateUTF8OnStack(event.key));
+    if (KEY_MAP[event.key]){
+        if(!keyPress[event.key]){
+            keyPress[event.key] = true;
+            Module._on_keydown_event(KEY_MAP[event.key]);
+        }
     }
 });
 
 //下面是要导入webassembly的JS帮助函数
+function _emscripten_pick_message(){
+    let msg = messages.pop();
+    if (msg == undefined){
+        msg = "NULL";
+    }
+    return allocateUTF8OnStack(msg);
+}
+
 function _emscripten_prompt(title, default_msg){
     var val = prompt(UTF8ToString(title), UTF8ToString(default_msg));
     return allocateUTF8OnStack(val);
@@ -140,6 +172,7 @@ function connect(url){
         
         socket.onmessage = function(event){
             //console.log("onmessage", event.data);
+            //messages.push(event.data);
             Module._on_message(allocateUTF8OnStack(event.data));
         };
 

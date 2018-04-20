@@ -5,4 +5,3 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 
 [dependencies]
 tank = { path = "../tank" }
-lazy_static = "1.0"

@@ -145,8 +145,10 @@ fn main() {
                         //玩家上传按键事件
                         if slices.len() == 2{
                             if let Ok(event) = slices[0].parse::<i64>(){
-                                //println!("key event {} {:?} {}", event, slices[1], uuid);
-                                game.on_key_event(KeyEvent::from_i64(event), slices[1], &uuid);
+                                if let Ok(key) = slices[1].parse::<i32>(){
+                                    //println!("key event {} {:?} {}", event, slices[1], uuid);
+                                    game.on_key_event(KeyEvent::from_i64(event), key, &uuid);
+                                }
                             }
                         }
                     }
@@ -169,9 +171,9 @@ fn main() {
             {
                 let events = game.events();
                 if events.len()>0{
+                    //println!("分发事件 {:?}", events);
                     let mut msg = format!("{}\n", SERVER_MSG_EVENT);
                     for event in events{
-                        //println!("分发事件 {:?} {:?}", event.0, event.1.id);
                         msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                             event.0.to_i64(),
                             event.1.id.clone(),
@@ -201,8 +203,8 @@ fn main() {
     });
 
     //启动websocket服务
-    let address = "127.0.0.1:8080";
-    // let address = "50.3.18.60:8080";
+    //let address = "127.0.0.1:8080";
+    let address = "50.3.18.60:8080";
 
     println!("游戏服务已启动: {}", address);
     ws.listen(address).unwrap();

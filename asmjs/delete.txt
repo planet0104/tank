@@ -1,3 +1,4 @@
+function _emscripten_pick_message(){Module["printErr"]("missing function: emscripten_pick_message");abort(-1)}
 function _emscripten_prompt(){Module["printErr"]("missing function: emscripten_prompt");abort(-1)}
 function _emscripten_ready_for_next_frame(){Module["printErr"]("missing function: emscripten_ready_for_next_frame");abort(-1)}
 function _emscripten_current_time_millis(){Module["printErr"]("missing function: emscripten_current_time_millis");abort(-1)}

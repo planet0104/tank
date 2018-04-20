@@ -416,7 +416,11 @@ impl Sprite {
     }
 
     pub fn height(&self) -> i32 {
-        self.bitmap.height / self.num_frames
+        if self.num_frames>0 {
+            self.bitmap.height / self.num_frames
+        }else{
+            self.bitmap.height
+        }
     }
 
     pub fn width(&self) -> i32 {
