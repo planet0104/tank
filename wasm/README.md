@@ -1,1 +1,1 @@
-# tank a rust wasm game
+# tank wasm 客户端(暂停)
