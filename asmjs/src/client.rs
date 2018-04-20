@@ -170,8 +170,6 @@ pub fn start() {
     set_on_window_resize_listener(|| {
         resize_window();
     });
-    set_on_keydown_listener(|key| handle_key(KeyEvent::KeyDown, key));
-    set_on_keyup_listener(|key| handle_key(KeyEvent::KeyUp, key));
 
     set_on_connect_listener(||{
         console_log("websocket 链接成功");
@@ -189,14 +187,6 @@ pub fn start() {
     });
     set_on_close_listener(||{
         console_log("websocket 链接断开");
-    });
-    set_on_message_listener(|msg| {
-        let client_lok = CLIENT.lock();
-        if let Ok(mut client) = client_lok{
-            client.handle_message(msg); 
-        }else{
-            console_log(&format!("client_lock失败:{:?}", client_lok.err()));
-        }
     });
 
     //加载游戏资源
@@ -239,6 +229,17 @@ pub fn start() {
     let frame_callback = |timestamp:f64| {
         if let Ok(mut client) = CLIENT.lock(){
             if client.timer.ready_for_next_frame(timestamp) {
+                //处理消息
+                let messages = pick_messages();
+                for msg in messages{
+                    client.handle_message(&msg); 
+                }
+                //键盘事件
+                let key_events = pick_key_events();
+                for key_event in key_events{
+                    handle_key(key_event.0, &key_event.1)
+                }
+
                 client.game.update_sprites();
                 client.game.draw(&client.context);
                 if client.last_time > 0.0 {

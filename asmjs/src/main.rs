@@ -4,8 +4,10 @@ use tank::engine::CanvasContext;
 use std::ffi::CString;
 use std::os::raw::c_char;
 use std::sync::{Arc, Mutex};
+use std::cell::RefCell;
 #[macro_use]
 extern crate lazy_static;
+use tank::KeyEvent;
 
 //导入的JS帮助函数
 extern "C" {
@@ -48,11 +50,8 @@ lazy_static! {
         request_animation_frame_callback: None,
         on_window_resize_listener: None,
         on_resource_load_listener: None,
-        on_keyup_listener: None,
-        on_keydown_listener: None,
         on_connect_listener: None,
         on_close_listener: None,
-        on_message_listener: None,
         //on_prompt_listener: None,
     }));
 }
@@ -82,26 +81,30 @@ struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
     on_window_resize_listener: Option<fn()>,
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
-    on_keyup_listener: Option<fn(key: &str)>,
-    on_keydown_listener: Option<fn(key: &str)>,
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
-    on_message_listener: Option<fn(msg: &str)>,
-    //on_prompt_listener: Option<fn(msg: &str)>,
 }
 
-// thread_local!{
-//     static JS: RefCell<JS> = RefCell::new(JS{
-//         request_animation_frame_callback: None,
-//         on_window_resize_listener: None,
-//         on_resource_load_listener: None,
-//         on_keyup_listener: None,
-//         on_keydown_listener: None,
-//         on_connect_listener: None,
-//         on_close_listener: None,
-//         on_message_listener: None,
-//     });
-// }
+thread_local!{
+    static KEY_EVENTS: RefCell<Vec<(KeyEvent, String)>> = RefCell::new(vec![]);
+    static MESSAGES: RefCell<Vec<String>> =  RefCell::new(vec![]);
+}
+
+pub fn pick_messages()->Vec<String>{
+    let mut msgs = vec![];
+    MESSAGES.with(|messages|{
+        msgs.append(&mut messages.borrow_mut());
+    });
+    msgs
+}
+
+pub fn pick_key_events()->Vec<(KeyEvent, String)>{
+    let mut events = vec![];
+    KEY_EVENTS.with(|es|{
+        events.append(&mut es.borrow_mut());
+    });
+    events
+}
 
 pub fn random() -> f64 {
     unsafe{
@@ -284,29 +287,6 @@ pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
     }
 }
 
-pub fn set_on_keyup_listener(listener: fn(key: &str)) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_keyup_listener = Some(listener);
-    }else{
-        console_log("JSENV.lock()失败.")
-    }
-}
-
-pub fn set_on_keydown_listener(listener: fn(key: &str)) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_keydown_listener = Some(listener);
-    }else{
-        console_log("JSENV.lock()失败.")
-    }
-}
-
-pub fn set_on_message_listener(listener: fn(msg: &str)) {
-    if let Ok(mut js) = JSENV.lock(){
-        js.on_message_listener = Some(listener);
-    }
-}
-
-
 pub fn request_animation_frame() {
     unsafe {
         emscripten_request_animation_frame();
@@ -360,64 +340,26 @@ pub fn on_close() {
 
 #[no_mangle]
 pub fn on_message(msg: *mut c_char) {
-    console_log("on_message>>>110");
-    let c_string = unsafe{ CString::from_raw(msg) };
-    console_log("on_message>>>111");
-    let js_lock= JSENV.lock();
-    console_log("on_message>>>112");
-    if let Ok(js) = js_lock{
-        if let Some(callback) = js.on_message_listener {
-            if let Ok(string) = c_string.to_str(){
-                callback(string);
-            }else{
-                console_log("CString to str失败")
-            }
-        }else{
-            console_log("没有callback.")
-        }
-    }else{
-        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
-    }
+    MESSAGES.with(|messages|{
+        let msg = unsafe{ CString::from_raw(msg) };
+        messages.borrow_mut().push(msg.to_str().unwrap().to_string());
+    });
 }
 
 #[no_mangle]
 pub fn on_keyup_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    console_log(&format!("on_keyup_event>>>{:?}", key));
-    let js_lock= JSENV.lock();
-    if let Ok(js) = js_lock{
-        if let Some(callback) = js.on_keyup_listener {
-            if let Ok(key) = key.to_str(){
-                callback(key);
-            }else{
-                console_log("CString to str失败")
-            }
-        }else{
-            console_log("没有callback.")
-        }
-    }else{
-        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
-    }
+    KEY_EVENTS.with(|events|{
+        events.borrow_mut().push((KeyEvent::KeyUp, key.to_str().unwrap().to_string()));
+    });
 }
 
 #[no_mangle]
 pub fn on_keydown_event(key: *mut c_char) {
     let key = unsafe{ CString::from_raw(key) };
-    console_log(&format!("on_keydown_event>>>{:?}", key));
-    let js_lock= JSENV.lock();
-    if let Ok(js) = js_lock{
-        if let Some(callback) = js.on_keydown_listener {
-            if let Ok(key) = key.to_str(){
-                callback(key);
-            }else{
-                console_log("CString to str失败")
-            }
-        }else{
-            console_log("没有callback.")
-        }
-    }else{
-        console_log(&format!("JSENV.lock()失败. {:?}", js_lock.err()));
-    }
+    KEY_EVENTS.with(|events|{
+        events.borrow_mut().push((KeyEvent::KeyDown, key.to_str().unwrap().to_string()));
+    });
 }
 
 // #[no_mangle]
