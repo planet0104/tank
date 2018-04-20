@@ -325,7 +325,7 @@ impl TankGame {
         println!("join_game: {} {}", id, name.clone());
         //添加坦克精灵
         let sprite_index =
-            TankGame::add_sprite(&mut self.engine, id.clone(), RES_TANK_BITMAP);
+            TankGame::add_sprite(&mut self.engine, id.clone(), RES_TANK_BITMAP, true);
         //添加玩家信息
         self.engine.sprites()[sprite_index].set_name(name.clone());
         self.server_players.insert(
@@ -352,28 +352,48 @@ impl TankGame {
     }
 
     //创建游戏精灵
-    pub fn add_sprite(engine: &mut GameEngine, id: String, res: i32) -> usize {
+    pub fn add_sprite(engine: &mut GameEngine, id: String, res: i32, rand_pos:bool) -> usize {
         match res {
             RES_TANK_BITMAP => {
                 //创建玩家坦克
-                let mut tank_sprite = Sprite::with_bounds_action(
-                    id,
-                    BitmapRes::new(RES_TANK_BITMAP, 36, 144),
-                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
-                    BA_WRAP
-                );
+                let mut tank_sprite = 
+                if rand_pos{
+                    Sprite::with_bounds_action(
+                        id,
+                        BitmapRes::new(RES_TANK_BITMAP, 36, 144),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        BA_WRAP
+                    )
+                }else{
+                    Sprite::with_bounds_action_norand(
+                        id,
+                        BitmapRes::new(RES_TANK_BITMAP, 36, 144),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        BA_WRAP
+                    )
+                };
                 tank_sprite.set_num_frames(4, false);
                 tank_sprite.set_frame_delay(-1);
                 engine.add_sprite(tank_sprite)
             }
             RES_MISSILE_BITMAP => {
                 //创建一个新的子弹精灵
-                let mut sprite = Sprite::with_bounds_action(
-                    id,
-                    BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
-                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
-                    BA_DIE
-                );
+                let mut sprite =
+                if rand_pos{
+                    Sprite::with_bounds_action(
+                        id,
+                        BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        BA_DIE
+                    )
+                }else{
+                    Sprite::with_bounds_action_norand(
+                        id,
+                        BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
+                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        BA_DIE
+                    )
+                };
                 sprite.set_num_frames(4, false);
                 sprite.set_frame_delay(-1);
                 engine.add_sprite(sprite)
@@ -408,7 +428,8 @@ impl TankGame {
             SpriteEvent::Add => Some(TankGame::add_sprite(
                 &mut self.engine,
                 sprite_info.id,
-                sprite_info.res_id
+                sprite_info.res_id,
+                false
             )),
             SpriteEvent::Update => self.engine.query_sprite_idx(&sprite_info.id),
             SpriteEvent::Delete => {
@@ -440,14 +461,14 @@ impl TankGame {
                 let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
                 //子弹精灵死亡添加小的爆炸精灵
                 if bitmap_id == RES_MISSILE_BITMAP{
-                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_SM_EXPLOSION_BITMAP);
+                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_SM_EXPLOSION_BITMAP, true);
                     let pos = *engine.sprites()[idx_sprite_dying].position();
                     engine.sprites()[idx].set_position(pos.left, pos.top);
                     sprites_add_events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
                 }
                 //坦克死亡添加大的爆炸精灵
                 if bitmap_id == RES_TANK_BITMAP{
-                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_LG_EXPLOSION_BITMAP);
+                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_LG_EXPLOSION_BITMAP, true);
                     let pos = *engine.sprites()[idx_sprite_dying].position();
                     engine.sprites()[idx].set_position(pos.left, pos.top);
                     sprites_add_events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
@@ -561,7 +582,7 @@ impl TankGame {
                             let tank_position = *(self.engine.sprites()[idx].position());
                             //创建一个新的子弹精灵
                             let missile_idx =
-                                TankGame::add_sprite(&mut self.engine, Uuid::new_v4().hyphenated().to_string(), RES_MISSILE_BITMAP);
+                                TankGame::add_sprite(&mut self.engine, Uuid::new_v4().hyphenated().to_string(), RES_MISSILE_BITMAP, true);
                             
                             //子弹的方向同玩家的方向
                             let direction = self.engine.sprites()[idx].current_frame();

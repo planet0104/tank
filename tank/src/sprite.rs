@@ -210,6 +210,23 @@ impl Sprite {
         )
     }
 
+    pub fn with_bounds_action_norand(
+        id: String,
+        bitmap: BitmapRes,
+        bounds: Rect,
+        bounds_action: BOUNDSACTION,
+    ) -> Sprite {
+        Sprite::new(
+            id,
+            bitmap,
+            Point { x: 0, y: 0 },
+            Point { x: 0, y: 0 },
+            0,
+            bounds,
+            bounds_action,
+        )
+    }
+
     fn calc_collision_rect(&mut self) {
         let x_shrink = (self.position.left - self.position.right) / 12;
         let y_shrink = (self.position.top - self.position.bottom) / 12;

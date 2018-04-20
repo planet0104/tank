@@ -8,3 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 tank = { path = "../tank" }
+lazy_static = "1.0"

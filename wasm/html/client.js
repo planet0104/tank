@@ -3,19 +3,44 @@ var canvas = document.getElementById('canvas');
 var ctx = canvas.getContext("2d");
 var exports; //Webassembly
 
+const VK_SPACE = 32;
+const VK_LEFT = 37;
+const VK_RIGHT = 39;
+const VK_UP = 38;
+const VK_DOWN = 40;
+
+const KEY_MAP = {
+    "Left": VK_LEFT,
+    "ArrowLeft": VK_LEFT,
+    "Right": VK_RIGHT,
+    "ArrowRight": VK_RIGHT,
+    "Up": VK_UP,
+    "ArrowUp": VK_UP,
+    "Down": VK_DOWN,
+    "ArrowDown": VK_DOWN,
+    " ": VK_SPACE,
+};
+
 var keyPress = {};
+//var messages = [];
 
 document.addEventListener("keyup", function(event){
-    keyPress[event.key] = false;
-    var str = alloc_string(event.key);
-    exports.on_keyup_event(str.ptr, str.len);
+    //console.log("keyup:", event.keyCode);
+    if (KEY_MAP[event.key]){
+        if(keyPress[event.key]){
+            keyPress[event.key] = false;
+            exports.on_keyup_event(KEY_MAP[event.key]);
+        }
+    }
 });
 
 document.addEventListener("keydown", function(event){
-    if(!keyPress[event.key]){
-        keyPress[event.key] = true;
-        var str = alloc_string(event.key);
-        exports.on_keydown_event(str.ptr, str.len);
+    //console.log("keydown", event.key);
+    if (KEY_MAP[event.key]){
+        if(!keyPress[event.key]){
+            keyPress[event.key] = true;
+            exports.on_keydown_event(KEY_MAP[event.key]);
+        }
     }
 });
 
@@ -30,6 +55,11 @@ canvas.addEventListener("touchmove", function(event){
 //下面是要导入webassembly的JS帮助函数
 var imports = {
     env: {
+        _prompt(title, len1, default_msg, len2){
+            var val = prompt(read_string(title, len1), read_string(default_msg, len2));
+            var msg = alloc_string(val);
+            return msg.ptr;
+        },
         _alert: function(str_ptr, len){
             alert(read_string(str_ptr, len));
         },

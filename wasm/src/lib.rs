@@ -1,12 +1,20 @@
 extern crate tank;
-mod client;
-use std::cell::RefCell;
 use std::mem;
-use tank::engine::CanvasContext;
+#[macro_use]
+extern crate lazy_static;
+use tank::engine::GameContext;
+use std::ffi::CString;
+use std::os::raw::c_char;
+use std::cell::RefCell;
+use tank::GAME;
+use tank::KeyEvent;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 //导入的JS帮助函数
 extern "C" {
     pub fn _alert(text: *const u8, len: usize);
+    pub fn _prompt(t1: *const u8, len: usize, t2: *const u8, len: usize) -> *mut c_char;
     pub fn _console_log(text: *const u8, len: usize);
     pub fn _current_time_millis() -> f64;
     pub fn _random() -> f64;
@@ -38,35 +46,51 @@ extern "C" {
     pub fn _send_message(text: *const u8, len: usize);
     pub fn _connect(url: *const u8, len: usize);
 }
-
 struct JS {
     request_animation_frame_callback: Option<fn(f64)>,
     on_window_resize_listener: Option<fn()>,
     on_resource_load_listener: Option<fn(num: i32, total: i32)>,
-    on_keyup_listener: Option<fn(key: String)>,
-    on_keydown_listener: Option<fn(key: String)>,
     on_connect_listener: Option<fn()>,
     on_close_listener: Option<fn()>,
-    on_message_listener: Option<fn(msg: String)>,
+    // on_message_listener: Option<fn(msg: &str)>,
+    // on_key_up_listener: Option<fn(key: i32)>,
+    // on_key_down_listener: Option<fn(key: i32)>,
+}
+
+lazy_static! {
+    static ref KEY_EVENTS: Arc<Mutex<Vec<(KeyEvent, i32)>>> = Arc::new(Mutex::new(vec![]));
+    static ref MESSAGES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
 thread_local!{
+    // static KEY_EVENTS: Rc<Vec<(KeyEvent, i32)>> = Rc::new(vec![]);
+    // static MESSAGES: RefCell<Vec<String>> = RefCell::new(vec![]);
     static JS: RefCell<JS> = RefCell::new(JS{
         request_animation_frame_callback: None,
         on_window_resize_listener: None,
         on_resource_load_listener: None,
-        on_keyup_listener: None,
-        on_keydown_listener: None,
         on_connect_listener: None,
         on_close_listener: None,
-        on_message_listener: None,
+        // on_message_listener: None,
+        // on_key_up_listener: None,
+        // on_key_down_listener: None
     });
+    static CONTEXT: JSGameContext = JSGameContext{};
 }
 
 pub fn random() -> f64 {
     unsafe{
         _random()
     }
+}
+
+pub fn prompt(title:&str, default_msg:&str) -> String{
+    let ptr = unsafe{ _prompt(title.as_ptr(), title.len(), default_msg.as_ptr(), default_msg.len()) };
+    //console_log(&format!("prompt ptr={:?}", ptr));
+    let c_string = unsafe{ CString::from_raw(ptr) };
+    let name = c_string.to_str().unwrap_or("");
+    //console_log(&format!("prompt name={}", name));
+    return String::from(name.clone());
 }
 
 pub fn current_time_millis() -> u64 {
@@ -212,24 +236,6 @@ pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
     });
 }
 
-pub fn set_on_keyup_listener(listener: fn(key: String)) {
-    JS.with(|e| {
-        e.borrow_mut().on_keyup_listener = Some(listener);
-    });
-}
-
-pub fn set_on_keydown_listener(listener: fn(key: String)) {
-    JS.with(|e| {
-        e.borrow_mut().on_keydown_listener = Some(listener);
-    });
-}
-
-pub fn set_on_message_listener(listener: fn(msg: String)) {
-    JS.with(|e| {
-        e.borrow_mut().on_message_listener = Some(listener);
-    });
-}
-
 
 pub fn request_animation_frame() {
     unsafe {
@@ -283,33 +289,31 @@ pub fn on_close() {
 }
 
 #[no_mangle]
-pub unsafe fn on_message(msg: *mut u8, length: usize) {
-    let msg = String::from_raw_parts(msg, length, length);
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_message_listener {
-            callback(msg);
-        }
-    });
+pub fn on_keyup_event(key: i32) {
+    //console_log("on_keydown_up");
+    //console_log(&format!("on_keyup_event={}", key));
+    if let Ok(mut events) = KEY_EVENTS.lock(){
+        events.push((KeyEvent::KeyUp, key));
+    }
+    //console_log(&format!("on_keyup_event push OK.={}", key));
 }
 
 #[no_mangle]
-pub unsafe fn on_keyup_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_keyup_listener {
-            callback(key);
-        }
-    });
+pub fn on_keydown_event(key: i32) {
+    //console_log(&format!("on_keydown_event={}", key));
+    if let Ok(mut events) = KEY_EVENTS.lock(){
+        events.push((KeyEvent::KeyDown, key));
+    }
+    //console_log(&format!("on_keydown_event push OK.={}", key));
 }
 
 #[no_mangle]
-pub unsafe fn on_keydown_event(key: *mut u8, length: usize) {
-    let key = String::from_raw_parts(key, length, length);
-    JS.with(|e| {
-        if let Some(callback) = e.borrow().on_keydown_listener {
-            callback(key);
-        }
-    });
+pub fn on_message(msg: *mut u8, length: usize) {
+    let msg = unsafe{ String::from_raw_parts(msg, length, length) };
+    if let Ok(mut messages) = MESSAGES.lock(){
+        messages.push(msg);
+    }
+    //console_log("on_message 222");
 }
 
 #[no_mangle]
@@ -322,12 +326,16 @@ pub fn alloc(size: usize) -> *const u8 {
 
 #[no_mangle]
 pub fn start() {
-    client::start();
+    GAME.with(|game|{
+        let mut game = game.borrow_mut();
+        game.set_game_context(Box::new(JSGameContext{}));
+        game.client_start();
+    });
 }
 
-pub struct Context2D {}
+pub struct JSGameContext {}
 
-impl CanvasContext for Context2D {
+impl GameContext for JSGameContext {
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
         draw_image_at(res_id, x, y);
     }
@@ -344,21 +352,15 @@ impl CanvasContext for Context2D {
         dest_width: i32,
         dest_height: i32,
     ) {
-        draw_image(
-            res_id,
-            source_x,
-            source_y,
-            source_width,
-            source_height,
-            dest_x,
-            dest_y,
-            dest_width,
-            dest_height,
-        );
+        draw_image(res_id, source_x, source_y, source_width, source_height, dest_x, dest_y, dest_width, dest_height);
     }
 
     fn fill_style(&self, style: &str) {
         fill_style(style);
+    }
+
+    fn set_canvas_font(&self, font: &str) {
+        set_canvas_font(font);
     }
 
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
@@ -367,5 +369,124 @@ impl CanvasContext for Context2D {
 
     fn fill_text(&self, text: &str, x: i32, y: i32) {
         fill_text(text, x, y);
+    }
+
+    fn set_frame_callback(&self, callback: fn(f64)) {
+        JS.with(|js|{
+            js.borrow_mut().request_animation_frame_callback = Some(callback);
+        });
+    }
+
+    fn set_on_window_resize_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_window_resize_listener = Some(listener);
+        });
+    }
+
+    fn set_on_connect_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_connect_listener = Some(listener);
+        });
+    }
+
+    fn set_on_close_listener(&self, listener: fn()) {
+        JS.with(|js|{
+            js.borrow_mut().on_close_listener = Some(listener);
+        });
+    }
+
+    fn set_on_resource_load_listener(&self, listener: fn(num: i32, total: i32)) {
+        JS.with(|js|{
+            js.borrow_mut().on_resource_load_listener = Some(listener);
+        });
+    }
+
+    // fn set_on_message_listener(&self, listener: fn(msg: &str)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_message_listener = Some(listener);
+    //     });
+    // }
+
+    // fn set_on_key_up_listener(&self, listener: fn(key: i32)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_key_up_listener = Some(listener);
+    //     });
+    // }
+
+    // fn set_on_key_down_listener(&self, listener: fn(key: i32)) {
+    //     JS.with(|js|{
+    //         js.borrow_mut().on_key_down_listener = Some(listener);
+    //     });
+    // }
+    
+    fn pick_key_events(&self)->Vec<(KeyEvent, i32)>{
+        let mut events = vec![];
+        //console_log(&format!("es_len={}", es.len()));
+        if let Ok(mut e) = KEY_EVENTS.lock(){
+            events.append(&mut e);
+            //console_log(&format!("pick_key_events={:?}", events));
+        }
+        events
+    }
+
+    fn pick_messages(&self)->Vec<String>{
+        let mut msgs = vec![];
+        if let Ok(mut m) = MESSAGES.lock(){
+            msgs.append(&mut m);
+            //console_log(&format!("pick_messages={:?}", msgs));
+        }
+        msgs
+    }
+
+    fn request_animation_frame(&self) {
+        request_animation_frame();
+    }
+
+    fn console_log(&self, msg: &str) {
+        console_log(msg);
+    }
+
+    fn alert(&self, msg: &str) {
+        alert(msg);
+    }
+
+    fn load_resource(&self, json: String) {
+        load_resource(json);
+    }
+
+    fn window_inner_width(&self, ) -> i32 {
+        window_inner_width()
+    }
+
+    fn window_inner_height(&self, ) -> i32 {
+        window_inner_height()
+    }
+
+    fn send_message(&self, msg: &str) {
+        send_message(msg);
+    }
+
+    fn connect(&self, url: &str) {
+        connect(url);
+    }
+
+    fn set_canvas_style_margin(&self, left: i32, top: i32, right: i32, bottom: i32) {
+        set_canvas_style_margin(left, top, right, bottom);
+    }
+    fn set_canvas_style_width(&self, width: i32) {
+        set_canvas_style_width(width);
+    }
+    fn set_canvas_style_height(&self, height: i32) {
+        set_canvas_style_height(height);
+    }
+    fn set_canvas_width(&self, width: i32) {
+        set_canvas_width(width);
+    }
+    fn set_canvas_height(&self, height: i32) {
+        set_canvas_height(height);
+    }
+
+    fn prompt(&self, title:&str, default_msg:&str)->String{
+        prompt(title, default_msg)
     }
 }
