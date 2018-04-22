@@ -44,12 +44,17 @@ document.addEventListener("keydown", function(event){
     }
 });
 
-canvas.addEventListener("click", function(event){
-    exports.on_click_event(event.clientX, event.clientY);
+canvas.addEventListener("mousemove", function(event){
+    exports.on_mouse_move(event.clientX, event.clientY);
+    event.preventDefault();
 });
-
+canvas.addEventListener("click", function(event){
+    exports.on_click(event.clientX, event.clientY);
+    event.preventDefault();
+});
 canvas.addEventListener("touchmove", function(event){
-    exports.on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
+    exports.on_touch_move(Gevent.touches[0].clientX, event.touches[0].clientY);
+    event.preventDefault();
 });
 
 var prompt_ptr;

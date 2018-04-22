@@ -31,6 +31,8 @@ const KEY_MAP = {
 var keyPress = {};
 //var messages = [];
 
+event.preventDefault();
+
 document.addEventListener("keyup", function(event){
     //console.log("keyup:", event.keyCode);
     if (KEY_MAP[event.key]){

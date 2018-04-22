@@ -5,7 +5,7 @@ extern crate lazy_static;
 use tank::engine::GameContext;
 use std::cell::RefCell;
 use tank::GAME;
-use tank::KeyEvent;
+use tank::{ KeyEvent, TouchEvent };
 use std::sync::{Arc, Mutex};
 
 //导入的JS帮助函数
@@ -63,6 +63,7 @@ struct JS {
 
 lazy_static! {
     static ref KEY_EVENTS: Arc<Mutex<Vec<(KeyEvent, i32)>>> = Arc::new(Mutex::new(vec![]));
+    static ref TOUCH_EVENTS: Arc<Mutex<Vec<(TouchEvent, i32, i32)>>> = Arc::new(Mutex::new(vec![]));
     static ref MESSAGES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
 }
 
@@ -328,6 +329,27 @@ pub fn on_close() {
 }
 
 #[no_mangle]
+pub fn on_mouse_move(x:i32, y:i32){
+    if let Ok(mut events) = TOUCH_EVENTS.lock(){
+        events.push((TouchEvent::TouchMove, x, y));
+    }
+}
+
+#[no_mangle]
+pub fn on_click(x:i32, y:i32){
+    if let Ok(mut events) = TOUCH_EVENTS.lock(){
+        events.push((TouchEvent::TouchClick, x, y));
+    }
+}
+
+#[no_mangle]
+pub fn on_touch_move(x:i32, y:i32){
+    if let Ok(mut events) = TOUCH_EVENTS.lock(){
+        events.push((TouchEvent::TouchClick, x, y));
+    }
+}
+
+#[no_mangle]
 pub fn on_keyup_event(key: i32) {
     //console_log("on_keydown_up");
     //console_log(&format!("on_keyup_event={}", key));
@@ -481,6 +503,14 @@ impl GameContext for JSGameContext {
         if let Ok(mut e) = KEY_EVENTS.lock(){
             events.append(&mut e);
             //console_log(&format!("pick_key_events={:?}", events));
+        }
+        events
+    }
+
+    fn pick_touch_events(&self)->Vec<(TouchEvent, i32, i32)>{
+        let mut events = vec![];
+        if let Ok(mut e) = TOUCH_EVENTS.lock(){
+            events.append(&mut e);
         }
         events
     }

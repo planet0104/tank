@@ -12,18 +12,20 @@ use std::cell::RefCell;
 use utils::Timer;
 use std::fmt::Display;
 use std::fmt::Debug;
+use std::cmp;
 //socket消息
 pub const MSG_CONNECT: i64 = 1;
 pub const MSG_DISCONNECT: i64 = 2;
 pub const MSG_START: i64 = 3;
 pub const MSG_KEY_EVENT: i64 = 4;
-pub const MSG_MOUSE_EVENT: i64 = 5;
+pub const MSG_TOUCH_EVENT: i64 = 5;
 
 //server发送给客户端的消息
 pub const SERVER_MSG_ERR: isize = 0;
 pub const SERVER_MSG_EVENT: isize = 1;
 pub const SERVER_MSG_UUID: isize = 2;
 pub const SERVER_MSG_DATA: isize = 3;
+pub const DRIVE_THRESHOLD:i32 = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 600;
 pub const CLIENT_HEIGHT: i32 = 900;
@@ -49,9 +51,55 @@ pub const MISSILE_VELOCITY: i32 = 10;
 pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "50.3.18.60:8080";
 
-pub enum MouseEvent {
-    MouseMove,
-    MouseClick,
+#[derive(Debug, PartialEq)]
+pub enum Direction{
+    None,
+    Up,
+    Down,
+    Left,
+    Right
+}
+
+impl Direction{
+    pub fn from_i64(num:i64) -> Direction{
+        match num{
+            1 => Direction::Up,
+            2 => Direction::Down,
+            3 => Direction::Left,
+            4 => Direction::Right,
+            _ => Direction::None,
+        }
+    }
+
+    pub fn to_i64(&self) -> i64 {
+        match self{
+            &Direction::Up => 1,
+            &Direction::Down => 2,
+            &Direction::Left => 3,
+            &Direction::Right => 4,
+            &Direction::None => 0,
+        }
+    }
+}
+
+pub enum TouchEvent {
+    TouchClick,
+    TouchMove,
+}
+impl TouchEvent{
+    pub fn from_i64(num:i64) -> TouchEvent{
+        match num{
+            1 => TouchEvent::TouchMove,
+            _ => TouchEvent::TouchClick,
+        }
+    }
+
+    pub fn to_i64(&self) -> i64 {
+        match self{
+            &TouchEvent::TouchClick => 0,
+            &TouchEvent::TouchMove => 1,
+        }
+    }
 }
 
 pub const GMAE_TITLE: &'static str = "Tank";
@@ -134,18 +182,7 @@ TankGame提供所有游戏更新方法
 */
 
 thread_local!{
-    pub static GAME: RefCell<TankGame> = RefCell::new(TankGame {
-            engine: GameEngine::new(),
-            server_events: vec![],
-            server_players: HashMap::new(),
-            client_player: None,
-            client_context: None,
-            //client_messages: vec![],
-            client_timer: Timer::new(20.0),
-            //client_key_events: vec![],
-            client_last_time: 0.0,
-            client_dying_delay: 0,
-        });
+    pub static GAME: RefCell<TankGame> = RefCell::new(TankGame::new());
 }
 
 pub struct TankGame {
@@ -159,9 +196,30 @@ pub struct TankGame {
     client_last_time: f64,
     //client_key_events: Vec<(KeyEvent, i32)>,
     client_dying_delay: i32,
+    direction: Direction,   //记录上一次前进方向，方向有变化时才通知服务器
+    last_touch: Option<Point>,  //上一次滑动的点
+    touch_counts:(i32, i32, i32, i32)   //每个方向上滑动的次数，超过阈值才换方向
 }
 
 impl TankGame {
+    fn new()->TankGame{
+        TankGame {
+            engine: GameEngine::new(),
+            server_events: vec![],
+            server_players: HashMap::new(),
+            client_player: None,
+            client_context: None,
+            //client_messages: vec![],
+            client_timer: Timer::new(20.0),
+            //client_key_events: vec![],
+            client_last_time: 0.0,
+            client_dying_delay: 0,
+            direction: Direction::None,
+            last_touch: None,
+            touch_counts:(0, 0, 0, 0)
+        }
+    }
+
     pub fn set_game_context(&mut self, context: Box<GameContext>){
         self.client_context = Some(Rc::new(context));
     }
@@ -283,8 +341,53 @@ impl TankGame {
             //键盘事件
             let key_events = context.pick_key_events();
             for key_event in key_events{
-                context.send_message(&format!("{}\n{}␟{}", 4, key_event.0.to_i64(), key_event.1));
+                context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, key_event.0.to_i64(), key_event.1));
             }
+            //鼠标/触摸事件
+            let touch_events = context.pick_touch_events();
+            for event in touch_events{
+                match event.0{
+                    TouchEvent::TouchClick => {
+                        //context.send_message(&format!("{}\n{}␟{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), event.1, event.2));
+                        context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_SPACE));
+                    }
+                    TouchEvent::TouchMove => {
+                        let (x, y) = (event.1, event.2);
+                        match self.last_touch{
+                            Some(point) => {
+                                //判断滑动方向
+                                if point.y < y{ self.touch_counts.0 = cmp::min(self.touch_counts.0+1, DRIVE_THRESHOLD+1);  }//Up
+                                if point.y > y{ self.touch_counts.1 = cmp::min(self.touch_counts.1+1, DRIVE_THRESHOLD+1); }//Down
+                                if point.x > x{ self.touch_counts.2 = cmp::min(self.touch_counts.2+1, DRIVE_THRESHOLD+1);  }//Left
+                                if point.x < x{ self.touch_counts.3 = cmp::min(self.touch_counts.3+1, DRIVE_THRESHOLD+1); }//Right
+                                //改变方向时才向服务器发送事件
+                                let mut act = true;
+                                if self.touch_counts.0 > DRIVE_THRESHOLD && self.direction != Direction::Up{
+                                    //context.send_message(&format!("{}\n{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), Direction::Up.to_i64()));
+                                    context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_UP));
+                                }else if self.touch_counts.1 > DRIVE_THRESHOLD && self.direction != Direction::Down{
+                                    //context.send_message(&format!("{}\n{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), Direction::Down.to_i64()));
+                                    context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_DOWN));
+                                }else if self.touch_counts.2 > DRIVE_THRESHOLD && self.direction != Direction::Left{
+                                    //context.send_message(&format!("{}\n{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), Direction::Left.to_i64()));
+                                    context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_LEFT));
+                                }else if self.touch_counts.3 > DRIVE_THRESHOLD && self.direction != Direction::Right{
+                                    //context.send_message(&format!("{}\n{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), Direction::Right.to_i64()));
+                                    context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_RIGHT));
+                                }else{
+                                    act=false;
+                                }
+                                //清空计数器
+                                if act{
+                                    self.touch_counts = (0, 0, 0, 0);
+                                }
+                            }
+                            _ => self.last_touch = Some(Point{x: x, y: y})
+                        }
+                    }
+                }
+            }
+
 
             //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
             //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
@@ -580,9 +683,26 @@ impl TankGame {
             }
         )
     }
+    
+    // pub fn server_on_touch_event(&mut self, event: TouchEvent, val1:i32, val2:i32, sprite_id: &String){
+    //     //触摸事件转发到按键事件
+    //     match event{
+    //         TouchEvent::TouchClick => {
+    //             self.server_on_key_event(KeyEvent::KeyDown, VK_SPACE, sprite_id);
+    //         },
+    //         TouchEvent::TouchMove => {
+    //             match Direction::from_i64(val1.into()){
+    //                 Direction::Up => self.server_on_key_event(KeyEvent::KeyDown, VK_UP, sprite_id),
+    //                 Direction::Down => self.server_on_key_event(KeyEvent::KeyDown, VK_DOWN, sprite_id),
+    //                 Direction::Left => self.server_on_key_event(KeyEvent::KeyDown, VK_LEFT, sprite_id),
+    //                 Direction::Right => self.server_on_key_event(KeyEvent::KeyDown, VK_RIGHT, sprite_id),
+    //             }
+    //         }
+    //     }
+    // }
 
     //键盘按下，坦克移动、发射子弹
-    pub fn on_key_event(&mut self, event: KeyEvent, key: i32, sprite_id: &String) {
+    pub fn server_on_key_event(&mut self, event: KeyEvent, key: i32, sprite_id: &String) {
         if let Some(idx) = self.engine.query_sprite_idx(sprite_id) {
             match event {
                 KeyEvent::KeyDown => {
