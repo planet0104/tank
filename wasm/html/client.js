@@ -52,13 +52,20 @@ canvas.addEventListener("touchmove", function(event){
     exports.on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
 });
 
+var prompt_ptr;
+
 //下面是要导入webassembly的JS帮助函数
 var imports = {
     env: {
         _prompt(title, len1, default_msg, len2){
             var val = prompt(read_string(title, len1), read_string(default_msg, len2));
+            val = val?val:"";
             var msg = alloc_string(val);
-            return msg.ptr;
+            prompt_ptr = msg.ptr;
+            return msg.len;
+        },
+        _get_prompt_ptr(){
+            return prompt_ptr;
         },
         _alert: function(str_ptr, len){
             alert(read_string(str_ptr, len));
@@ -110,8 +117,17 @@ var imports = {
         _fill_style: function(str, len){
             ctx.fillStyle = read_string(str, len);
         },
+        _stroke_style: function(str, len){
+            ctx.strokeStyle = read_string(str, len);
+        },
+        _line_width: function(width){
+            ctx.lineWidth = width;
+        },
         _fill_rect: function(x, y, width, height){
             ctx.fillRect(x, y, width, height);
+        },
+        _stroke_rect: function(x, y, width, height){
+            ctx.strokeRect(x, y, width, height);
         },
         _fill_text: function(text_ptr, len, x, y){
             ctx.fillText(read_string(text_ptr, len), x, y);
@@ -121,6 +137,22 @@ var imports = {
         },
         _draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
             ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
+        },
+        _draw_image_repeat_y: function(resId, x, y, width, height){
+            // 平铺方式
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat-y");
+            ctx.fillRect(x, y, width, height);
+        },
+        _draw_image_repeat_x: function(resId, x, y, width, height){
+            console.log("draw_image_repeat_x", resId, x, y, width, height, window.resMap.get(resId+""));
+            // 平铺方式
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat-x");
+            ctx.fillRect(x, y, width, height);
+        },
+        _draw_image_repeat: function(resId, x, y, width, height){
+            // 平铺方式
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat");
+            ctx.fillRect(x, y, width, height);
         },
         _send_message: function(str, len){
             socket.send(read_string(str, len));

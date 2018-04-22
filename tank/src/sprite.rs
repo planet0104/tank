@@ -355,11 +355,14 @@ impl Sprite {
                     self.height(),
                 ),
             }
-            context.fill_style("#fff");
+            context.fill_style("#ccccff");
             context.set_canvas_font("16px 微软雅黑");
             if self.name.len()>0&&self.score>=0{
-                //console_log(&format!("{} score===={}", self.name, self.score));
-                context.fill_text(&format!("{}({})", self.name, self.score), self.position.right, self.position.top-2);
+                let score = &format!("({}分)", self.score);
+                let w = self.name.len()*5+score.len()*5;
+                let x = self.position.left+((self.position.right-self.position.left)/2-(w as i32/2));
+                let y = self.position.bottom+20;
+                context.fill_text(&format!("{}{}", self.name, score), x, y);
             }
         }
     }

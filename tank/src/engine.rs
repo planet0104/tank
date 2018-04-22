@@ -3,6 +3,9 @@ use std::rc::Rc;
 use ::KeyEvent;
 //GameEngine 绘制和更新精灵
 pub trait GameContext {
+    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
+    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
+    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32);
     fn draw_image(
         &self,
@@ -16,9 +19,12 @@ pub trait GameContext {
         dest_width: i32,
         dest_height: i32,
     );
+    fn line_width(&self, width:i32);
     fn set_canvas_font(&self, font: &str);
     fn fill_style(&self, style: &str);
+    fn stroke_style(&self, style: &str);
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32);
+    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32);
     fn fill_text(&self, text: &str, x: i32, y: i32);
     fn console_log(&self, msg: &str);
     fn set_canvas_style_margin(&self, left: i32, top: i32, right: i32, bottom: i32);

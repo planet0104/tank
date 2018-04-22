@@ -118,6 +118,10 @@ impl ServerTimer{
     // }
 }
 
+pub fn duration_to_milis(duration: &Duration) -> u64{
+    duration.as_secs() as u64 * 1000 + duration.subsec_nanos() as u64 / 1_000_000
+}
+
 /*
 //生成指定范围的随即整数
 pub fn js_rand_int(l:i32, b:i32)->i32{

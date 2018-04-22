@@ -24,6 +24,7 @@ use tank::{
     SERVER_MSG_UUID,
     SERVER_MSG_DATA
 };
+use tank::utils::{duration_to_milis};
 
 // 服务器Web处理程序
 struct Client {
@@ -201,7 +202,7 @@ fn main() {
                 game.events().clear();
 
                 //空闲时间sleep
-                thread::sleep(frame_time-now.elapsed()-Duration::from_millis(1));
+                thread::sleep(Duration::from_millis(duration_to_milis(&frame_time)-duration_to_milis(&now.elapsed())));
             }
         });
     });

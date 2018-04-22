@@ -3,18 +3,16 @@ use std::mem;
 #[macro_use]
 extern crate lazy_static;
 use tank::engine::GameContext;
-use std::ffi::CString;
-use std::os::raw::c_char;
 use std::cell::RefCell;
 use tank::GAME;
 use tank::KeyEvent;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 //导入的JS帮助函数
 extern "C" {
     pub fn _alert(text: *const u8, len: usize);
-    pub fn _prompt(t1: *const u8, len: usize, t2: *const u8, len: usize) -> *mut c_char;
+    pub fn _prompt(t1: *const u8, len: usize, t2: *const u8, len: usize) -> usize;
+    pub fn _get_prompt_ptr()->*mut u8;
     pub fn _console_log(text: *const u8, len: usize);
     pub fn _current_time_millis() -> f64;
     pub fn _random() -> f64;
@@ -29,9 +27,15 @@ extern "C" {
     pub fn _set_canvas_font(font: *const u8, len: usize);
     pub fn _load_resource(json: *const u8, len: usize);
     pub fn _fill_style(text: *const u8, len: usize);
+    pub fn _stroke_style(text: *const u8, len: usize);
+    pub fn _line_width(width:i32);
     pub fn _fill_rect(x: i32, y: i32, width: i32, height: i32);
+    pub fn _stroke_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn _fill_text(text: *const u8, len: usize, x: i32, y: i32);
     pub fn _draw_image_at(res_id: i32, x: i32, y: i32);
+    pub fn _draw_image_repeat_y(resId: i32, x: i32, y: i32, width: i32, height: i32);
+    pub fn _draw_image_repeat_x(resId: i32, x:i32 , y: i32, width: i32, height: i32);
+    pub fn _draw_image_repeat(resId: i32, x:i32 , y: i32, width: i32, height: i32);
     pub fn _draw_image(
         res_id: i32,
         source_x: i32,
@@ -85,12 +89,10 @@ pub fn random() -> f64 {
 }
 
 pub fn prompt(title:&str, default_msg:&str) -> String{
-    let ptr = unsafe{ _prompt(title.as_ptr(), title.len(), default_msg.as_ptr(), default_msg.len()) };
-    console_log(&format!("prompt ptr={:?}", ptr));
-    let c_string = unsafe{ CString::from_raw(ptr) };
-    let name = c_string.to_str().unwrap_or("");
-    //console_log(&format!("prompt name={}", name));
-    return String::from(name.clone());
+    let len = unsafe{ _prompt(title.as_ptr(), title.len(), default_msg.as_ptr(), default_msg.len()) };
+    let ptr = unsafe{ _get_prompt_ptr() };
+    let prompt = unsafe{ String::from_raw_parts(ptr, len, len) };
+    return String::from(prompt.clone());
 }
 
 pub fn current_time_millis() -> u64 {
@@ -129,9 +131,21 @@ pub fn fill_style(style: &str) {
     }
 }
 
+pub fn stroke_style(style: &str) {
+    unsafe {
+        _stroke_style(style.as_ptr(), style.len());
+    }
+}
+
 pub fn fill_rect(x: i32, y: i32, width: i32, height: i32) {
     unsafe {
         _fill_rect(x, y, width, height);
+    }
+}
+
+pub fn stroke_rect(x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+        _stroke_rect(x, y, width, height);
     }
 }
 
@@ -159,11 +173,36 @@ pub fn connect(url: &str) {
     }
 }
 
+pub fn line_width(width:i32){
+    unsafe{
+        _line_width(width);
+    }
+}
+
 pub fn draw_image_at(res_id: i32, x: i32, y: i32) {
     unsafe {
         _draw_image_at(res_id, x, y);
     }
 }
+
+pub fn draw_image_repeat(res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+        _draw_image_repeat(res_id, x, y, width, height);
+    }
+}
+
+pub fn draw_image_repeat_x(res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+        _draw_image_repeat_x(res_id, x, y, width, height);
+    }
+}
+
+pub fn draw_image_repeat_y(res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+        _draw_image_repeat_y(res_id, x, y, width, height);
+    }
+}
+
 pub fn draw_image(
     res_id: i32,
     source_x: i32,
@@ -336,6 +375,15 @@ pub fn start() {
 pub struct JSGameContext {}
 
 impl GameContext for JSGameContext {
+    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        draw_image_repeat(res_id, x, y, width, height);
+    }
+    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        draw_image_repeat_x(res_id, x, y, width, height);
+    }
+    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        draw_image_repeat_y(res_id, x, y, width, height);
+    }
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
         draw_image_at(res_id, x, y);
     }
@@ -359,12 +407,20 @@ impl GameContext for JSGameContext {
         fill_style(style);
     }
 
+    fn stroke_style(&self, style: &str) {
+        stroke_style(style);
+    }
+
     fn set_canvas_font(&self, font: &str) {
         set_canvas_font(font);
     }
 
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
         fill_rect(x, y, width, height);
+    }
+
+    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32){
+        stroke_rect(x, y, width, height);
     }
 
     fn fill_text(&self, text: &str, x: i32, y: i32) {
@@ -448,6 +504,10 @@ impl GameContext for JSGameContext {
 
     fn alert(&self, msg: &str) {
         alert(msg);
+    }
+
+    fn line_width(&self, width:i32){
+        line_width(width);
     }
 
     fn load_resource(&self, json: String) {

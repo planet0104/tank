@@ -31,6 +31,14 @@ extern "C" {
     pub fn emscripten_fill_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn emscripten_fill_text(text: *const c_char, x: i32, y: i32);
     pub fn emscripten_draw_image_at(res_id: i32, x: i32, y: i32);
+    
+    pub fn emscripten_stroke_style(text: *const c_char);
+    pub fn emscripten_line_width(width:i32);
+    pub fn emscripten_stroke_rect(x: i32, y: i32, width: i32, height: i32);
+    pub fn emscripten_draw_image_repeat_y(resId: i32, x: i32, y: i32, width: i32, height: i32);
+    pub fn emscripten_draw_image_repeat_x(resId: i32, x:i32 , y: i32, width: i32, height: i32);
+    pub fn emscripten_draw_image_repeat(resId: i32, x:i32 , y: i32, width: i32, height: i32);
+
     pub fn emscripten_draw_image(
         res_id: i32,
         source_x: i32,
@@ -215,6 +223,16 @@ pub fn start() {
 pub struct JSGameContext {}
 
 impl GameContext for JSGameContext {
+    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        unsafe { emscripten_draw_image_repeat(res_id, x, y, width, height); }
+    }
+    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        unsafe { emscripten_draw_image_repeat_x(res_id, x, y, width, height); }
+    }
+    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+        unsafe { emscripten_draw_image_repeat_y(res_id, x, y, width, height); }
+    }
+
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
         unsafe {
             emscripten_draw_image_at(res_id, x, y);
@@ -246,6 +264,17 @@ impl GameContext for JSGameContext {
                 dest_height,
             );
         }
+    }
+
+    fn stroke_style(&self, style: &str) {
+        unsafe{
+            if let Ok(style) = CString::new(style){
+                emscripten_load_resource(style.as_ptr());
+            }
+        }
+    }
+    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32){
+        unsafe { emscripten_stroke_rect(x, y, width, height); }
     }
 
     fn fill_style(&self, style: &str) {
@@ -406,6 +435,12 @@ impl GameContext for JSGameContext {
             if let Ok(string) = CString::new(url){
                 emscripten_connect(string.as_ptr());
             }
+        }
+    }
+
+    fn line_width(&self, width:i32){
+        unsafe{
+            emscripten_line_width(width);
         }
     }
 

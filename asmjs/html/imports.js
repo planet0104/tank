@@ -131,6 +131,32 @@ function _emscripten_draw_image(resId, sourceX, sourceY, sourceWidth, sourceHeig
         ctx.drawImage(window.resMap[resId], sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
     }
 }
+function _emscripten_stroke_rect(x, y, width, height){
+    ctx.strokeRect(x, y, width, height);
+}
+function _emscripten_stroke_style(str, len){
+    ctx.strokeStyle = read_string(str, len);
+}
+function _emscripten_line_width(width){
+    ctx.lineWidth = width;
+}
+function _emscripten_draw_image_repeat_y(resId, x, y, width, height){
+    // 平铺方式
+    ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat-y");
+    ctx.fillRect(x, y, width, height);
+}
+function _emscripten_draw_image_repeat_x(resId, x, y, width, height){
+    console.log("draw_image_repeat_x", resId, x, y, width, height, window.resMap.get(resId+""));
+    // 平铺方式
+    ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat-x");
+    ctx.fillRect(x, y, width, height);
+}
+function _emscripten_draw_image_repeat(resId, x, y, width, height){
+    // 平铺方式
+    ctx.fillStyle = ctx.createPattern(window.resMap.get(resId+""), "repeat");
+    ctx.fillRect(x, y, width, height);
+}
+
 function _emscripten_send_message(str){
     if(socket){
         let msg = UTF8ToString(str);

@@ -26,7 +26,7 @@ pub const SERVER_MSG_UUID: isize = 2;
 pub const SERVER_MSG_DATA: isize = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 600;
-pub const CLIENT_HEIGHT: i32 = 850;
+pub const CLIENT_HEIGHT: i32 = 900;
 pub const FPS: u32 = 20;
 
 pub const VK_SPACE:i32 = 32;
@@ -42,7 +42,6 @@ pub const RES_TANK_BITMAP: i32 = 0;
 pub const RES_MISSILE_BITMAP: i32 = 1;
 pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
 pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
-pub const RES_TREE_BITMAP: i32 = 4;
 
 pub const TANK_VELOCITY: i32 = 7;
 pub const MISSILE_VELOCITY: i32 = 10;
@@ -261,12 +260,11 @@ impl TankGame {
             });
         });
         
-        context.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png","{}":"tree.png"}}"#,
+        context.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png"}}"#,
             RES_TANK_BITMAP,
             RES_MISSILE_BITMAP,
             RES_LG_EXPLOSION_BITMAP,
-            RES_SM_EXPLOSION_BITMAP,
-            RES_TREE_BITMAP));
+            RES_SM_EXPLOSION_BITMAP,));
 
         //游戏循环
         context.set_frame_callback(|timestamp:f64| {
@@ -299,21 +297,25 @@ impl TankGame {
             context.set_canvas_font("32px 微软雅黑");
             context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
             self.engine.draw_sprites(context.clone());
+            //绘制树木
+            //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
+            //context.draw_image_repeat(RES_GEASS0_BITMAP, 0, CLIENT_HEIGHT-30, CLIENT_WIDTH, 30);
+            context.stroke_style("#6efdef");
+            context.line_width(2);
+            context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
             if self.client_last_time > 0.0 {
                 let frame_time = timestamp-self.client_last_time;
                 context.fill_style("#fff");
                 context.set_canvas_font("24px 微软雅黑");
                 context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
             }
-            //绘制树木
-            
 
             //死亡倒计时
             if self.client_dying_delay > 0{
-                context.fill_style("#ddf");
+                context.fill_style("#FFC0CB");
                 context.set_canvas_font("36px 微软雅黑");
                 context.fill_text(&format!("被[{}]炸死", self.client_player.as_ref().unwrap().killer_name), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
-                context.fill_text(&format!("{}秒之后重生", self.client_dying_delay/self.client_timer.fps() as i32), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
+                context.fill_text(&format!("{}秒之后重生", self.client_dying_delay/self.client_timer.fps() as i32+1), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
                 self.client_dying_delay -= 1;
                 if self.client_dying_delay <= 0{
                     //重新加入游戏
@@ -389,14 +391,14 @@ impl TankGame {
                 if rand_pos{
                     Sprite::with_bounds_action(
                         id,
-                        BitmapRes::new(RES_MISSILE_BITMAP, 38, 152),
+                        BitmapRes::new(RES_MISSILE_BITMAP, 20, 80),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_DIE
                     )
                 }else{
                     Sprite::with_bounds_action_norand(
                         id,
-                        BitmapRes::new(RES_MISSILE_BITMAP, 38, 152),
+                        BitmapRes::new(RES_MISSILE_BITMAP, 20, 80),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_DIE
                     )
@@ -602,7 +604,7 @@ impl TankGame {
                                     missile.set_position(
                                         tank_position.left
                                             + (tank_position.right - tank_position.left) / 2
-                                            - 8,
+                                            - 10,
                                         tank_position.top - 15,
                                     );
                                 }
