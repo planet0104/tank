@@ -86,7 +86,7 @@ pub fn random() -> f64 {
 
 pub fn prompt(title:&str, default_msg:&str) -> String{
     let ptr = unsafe{ _prompt(title.as_ptr(), title.len(), default_msg.as_ptr(), default_msg.len()) };
-    //console_log(&format!("prompt ptr={:?}", ptr));
+    console_log(&format!("prompt ptr={:?}", ptr));
     let c_string = unsafe{ CString::from_raw(ptr) };
     let name = c_string.to_str().unwrap_or("");
     //console_log(&format!("prompt name={}", name));

@@ -42,12 +42,13 @@ pub const RES_TANK_BITMAP: i32 = 0;
 pub const RES_MISSILE_BITMAP: i32 = 1;
 pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
 pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
+pub const RES_TREE_BITMAP: i32 = 4;
 
 pub const TANK_VELOCITY: i32 = 7;
 pub const MISSILE_VELOCITY: i32 = 10;
 
-//pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const SERVER_IP:&str = "50.3.18.60:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
+//pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub enum MouseEvent {
     MouseMove,
@@ -260,11 +261,12 @@ impl TankGame {
             });
         });
         
-        context.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png"}}"#,
+        context.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png","{}":"tree.png"}}"#,
             RES_TANK_BITMAP,
             RES_MISSILE_BITMAP,
             RES_LG_EXPLOSION_BITMAP,
-            RES_SM_EXPLOSION_BITMAP));
+            RES_SM_EXPLOSION_BITMAP,
+            RES_TREE_BITMAP));
 
         //游戏循环
         context.set_frame_callback(|timestamp:f64| {
@@ -296,7 +298,6 @@ impl TankGame {
             context.fill_text("坦克大战", CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
             context.set_canvas_font("32px 微软雅黑");
             context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
-            //context.fill_text("(死了请刷新网页)", 180, CLIENT_HEIGHT/2+80);
             self.engine.draw_sprites(context.clone());
             if self.client_last_time > 0.0 {
                 let frame_time = timestamp-self.client_last_time;
@@ -304,6 +305,9 @@ impl TankGame {
                 context.set_canvas_font("24px 微软雅黑");
                 context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
             }
+            //绘制树木
+            
+
             //死亡倒计时
             if self.client_dying_delay > 0{
                 context.fill_style("#ddf");
@@ -363,14 +367,14 @@ impl TankGame {
                 if rand_pos{
                     Sprite::with_bounds_action(
                         id,
-                        BitmapRes::new(RES_TANK_BITMAP, 36, 144),
+                        BitmapRes::new(RES_TANK_BITMAP, 57, 228),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_WRAP
                     )
                 }else{
                     Sprite::with_bounds_action_norand(
                         id,
-                        BitmapRes::new(RES_TANK_BITMAP, 36, 144),
+                        BitmapRes::new(RES_TANK_BITMAP, 57, 228),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_WRAP
                     )
@@ -385,14 +389,14 @@ impl TankGame {
                 if rand_pos{
                     Sprite::with_bounds_action(
                         id,
-                        BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
+                        BitmapRes::new(RES_MISSILE_BITMAP, 38, 152),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_DIE
                     )
                 }else{
                     Sprite::with_bounds_action_norand(
                         id,
-                        BitmapRes::new(RES_MISSILE_BITMAP, 17, 68),
+                        BitmapRes::new(RES_MISSILE_BITMAP, 38, 152),
                         Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
                         BA_DIE
                     )
