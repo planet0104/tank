@@ -85,11 +85,15 @@ impl Direction{
 pub enum TouchEvent {
     TouchClick,
     TouchMove,
+    TouchEnd,
+    TouchStart,
 }
 impl TouchEvent{
     pub fn from_i64(num:i64) -> TouchEvent{
         match num{
             1 => TouchEvent::TouchMove,
+            2 => TouchEvent::TouchEnd,
+            3 => TouchEvent::TouchStart,
             _ => TouchEvent::TouchClick,
         }
     }
@@ -98,6 +102,8 @@ impl TouchEvent{
         match self{
             &TouchEvent::TouchClick => 0,
             &TouchEvent::TouchMove => 1,
+            &TouchEvent::TouchEnd => 2,
+            &TouchEvent::TouchStart => 3,
         }
     }
 }
@@ -351,6 +357,9 @@ impl TankGame {
                         //context.send_message(&format!("{}\n{}␟{}␟{}", MSG_TOUCH_EVENT, event.0.to_i64(), event.1, event.2));
                         context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyDown.to_i64(), VK_SPACE));
                     }
+                    TouchEvent::TouchEnd => {
+                        context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, KeyEvent::KeyUp.to_i64(), VK_LEFT));
+                    }
                     TouchEvent::TouchMove => {
                         let (x, y) = (event.1, event.2);
                         match self.last_touch{
@@ -384,6 +393,9 @@ impl TankGame {
                             }
                             _ => self.last_touch = Some(Point{x: x, y: y})
                         }
+                    },
+                    TouchEvent::TouchStart => {
+                        
                     }
                 }
             }

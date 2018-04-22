@@ -18,7 +18,6 @@ use tank::{
     MSG_DISCONNECT,
     MSG_START,
     MSG_KEY_EVENT,
-    MSG_MOUSE_EVENT,
     SERVER_MSG_ERR,
     SERVER_MSG_EVENT,
     SERVER_MSG_UUID,
@@ -150,14 +149,10 @@ fn main() {
                                 if let Ok(event) = slices[0].parse::<i64>(){
                                     if let Ok(key) = slices[1].parse::<i32>(){
                                         //println!("key event {} {:?} {}", event, slices[1], uuid);
-                                        game.on_key_event(KeyEvent::from_i64(event), key, &uuid);
+                                        game.server_on_key_event(KeyEvent::from_i64(event), key, &uuid);
                                     }
                                 }
                             }
-                        }
-
-                        MSG_MOUSE_EVENT => {
-                            //玩家上传鼠标事件
                         }
 
                         other => {

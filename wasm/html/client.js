@@ -53,9 +53,14 @@ canvas.addEventListener("click", function(event){
     event.preventDefault();
 });
 canvas.addEventListener("touchmove", function(event){
-    exports.on_touch_move(Gevent.touches[0].clientX, event.touches[0].clientY);
+    exports.on_touch_move(event.touches[0].clientX, event.touches[0].clientY);
     event.preventDefault();
 });
+canvas.addEventListener("touchend", function(event){
+    exports.on_touch_end(event.touches[0].clientX, event.touches[0].clientY);
+    event.preventDefault();
+});
+
 
 var prompt_ptr;
 

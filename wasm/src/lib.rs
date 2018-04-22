@@ -80,7 +80,6 @@ thread_local!{
         // on_key_up_listener: None,
         // on_key_down_listener: None
     });
-    static CONTEXT: JSGameContext = JSGameContext{};
 }
 
 pub fn random() -> f64 {
@@ -330,8 +329,15 @@ pub fn on_close() {
 
 #[no_mangle]
 pub fn on_mouse_move(x:i32, y:i32){
+    // if let Ok(mut events) = TOUCH_EVENTS.lock(){
+    //     events.push((TouchEvent::TouchMove, x, y));
+    // }
+}
+
+#[no_mangle]
+pub fn on_touch_end(x:i32, y:i32){
     if let Ok(mut events) = TOUCH_EVENTS.lock(){
-        events.push((TouchEvent::TouchMove, x, y));
+        events.push((TouchEvent::TouchEnd, x, y));
     }
 }
 
@@ -345,7 +351,7 @@ pub fn on_click(x:i32, y:i32){
 #[no_mangle]
 pub fn on_touch_move(x:i32, y:i32){
     if let Ok(mut events) = TOUCH_EVENTS.lock(){
-        events.push((TouchEvent::TouchClick, x, y));
+        events.push((TouchEvent::TouchMove, x, y));
     }
 }
 
