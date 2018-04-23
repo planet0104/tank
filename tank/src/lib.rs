@@ -12,6 +12,7 @@ use std::cell::RefCell;
 use utils::Timer;
 use std::fmt::Display;
 use std::fmt::Debug;
+
 //socket消息
 pub const MSG_CONNECT: i64 = 1;
 pub const MSG_DISCONNECT: i64 = 2;
@@ -27,7 +28,7 @@ pub const DRIVE_THRESHOLD:i32 = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 600;
 pub const CLIENT_HEIGHT: i32 = 900;
-pub const FPS: u32 = 20;
+pub const FPS: f64 = 35.0;
 
 pub const VK_SPACE:i32 = 32;
 pub const VK_LEFT:i32 = 37;
@@ -46,9 +47,9 @@ pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
 pub const TANK_VELOCITY: i32 = 7;
 pub const MISSILE_VELOCITY: i32 = 10;
 
-//pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
-pub const SERVER_IP:&str = "50.3.18.60:8080";
+//pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -155,7 +156,7 @@ impl TankGame {
             client_player: None,
             client_context: None,
             //client_messages: vec![],
-            client_timer: Timer::new(20.0),
+            client_timer: Timer::new(FPS),
             //client_key_events: vec![],
             client_last_time: 0.0,
             client_dying_delay: 0,
@@ -278,6 +279,7 @@ impl TankGame {
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
         if self.client_timer.ready_for_next_frame(timestamp){
+            let now = context.current_time_millis();
             //处理消息
             self.client_handle_message(context.pick_messages());
             //键盘事件
@@ -305,12 +307,14 @@ impl TankGame {
             context.stroke_style("#6efdef");
             context.line_width(2);
             context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-            // if self.client_last_time > 0.0 {
-            //     let frame_time = timestamp-self.client_last_time;
-            //     context.fill_style("#fff");
-            //     context.set_canvas_font("24px 微软雅黑");
-            //     context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
-            // }
+            if self.client_last_time > 0.0 {
+                //self.console_log_1("frame_time1=", self.client_timer.frame_time());
+                let frame_time = timestamp-self.client_last_time;
+                //self.console_log_1("frame_time2=", frame_time);
+                context.fill_style("#fff");
+                context.set_canvas_font("24px 微软雅黑");
+                context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
+            }
 
             //死亡倒计时
             if self.client_dying_delay > 0{
@@ -327,6 +331,8 @@ impl TankGame {
                 }
             }
             self.client_last_time = timestamp;
+            let elapsed_ms = context.current_time_millis()-now;
+            //self.console_log_1("elapsed_ms===", elapsed_ms);
         }
         context.request_animation_frame(); 
     }

@@ -93,12 +93,11 @@ fn main() {
 
     //启动一个线程以30帧的速度进行游戏逻辑更新
     let _gs  = thread::spawn(move || {
-        //let mut timer = Timer::new(30.0, Duration::from_millis(10));
         GAME.with(|game|{
             let mut total_frames = 0;
             let start_time = Instant::now();
             let mut game = game.borrow_mut();
-            let frame_time = Duration::from_secs(1)/FPS;
+            let frame_time = Duration::from_secs(1)/FPS as u32;
             loop{
                 let now = Instant::now();
                 //处理websocket传来的消息

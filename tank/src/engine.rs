@@ -50,6 +50,7 @@ pub trait GameContext {
     //fn set_on_message_listener(&self, callback: fn(&str));
     fn pick_key_events(&self)->Vec<(KeyEvent, i32)>;
     fn pick_messages(&self)->Vec<String>;
+    fn current_time_millis(&self) -> u64;
 }
 
 pub struct GameEngine {

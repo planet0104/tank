@@ -45,6 +45,14 @@ impl Timer{
         self.fps
     }
 
+    pub fn frame_time(&self)->f64{
+        self.frame_time
+    }
+
+    pub fn next_time(&self)->f64{
+        self.next_time
+    }
+
     pub fn ready_for_next_frame(&mut self, timestamp:f64)->bool{
         if self.start_time==0.0 {
             self.start_time = timestamp;
@@ -52,6 +60,7 @@ impl Timer{
             self.last_time = timestamp;
         }
         if timestamp > self.next_time {
+            //这里这样计算不对, 因为timestamp每次都是十几ms，并不是每次1ms
             //更新时间
             self.next_time = timestamp + self.frame_time;
             //println!("frame_time={}", timestamp-self.last_time);
@@ -64,59 +73,59 @@ impl Timer{
 }
 
 
-//计时器
-pub struct ServerTimer{
-    frame_time:Duration,
-    start_time:SystemTime,
-    next_time:Duration,
-    last_time: Duration,
-    delay: Duration,
-}
+// //计时器
+// pub struct ServerTimer{
+//     frame_time:Duration,
+//     start_time:SystemTime,
+//     next_time:Duration,
+//     last_time: Duration,
+//     delay: Duration,
+// }
 
-impl ServerTimer{
-    pub fn new(fps:f64, delay: Duration)->ServerTimer{
-        ServerTimer{
-            frame_time: Duration::from_secs(1) / fps as u32,
-            start_time: SystemTime::now(),
-            next_time: Duration::from_millis(0),
-            last_time: Duration::from_millis(0),
-            delay: delay,
-        }
-    }
+// impl ServerTimer{
+//     pub fn new(fps:f64, delay: Duration)->ServerTimer{
+//         ServerTimer{
+//             frame_time: Duration::from_secs(1) / fps as u32,
+//             start_time: SystemTime::now(),
+//             next_time: Duration::from_millis(0),
+//             last_time: Duration::from_millis(0),
+//             delay: delay,
+//         }
+//     }
 
-    pub fn elapsed(&self) -> Duration{
-        self.start_time.elapsed().unwrap()
-    }
+//     pub fn elapsed(&self) -> Duration{
+//         self.start_time.elapsed().unwrap()
+//     }
 
-    pub fn next_time(&self) -> Duration{
-        self.next_time
-    }
+//     pub fn next_time(&self) -> Duration{
+//         self.next_time
+//     }
 
-    pub fn delay(&self) -> Duration{
-        self.delay
-    }
+//     pub fn delay(&self) -> Duration{
+//         self.delay
+//     }
 
-    pub fn ready_for_next_frame(&mut self)->bool{
-        let elapsed = self.elapsed();
-        if elapsed > self.next_time {
-            //更新时间
-            let ft = elapsed-self.last_time;
-            println!("frame_time={:?}", ft.as_secs() as f64 * 1000.0 + ft.subsec_nanos() as f64 / 1_000_000.0);
-            self.last_time = elapsed;
-            self.next_time = elapsed + self.frame_time;
-            true
-        }else{
-            false
-        }
-    }
+//     pub fn ready_for_next_frame(&mut self)->bool{
+//         let elapsed = self.elapsed();
+//         if elapsed > self.next_time {
+//             //更新时间
+//             let ft = elapsed-self.last_time;
+//             println!("frame_time={:?}", ft.as_secs() as f64 * 1000.0 + ft.subsec_nanos() as f64 / 1_000_000.0);
+//             self.last_time = elapsed;
+//             self.next_time = elapsed + self.frame_time;
+//             true
+//         }else{
+//             false
+//         }
+//     }
 
-    //逝去的毫秒数
-    // pub fn elapsed_secs(&self)->f64{
-    //     let duration = self.start_time.elapsed().unwrap();
-    //     duration.as_secs() as f64
-    //        + duration.subsec_nanos() as f64 * 1e-9
-    // }
-}
+//     //逝去的毫秒数
+//     // pub fn elapsed_secs(&self)->f64{
+//     //     let duration = self.start_time.elapsed().unwrap();
+//     //     duration.as_secs() as f64
+//     //        + duration.subsec_nanos() as f64 * 1e-9
+//     // }
+// }
 
 pub fn duration_to_milis(duration: &Duration) -> u64{
     duration.as_secs() as u64 * 1000 + duration.subsec_nanos() as u64 / 1_000_000
