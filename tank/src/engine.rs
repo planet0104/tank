@@ -1,6 +1,6 @@
-use sprite::{Sprite, SA_KILL};
+use sprite::{Sprite, SA_KILL, Point};
 use std::rc::Rc;
-use ::{KeyEvent, TouchEvent};
+use ::KeyEvent;
 //GameEngine 绘制和更新精灵
 pub trait GameContext {
     fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
@@ -49,7 +49,6 @@ pub trait GameContext {
     fn set_frame_callback(&self, callback: fn(f64));
     //fn set_on_message_listener(&self, callback: fn(&str));
     fn pick_key_events(&self)->Vec<(KeyEvent, i32)>;
-    fn pick_touch_events(&self)->Vec<(TouchEvent, i32, i32)>;
     fn pick_messages(&self)->Vec<String>;
 }
 

@@ -269,7 +269,7 @@ impl GameContext for JSGameContext {
     fn stroke_style(&self, style: &str) {
         unsafe{
             if let Ok(style) = CString::new(style){
-                emscripten_load_resource(style.as_ptr());
+                emscripten_stroke_style(style.as_ptr());
             }
         }
     }

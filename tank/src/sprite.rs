@@ -63,12 +63,7 @@ pub struct Rect {
 
 impl Rect {
     pub fn new(left: i32, top: i32, right: i32, bottom: i32) -> Rect {
-        Rect {
-            left: left,
-            top: top,
-            right: right,
-            bottom: bottom,
-        }
+        Rect {left, top, right, bottom}
     }
 
     pub fn zero() -> Rect {

@@ -29,9 +29,6 @@ const KEY_MAP = {
 };
 
 var keyPress = {};
-//var messages = [];
-
-event.preventDefault();
 
 document.addEventListener("keyup", function(event){
     //console.log("keyup:", event.keyCode);
@@ -53,6 +50,54 @@ document.addEventListener("keydown", function(event){
     }
 });
 
+
+let game_pad = document.getElementById("game_pad");
+let game_pad_direction = document.getElementById("game_pad_direction");
+let game_pad_button_a = document.getElementById("game_pad_button_a");
+let game_pad_button_b = document.getElementById("game_pad_button_b");
+game_pad_direction.status = 0; // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
+var game_pad_direction_active = function(event){
+    //方向按钮按下 判断按钮方向
+    let x = (event.type=="click"? event.clientX : event.touches[0].clientX) - game_pad.offsetLeft - game_pad_direction.offsetLeft;
+    let y = (event.type=="click"? event.clientY : event.touches[0].clientY) - game_pad.offsetTop - game_pad_direction.offsetTop;
+    let btn_width = game_pad_direction.clientWidth/3;
+    if(x>=btn_width&&x<=btn_width*2&&y<=btn_width && game_pad_direction.status != 1){
+        game_pad_direction.status = 1;
+        Module._on_keydown_event(VK_UP);
+    }
+    if(x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && game_pad_direction.status != 2){
+        game_pad_direction.status = 2;
+        Module._on_keydown_event(VK_DOWN);
+    }
+    if(x<=btn_width&&y>=btn_width&&y<=btn_width*2 && game_pad_direction.status != 3){
+        game_pad_direction.status = 3;
+        Module._on_keydown_event(VK_LEFT);
+    }
+    if(x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && game_pad_direction.status != 4){
+        game_pad_direction.status = 4;
+        Module._on_keydown_event(VK_RIGHT);
+    }
+    event.preventDefault();
+}
+
+game_pad_direction.addEventListener("touchmove", game_pad_direction_active);
+game_pad_direction.addEventListener("click", game_pad_direction_active);
+game_pad_direction.addEventListener("touchstart", game_pad_direction_active);
+game_pad_direction.addEventListener("touchend", function(event){
+    //方向按钮弹起
+    Module._on_keyup_event(VK_LEFT);
+    game_pad_direction.status = 0;
+    event.preventDefault();
+});
+game_pad_button_a.addEventListener("touchstart", function(event){
+    Module._on_keydown_event(VK_SPACE);
+    event.preventDefault();
+});
+game_pad_button_b.addEventListener("touchstart", function(event){
+    Module._on_keydown_event(VK_SPACE);
+    event.preventDefault();
+});
+
 //下面是要导入webassembly的JS帮助函数
 function _emscripten_pick_message(){
     let msg = messages.pop();
@@ -64,6 +109,7 @@ function _emscripten_pick_message(){
 
 function _emscripten_prompt(title, default_msg){
     var val = prompt(UTF8ToString(title), UTF8ToString(default_msg));
+    val = val==null?"":val;
     return allocateUTF8OnStack(val);
 }
 
@@ -136,8 +182,8 @@ function _emscripten_draw_image(resId, sourceX, sourceY, sourceWidth, sourceHeig
 function _emscripten_stroke_rect(x, y, width, height){
     ctx.strokeRect(x, y, width, height);
 }
-function _emscripten_stroke_style(str, len){
-    ctx.strokeStyle = read_string(str, len);
+function _emscripten_stroke_style(str){
+    ctx.strokeStyle = UTF8ToString(str);
 }
 function _emscripten_line_width(width){
     ctx.lineWidth = width;
