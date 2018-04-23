@@ -95,6 +95,8 @@ fn main() {
     let _gs  = thread::spawn(move || {
         //let mut timer = Timer::new(30.0, Duration::from_millis(10));
         GAME.with(|game|{
+            let mut total_frames = 0;
+            let start_time = Instant::now();
             let mut game = game.borrow_mut();
             let frame_time = Duration::from_secs(1)/FPS;
             loop{
@@ -197,7 +199,13 @@ fn main() {
                 game.events().clear();
 
                 //空闲时间sleep
-                thread::sleep(Duration::from_millis(duration_to_milis(&frame_time)-duration_to_milis(&now.elapsed())));
+                let sleep_ms = duration_to_milis(&frame_time)-duration_to_milis(&now.elapsed());
+                //1分钟输出一次
+                if total_frames%1200==0{
+                    println!("total_elapsed={:?}, sleep_ms={:?}", start_time.elapsed(), sleep_ms);
+                }
+                thread::sleep(Duration::from_millis(sleep_ms));
+                total_frames += 1;
             }
         });
     });
