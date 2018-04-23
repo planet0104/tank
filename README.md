@@ -4,4 +4,5 @@
 <b>html</b>   HTML代码<br/>
 <b>tank</b>   游戏代码<br/>
 <b>asmjs</b>  --target asmjs-unknown-emscirpten<br/>
-<b>wasm</b>   --target wasm-unknown-unknown<br/>
+<b>wasm</b>   --target wasm-unknown-unknown<br/><br/>
+<img src="https://github.com/planet0104/tank/blob/master/screenshot.png" />
