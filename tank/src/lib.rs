@@ -28,7 +28,7 @@ pub const DRIVE_THRESHOLD:i32 = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 600;
 pub const CLIENT_HEIGHT: i32 = 900;
-pub const FPS: f64 = 35.0;
+pub const FPS: f64 = 30.0;
 
 pub const VK_SPACE:i32 = 32;
 pub const VK_LEFT:i32 = 37;
@@ -279,7 +279,7 @@ impl TankGame {
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
         if self.client_timer.ready_for_next_frame(timestamp){
-            let now = context.current_time_millis();
+            //let now = context.current_time_millis();
             //处理消息
             self.client_handle_message(context.pick_messages());
             //键盘事件
@@ -308,9 +308,7 @@ impl TankGame {
             context.line_width(2);
             context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
             if self.client_last_time > 0.0 {
-                //self.console_log_1("frame_time1=", self.client_timer.frame_time());
                 let frame_time = timestamp-self.client_last_time;
-                //self.console_log_1("frame_time2=", frame_time);
                 context.fill_style("#fff");
                 context.set_canvas_font("24px 微软雅黑");
                 context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
@@ -321,7 +319,7 @@ impl TankGame {
                 context.fill_style("#FFC0CB");
                 context.set_canvas_font("36px 微软雅黑");
                 context.fill_text(&format!("被[{}]炸死", self.client_player.as_ref().unwrap().killer_name), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
-                context.fill_text(&format!("{}秒之后重生", self.client_dying_delay/self.client_timer.fps() as i32+1), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
+                context.fill_text(&format!("{}秒之后重生", self.client_dying_delay/FPS as i32+1), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
                 self.client_dying_delay -= 1;
                 if self.client_dying_delay <= 0{
                     //重新加入游戏
@@ -331,7 +329,7 @@ impl TankGame {
                 }
             }
             self.client_last_time = timestamp;
-            let elapsed_ms = context.current_time_millis()-now;
+            //let elapsed_ms = context.current_time_millis()-now;
             //self.console_log_1("elapsed_ms===", elapsed_ms);
         }
         context.request_animation_frame(); 

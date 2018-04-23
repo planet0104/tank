@@ -23,26 +23,16 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
 }
 
 pub struct Timer{
-    fps:f64,
     frame_time: f64,
-    start_time: f64,
     next_time: f64,
-    last_time: f64,
 }
 
 impl Timer{
     pub fn new(fps:f64)->Timer{
         Timer{
-            fps: fps,
             frame_time: 1000.0 / fps,
-            start_time: 0.0,
-            next_time: 0.0,
-            last_time: 0.0,
+            next_time: 0.0
         }
-    }
-
-    pub fn fps(&self) -> f64{
-        self.fps
     }
 
     pub fn frame_time(&self)->f64{
@@ -54,17 +44,11 @@ impl Timer{
     }
 
     pub fn ready_for_next_frame(&mut self, timestamp:f64)->bool{
-        if self.start_time==0.0 {
-            self.start_time = timestamp;
-            self.next_time = timestamp + self.frame_time;
-            self.last_time = timestamp;
+        if self.next_time==0.0 {
+            self.next_time = timestamp;
         }
-        if timestamp > self.next_time {
-            //这里这样计算不对, 因为timestamp每次都是十几ms，并不是每次1ms
-            //更新时间
-            self.next_time = timestamp + self.frame_time;
-            //println!("frame_time={}", timestamp-self.last_time);
-            self.last_time = timestamp;
+        if timestamp >= self.next_time {
+            self.next_time += self.frame_time;
             true
         }else{
             false
