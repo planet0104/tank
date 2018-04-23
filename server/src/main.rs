@@ -59,7 +59,7 @@ impl Handler for Client {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        println!("on_message:{:?}", msg);
+        //println!("on_message:{:?}", msg);
         /*
             服务器端接收的消息:
                  玩家加入游戏=> MSG_START\nNAME

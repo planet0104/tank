@@ -47,8 +47,8 @@ pub const TANK_VELOCITY: i32 = 7;
 pub const MISSILE_VELOCITY: i32 = 10;
 
 //pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const SERVER_IP:&str = "192.168.192.122:8080";
-//pub const SERVER_IP:&str = "50.3.18.60:8080";
+//pub const SERVER_IP:&str = "192.168.192.122:8080";
+pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -296,6 +296,8 @@ impl TankGame {
             context.fill_text("坦克大战", CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
             context.set_canvas_font("32px 微软雅黑");
             context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
+            context.set_canvas_font("29px 微软雅黑");
+            context.fill_text("源码:https://github.com/planet0104/tank", 10, CLIENT_HEIGHT/2+70);
             self.engine.draw_sprites(context.clone());
             //绘制树木
             //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
