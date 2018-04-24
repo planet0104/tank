@@ -91,7 +91,8 @@ fn main() {
     let broadcaster = ws.broadcaster();
 
     //启动一个线程以30帧的速度进行游戏逻辑更新
-    let _gs  = thread::spawn(move || {
+    let builder = thread::Builder::new().name("tank_game".into());
+    let _gs  = builder.spawn(move || {
         GAME.with(|game|{
             let mut total_frames = 0;
             let start_time = Instant::now();
@@ -198,7 +199,7 @@ fn main() {
                 //清空事件
                 game.events().clear();
                 last_time = timestamp;
-                thread::sleep(Duration::from_millis(20));
+                thread::park_timeout(Duration::from_millis(20));
                 total_frames += 1;
                 if total_frames%(50*60) == 0{
                     println!("now={:?}", now.elapsed());
