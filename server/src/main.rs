@@ -44,7 +44,7 @@ impl Client{}
 impl Handler for Client {
 
     fn on_open(&mut self, shake: Handshake) -> Result<()> {
-        println!("客户端连接:{:?}", shake.remote_addr());
+        //println!("客户端连接:{:?}", shake.remote_addr());
 
         //玩家连线，从游戏拉去精灵数据，发送给客户端: SERVER_MSG_ID\nUUID
         let _ = self.out.send(Message::text(format!("{}\n{}", SERVER_MSG_UUID, self.uuid)));
@@ -100,12 +100,12 @@ fn main() {
             loop{
                 let timestamp = start_time.elapsed();
                 let elapsed_ms = timestamp-last_time;
-                //println!("elapsed_ms={:?}", duration_to_milis(&elapsed_ms));
+                let now = Instant::now();
                 //处理websocket传来的消息
                 if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
                     match msg_id{
                         MSG_CONNECT => {
-                            println!("玩家连接 {}", uuid);
+                            //println!("玩家连接 {}", uuid);
                             /*
                                 玩家连线，返回所有精灵列表
                                 SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
@@ -135,7 +135,7 @@ fn main() {
 
                         MSG_START => {
                             //玩家加入游戏
-                            println!("join_game {} {}", uuid, data);
+                            //println!("join_game {} {}", uuid, data);
                             game.server_join_game(uuid, data);
                         }
 
@@ -200,6 +200,9 @@ fn main() {
                 last_time = timestamp;
                 thread::sleep(Duration::from_millis(20));
                 total_frames += 1;
+                if total_frames%(50*60) == 0{
+                    println!("now={:?}", now.elapsed());
+                }
             }
         });
     });

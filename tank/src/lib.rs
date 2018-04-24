@@ -45,9 +45,9 @@ pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
 pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 
-pub const SERVER_IP:&str = "127.0.0.1:8080";
+//pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
-//pub const SERVER_IP:&str = "50.3.18.60:8080";
+pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -335,7 +335,7 @@ impl TankGame {
 
     //玩家加入游戏
     pub fn server_join_game(&mut self, id: String, name: String) {
-        println!("join_game: {} {}", id, name.clone());
+        //println!("join_game: {} {}", id, name.clone());
         //添加坦克精灵
         let sprite_index =
             TankGame::add_sprite(&mut self.engine, id.clone(), RES_TANK_BITMAP, true);
@@ -350,7 +350,7 @@ impl TankGame {
             },
         );
         self.server_events.push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[sprite_index]));//添加事件
-        println!("join_game {} {} 在线人数:{}", id, name, self.server_players.len());
+        //println!("join_game {} {} 在线人数:{}", id, name, self.server_players.len());
     }
 
     //离开游戏/断线
@@ -361,7 +361,7 @@ impl TankGame {
             self.server_events.push(TankGame::get_event_info(SpriteEvent::Delete, &self.engine.sprites()[index]));//事件
             self.engine.sprites().remove(index); //直接删除, 不kill
         }
-        println!("leave_game {} 在线人数:{}", id, self.server_players.len());
+        //println!("leave_game {} 在线人数:{}", id, self.server_players.len());
     }
 
     //创建游戏精灵
