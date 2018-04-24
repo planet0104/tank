@@ -392,11 +392,11 @@ impl GameContext for JSGameContext {
         }
     }
 
-    // fn current_time_millis(&self, )->u64{
-    //     unsafe{
-    //         emscripten_current_time_millis() as u64
-    //     }
-    // }
+    fn current_time_millis(&self, )->u64{
+        unsafe{
+            emscripten_current_time_millis() as u64
+        }
+    }
 
     fn alert(&self, msg: &str) {
         unsafe {

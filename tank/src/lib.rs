@@ -5,11 +5,10 @@ pub mod engine;
 pub mod sprite;
 use uuid::Uuid;
 use engine::{GameContext, GameEngine};
-use sprite::{BitmapRes, Rect, Point, Sprite, BA_DIE, BA_WRAP};
+use sprite::{BitmapRes, Rect, Point, PointF, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use utils::Timer;
 use std::fmt::Display;
 use std::fmt::Debug;
 
@@ -28,7 +27,6 @@ pub const DRIVE_THRESHOLD:i32 = 3;
 //游戏宽高
 pub const CLIENT_WIDTH: i32 = 600;
 pub const CLIENT_HEIGHT: i32 = 900;
-pub const FPS: f64 = 30.0;
 
 pub const VK_SPACE:i32 = 32;
 pub const VK_LEFT:i32 = 37;
@@ -44,8 +42,8 @@ pub const RES_MISSILE_BITMAP: i32 = 1;
 pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
 pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
 
-pub const TANK_VELOCITY: i32 = 7;
-pub const MISSILE_VELOCITY: i32 = 10;
+pub const TANK_VELOCITY: f64 = 0.3;
+pub const MISSILE_VELOCITY: f64 = 0.5;
 
 pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
@@ -107,7 +105,7 @@ pub struct SpriteInfo {
     pub id: String,
     pub res_id: i32, //资源ID
     pub position: Rect,
-    pub velocity: Point,
+    pub velocity: PointF,
     pub current_frame: i32, //当前帧
     pub name: String,
     pub score: i32,
@@ -141,10 +139,9 @@ pub struct TankGame {
     server_players: HashMap<String, Player>,
     client_player: Option<Player>,
     //client_messages: Vec<String>,
-    client_timer: Timer,
-    client_last_time: f64,
     //client_key_events: Vec<(KeyEvent, i32)>,
-    client_dying_delay: i32,
+    client_dying_delay_ms: f64, //5秒重生
+    last_timestamp: f64,
 }
 
 impl TankGame {
@@ -156,10 +153,9 @@ impl TankGame {
             client_player: None,
             client_context: None,
             //client_messages: vec![],
-            client_timer: Timer::new(FPS),
             //client_key_events: vec![],
-            client_last_time: 0.0,
-            client_dying_delay: 0,
+            client_dying_delay_ms: 0.0,
+            last_timestamp: 0.0,
         }
     }
 
@@ -178,7 +174,7 @@ impl TankGame {
             name: name.clone(),
             killer_name: String::new(),
         });
-        context.send_message(&format!("{}\n{}", 3, name));
+        context.send_message(&format!("{}\n{}", MSG_START, name));
     }
 
     pub fn client_on_resource_load(&self, num: i32, total: i32){
@@ -278,60 +274,62 @@ impl TankGame {
     pub fn client_update(&mut self, timestamp:f64){
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
-        if self.client_timer.ready_for_next_frame(timestamp){
-            //let now = context.current_time_millis();
-            //处理消息
-            self.client_handle_message(context.pick_messages());
-            //键盘事件
-            let key_events = context.pick_key_events();
-            for key_event in key_events{
-                context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, key_event.0.to_i64(), key_event.1));
-            }
-
-            //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
-            //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
-            self.engine.update_sprites(&mut |_, _| {}, |_, _, _| false);
-            context.fill_style("#2e6da3");
-            context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-            context.fill_style("#3e7daf");
-            context.set_canvas_font("90px 微软雅黑");
-            context.fill_text("坦克大战", CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
-            context.set_canvas_font("32px 微软雅黑");
-            context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
-            context.set_canvas_font("29px 微软雅黑");
-            context.fill_text("源码:https://github.com/planet0104/tank", 10, CLIENT_HEIGHT/2+70);
-            self.engine.draw_sprites(context.clone());
-            //绘制树木
-            //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
-            //context.draw_image_repeat(RES_GEASS0_BITMAP, 0, CLIENT_HEIGHT-30, CLIENT_WIDTH, 30);
-            context.stroke_style("#6efdef");
-            context.line_width(2);
-            context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-            if self.client_last_time > 0.0 {
-                let frame_time = timestamp-self.client_last_time;
-                context.fill_style("#fff");
-                context.set_canvas_font("24px 微软雅黑");
-                context.fill_text(&format!("FPS:{:0.1}", 1000.0/frame_time), 10, 30);
-            }
-
-            //死亡倒计时
-            if self.client_dying_delay > 0{
-                context.fill_style("#FFC0CB");
-                context.set_canvas_font("36px 微软雅黑");
-                context.fill_text(&format!("被[{}]炸死", self.client_player.as_ref().unwrap().killer_name), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
-                context.fill_text(&format!("{}秒之后重生", self.client_dying_delay/FPS as i32+1), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
-                self.client_dying_delay -= 1;
-                if self.client_dying_delay <= 0{
-                    //重新加入游戏
-                    let player = self.client_player.as_mut().unwrap();
-                    //player.uuid = String::new();
-                    context.send_message(&format!("{}\n{}", 3, player.name));
-                }
-            }
-            self.client_last_time = timestamp;
-            //let elapsed_ms = context.current_time_millis()-now;
-            //self.console_log_1("elapsed_ms===", elapsed_ms);
+        if self.last_timestamp==0.0{
+            self.last_timestamp = timestamp;
         }
+        let elapsed_ms = timestamp - self.last_timestamp;
+        //self.console_log_1("elapsed_ms=", elapsed_ms);
+        //let now = context.current_time_millis();
+        //处理消息
+        self.client_handle_message(context.pick_messages());
+        //键盘事件
+        let key_events = context.pick_key_events();
+        for key_event in key_events{
+            //self.console_log_2("send_message", MSG_KEY_EVENT, key_event.0.to_i64());
+            context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, key_event.0.to_i64(), key_event.1));
+        }
+
+        //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
+        //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
+        self.engine.update_sprites(elapsed_ms, &mut |_, _| {}, |_, _, _| false);
+        context.fill_style("#2e6da3");
+        context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+        context.fill_style("#3e7daf");
+        context.set_canvas_font("90px 微软雅黑");
+        context.fill_text("坦克大战", CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
+        context.set_canvas_font("32px 微软雅黑");
+        context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
+        context.set_canvas_font("29px 微软雅黑");
+        context.fill_text("源码:https://github.com/planet0104/tank", 10, CLIENT_HEIGHT/2+70);
+        self.engine.draw_sprites(context.clone());
+        //绘制树木
+        //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
+        //context.draw_image_repeat(RES_GEASS0_BITMAP, 0, CLIENT_HEIGHT-30, CLIENT_WIDTH, 30);
+        context.stroke_style("#6efdef");
+        context.line_width(2);
+        context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+
+        if elapsed_ms>0.0{
+            context.fill_style("#fff");
+            context.set_canvas_font("24px 微软雅黑");
+            context.fill_text(&format!("FPS:{}", 1000/elapsed_ms as i32), 10, 40);
+        }
+
+        //死亡倒计时
+        if self.client_dying_delay_ms > 0.0{
+            context.fill_style("#FFC0CB");
+            context.set_canvas_font("36px 微软雅黑");
+            context.fill_text(&format!("被[{}]炸死", self.client_player.as_ref().unwrap().killer_name), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-50);
+            context.fill_text(&format!("{}秒之后重生", (self.client_dying_delay_ms as i32/1000)+1), CLIENT_WIDTH/2-185, CLIENT_HEIGHT/2-10);
+            self.client_dying_delay_ms -= elapsed_ms;
+            if self.client_dying_delay_ms <= 0.0{
+                //重新加入游戏
+                let player = self.client_player.as_mut().unwrap();
+                //player.uuid = String::new();
+                context.send_message(&format!("{}\n{}", 3, player.name));
+            }
+        }
+        self.last_timestamp = timestamp;
         context.request_animation_frame(); 
     }
 
@@ -376,14 +374,14 @@ impl TankGame {
                     Sprite::with_bounds_action(
                         id,
                         BitmapRes::new(RES_TANK_BITMAP, 57, 228),
-                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                         BA_WRAP
                     )
                 }else{
                     Sprite::with_bounds_action_norand(
                         id,
                         BitmapRes::new(RES_TANK_BITMAP, 57, 228),
-                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                         BA_WRAP
                     )
                 };
@@ -398,14 +396,14 @@ impl TankGame {
                     Sprite::with_bounds_action(
                         id,
                         BitmapRes::new(RES_MISSILE_BITMAP, 20, 80),
-                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                         BA_DIE
                     )
                 }else{
                     Sprite::with_bounds_action_norand(
                         id,
                         BitmapRes::new(RES_MISSILE_BITMAP, 20, 80),
-                        Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                        Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                         BA_DIE
                     )
                 };
@@ -418,7 +416,7 @@ impl TankGame {
                 let mut sprite = Sprite::from_bitmap(
                     id,
                     BitmapRes::new(RES_SM_EXPLOSION_BITMAP, 17, 136),
-                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT)
+                    Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                 );
                 sprite.set_num_frames(8, true);
                 engine.add_sprite(sprite)
@@ -428,7 +426,7 @@ impl TankGame {
                 let mut sprite = Sprite::from_bitmap(
                     id,
                     BitmapRes::new(RES_LG_EXPLOSION_BITMAP, 33, 272),
-                    Rect::new(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT),
+                    Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                 );
                 sprite.set_num_frames(8, true);
                 engine.add_sprite(sprite)
@@ -465,12 +463,12 @@ impl TankGame {
     }
 
     //更新游戏
-    pub fn server_update(&mut self) {
+    pub fn server_update(&mut self, elapsed_milis: f64) {
         let mut sprites_dying_events = vec![];
         let mut sprites_add_events = vec![];
 
         //更新游戏，并处理精灵死亡、碰撞检测回调
-        self.engine.update_sprites(
+        self.engine.update_sprites(elapsed_milis,
             &mut |engine: &mut GameEngine, idx_sprite_dying| {
                 sprites_dying_events.push(TankGame::get_event_info(SpriteEvent::Delete, &engine.sprites()[idx_sprite_dying]));
                 let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
@@ -606,39 +604,39 @@ impl TankGame {
                             missile.parent = Some(sprite_id.clone());//记住玩家发射的子弹
                             match direction {
                                 0 => {//上
-                                    missile.set_velocity(0, -MISSILE_VELOCITY);
+                                    missile.set_velocity(0.0, -MISSILE_VELOCITY);
                                     missile.set_position(
                                         tank_position.left
-                                            + (tank_position.right - tank_position.left) / 2
-                                            - 10,
-                                        tank_position.top - 15,
+                                            + (tank_position.right - tank_position.left) / 2.0
+                                            - 10.0,
+                                        tank_position.top - 15.0,
                                     );
                                 }
                                 1 => {//下
-                                    missile.set_velocity(0, MISSILE_VELOCITY);
+                                    missile.set_velocity(0.0, MISSILE_VELOCITY);
                                     missile.set_position(
                                         tank_position.left
-                                            + (tank_position.right - tank_position.left) / 2
-                                            - 8,
+                                            + (tank_position.right - tank_position.left) / 2.0
+                                            - 8.0,
                                         tank_position.bottom,
                                     );
                                 }
                                 2 => {//左
-                                    missile.set_velocity(-MISSILE_VELOCITY, 0);
+                                    missile.set_velocity(-MISSILE_VELOCITY, 0.0);
                                     missile.set_position(
-                                        tank_position.left - 15,
+                                        tank_position.left - 15.0,
                                         tank_position.top
-                                            - (tank_position.top - tank_position.bottom) / 2
-                                            - 8,
+                                            - (tank_position.top - tank_position.bottom) / 2.0
+                                            - 8.0,
                                     );
                                 }
                                 3 => {//右
-                                    missile.set_velocity(MISSILE_VELOCITY, 0);
+                                    missile.set_velocity(MISSILE_VELOCITY, 0.0);
                                     missile.set_position(
                                         tank_position.right,
                                         tank_position.top
-                                            - (tank_position.top - tank_position.bottom) / 2
-                                            - 8,
+                                            - (tank_position.top - tank_position.bottom) / 2.0
+                                            - 8.0,
                                     );
                                 }
                                 _ => {}
@@ -647,22 +645,22 @@ impl TankGame {
                         }
                         VK_LEFT => {
                             self.engine.sprites()[idx].set_current_frame(2);
-                            self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0);
+                            self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0.0);
                             self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_RIGHT => {
                             self.engine.sprites()[idx].set_current_frame(3);
-                            self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0);
+                            self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0.0);
                             self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_UP => {
                             self.engine.sprites()[idx].set_current_frame(0);
-                            self.engine.sprites()[idx].set_velocity(0, -TANK_VELOCITY);
+                            self.engine.sprites()[idx].set_velocity(0.0, -TANK_VELOCITY);
                             self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_DOWN => {
                             self.engine.sprites()[idx].set_current_frame(1);
-                            self.engine.sprites()[idx].set_velocity(0, TANK_VELOCITY);
+                            self.engine.sprites()[idx].set_velocity(0.0, TANK_VELOCITY);
                             self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         other => {
@@ -679,7 +677,7 @@ impl TankGame {
                             | VK_RIGHT
                             | VK_UP
                             | VK_DOWN => {
-                                self.engine.sprites()[idx].set_velocity(0, 0);
+                                self.engine.sprites()[idx].set_velocity(0.0, 0.0);
                                 true
                             }
                             _ => false,
@@ -771,14 +769,14 @@ impl TankGame {
                                 id: items[1].to_string(),
                                 res_id: items[2].parse::<i32>().unwrap_or(-1),
                                 position: Rect{
-                                    left: items[3].parse::<i32>().unwrap_or(0),
-                                    top: items[4].parse::<i32>().unwrap_or(0),
-                                    right: items[5].parse::<i32>().unwrap_or(0),
-                                    bottom: items[6].parse::<i32>().unwrap_or(0),
+                                    left: items[3].parse::<f64>().unwrap_or(0.0),
+                                    top: items[4].parse::<f64>().unwrap_or(0.0),
+                                    right: items[5].parse::<f64>().unwrap_or(0.0),
+                                    bottom: items[6].parse::<f64>().unwrap_or(0.0),
                                 },
-                                velocity: Point{
-                                    x: items[7].parse::<i32>().unwrap_or(0),
-                                    y: items[8].parse::<i32>().unwrap_or(0),
+                                velocity: PointF{
+                                    x: items[7].parse::<f64>().unwrap_or(0.0),
+                                    y: items[8].parse::<f64>().unwrap_or(0.0),
                                 },
                                 current_frame: items[9].parse::<i32>().unwrap_or(0),
                                 name: String::from(items[10]),
@@ -794,7 +792,7 @@ impl TankGame {
                                         player.killer_name = info.killer_name.clone();
                                         //alert(client.name.as_ref().unwrap());
                                         //alert("你死了!");
-                                        self.client_dying_delay = 100;
+                                        self.client_dying_delay_ms = 5000.0;
                                     }
                                 }
                                 _ => {}
@@ -822,14 +820,14 @@ impl TankGame {
                             id: items[0].to_string(),
                             res_id: items[1].parse::<i32>().unwrap_or(0),
                             position: Rect{
-                                left: items[2].parse::<i32>().unwrap_or(0),
-                                top: items[3].parse::<i32>().unwrap_or(0),
-                                right: items[4].parse::<i32>().unwrap_or(0),
-                                bottom: items[5].parse::<i32>().unwrap_or(0),
+                                left: items[2].parse::<f64>().unwrap_or(0.0),
+                                top: items[3].parse::<f64>().unwrap_or(0.0),
+                                right: items[4].parse::<f64>().unwrap_or(0.0),
+                                bottom: items[5].parse::<f64>().unwrap_or(0.0),
                             },
-                            velocity: Point{
-                                x: items[6].parse::<i32>().unwrap_or(0),
-                                y: items[7].parse::<i32>().unwrap_or(0),
+                            velocity: PointF{
+                                x: items[6].parse::<f64>().unwrap_or(0.0),
+                                y: items[7].parse::<f64>().unwrap_or(0.0),
                             },
                             current_frame: items[8].parse::<i32>().unwrap_or(0),
                             name: String::from(items[9]),

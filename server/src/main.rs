@@ -12,7 +12,6 @@ use std::time::{ Duration, Instant};
 use std::thread;
 use tank::{
     SERVER_IP,
-    FPS,
     KeyEvent,
     MSG_CONNECT,
     MSG_DISCONNECT,
@@ -96,10 +95,12 @@ fn main() {
         GAME.with(|game|{
             let mut total_frames = 0;
             let start_time = Instant::now();
+            let mut last_time = start_time.elapsed();
             let mut game = game.borrow_mut();
-            let frame_time = Duration::from_secs(1)/FPS as u32;
             loop{
-                let now = Instant::now();
+                let timestamp = start_time.elapsed();
+                let elapsed_ms = timestamp-last_time;
+                //println!("elapsed_ms={:?}", duration_to_milis(&elapsed_ms));
                 //处理websocket传来的消息
                 if let Ok((sender, msg_id, uuid, data)) = game_receiver.try_recv(){
                     match msg_id{
@@ -161,7 +162,7 @@ fn main() {
                         }
                     }
                 }
-                game.server_update();
+                game.server_update(duration_to_milis(&elapsed_ms));
 
                 /*
                     游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
@@ -196,14 +197,8 @@ fn main() {
                 }
                 //清空事件
                 game.events().clear();
-
-                //空闲时间sleep
-                let sleep_ms = duration_to_milis(&frame_time)-duration_to_milis(&now.elapsed());
-                //1分钟输出一次
-                if total_frames%1200==0{
-                    println!("total_elapsed={:?}, sleep_ms={:?}", start_time.elapsed(), sleep_ms);
-                }
-                thread::sleep(Duration::from_millis(sleep_ms));
+                last_time = timestamp;
+                thread::sleep(Duration::from_millis(20));
                 total_frames += 1;
             }
         });

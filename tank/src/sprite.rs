@@ -55,43 +55,57 @@ impl BitmapRes {
 
 #[derive(Clone, Debug, Copy)]
 pub struct Rect {
-    pub left: i32,
-    pub top: i32,
-    pub right: i32,
-    pub bottom: i32,
+    pub left: f64,
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
 }
 
 impl Rect {
-    pub fn new(left: i32, top: i32, right: i32, bottom: i32) -> Rect {
+    pub fn new(left: f64, top: f64, right: f64, bottom: f64) -> Rect {
         Rect {left, top, right, bottom}
     }
 
     pub fn zero() -> Rect {
         Rect {
-            left: 0,
-            top: 0,
-            right: 0,
-            bottom: 0,
+            left: 0.0,
+            top: 0.0,
+            right: 0.0,
+            bottom: 0.0,
         }
     }
 
     /** 修改rect大小 */
-    pub fn inflate(&mut self, dx: i32, dy: i32) {
+    pub fn inflate(&mut self, dx: f64, dy: f64) {
         self.left -= dx;
         self.right += dx;
         self.top -= dy;
         self.bottom += dy;
     }
 
-    pub fn offset(&mut self, dx: i32, dy: i32) {
+    pub fn offset(&mut self, dx: f64, dy: f64) {
         self.left += dx;
         self.right += dx;
         self.top += dy;
         self.bottom += dy;
     }
 
-    pub fn contain(&self, x: i32, y: i32) -> bool {
+    pub fn contain(&self, x: f64, y: f64) -> bool {
         x >= self.left && x <= self.right && y >= self.top && y <= self.bottom
+    }
+}
+
+#[derive(Clone, Debug, Copy)]
+pub struct PointF {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl PointF{
+    pub fn new() -> PointF{
+        PointF{
+            x: 0.0, y: 0.0
+        }
     }
 }
 
@@ -119,7 +133,7 @@ pub struct Sprite {
     frame_trigger: i32,
     position: Rect,
     bounds: Rect,
-    velocity: Point,
+    velocity: PointF,
     z_order: i32,
     collision: Rect,
     bounds_action: BOUNDSACTION,
@@ -136,8 +150,8 @@ impl Sprite {
     pub fn new(
         id: String,
         bitmap: BitmapRes,
-        position: Point,
-        velocity: Point,
+        position: PointF,
+        velocity: PointF,
         z_order: i32,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
@@ -148,8 +162,8 @@ impl Sprite {
             position: Rect::new(
                 position.x,
                 position.y,
-                position.x + bitmap.width(),
-                position.y + bitmap.height(),
+                position.x + bitmap.width() as f64,
+                position.y + bitmap.height() as f64,
             ),
             bitmap: bitmap,
             num_frames: 1,
@@ -177,8 +191,8 @@ impl Sprite {
         Sprite::new(
             id,
             bitmap,
-            Point { x: 0, y: 0 },
-            Point { x: 0, y: 0 },
+            PointF::new(),
+            PointF::new(),
             0,
             bounds,
             BA_STOP,
@@ -192,13 +206,13 @@ impl Sprite {
         bounds_action: BOUNDSACTION
     ) -> Sprite {
         //计算随即位置
-        let x = rand_int(0, bounds.right - bounds.left);
-        let y = rand_int(0, bounds.bottom - bounds.top);
+        let x = rand_int(0, (bounds.right - bounds.left) as i32) as f64;
+        let y = rand_int(0, (bounds.bottom - bounds.top) as i32) as f64;
         Sprite::new(
             id,
             bitmap,
-            Point { x: x, y: y },
-            Point { x: 0, y: 0 },
+            PointF { x: x, y: y },
+            PointF::new(),
             0,
             bounds,
             bounds_action,
@@ -214,8 +228,8 @@ impl Sprite {
         Sprite::new(
             id,
             bitmap,
-            Point { x: 0, y: 0 },
-            Point { x: 0, y: 0 },
+            PointF::new(),
+            PointF::new(),
             0,
             bounds,
             bounds_action,
@@ -223,8 +237,8 @@ impl Sprite {
     }
 
     fn calc_collision_rect(&mut self) {
-        let x_shrink = (self.position.left - self.position.right) / 12;
-        let y_shrink = (self.position.top - self.position.bottom) / 12;
+        let x_shrink = (self.position.left - self.position.right) / 12.0;
+        let y_shrink = (self.position.top - self.position.bottom) / 12.0;
         self.collision = self.position;
         self.collision.inflate(x_shrink, y_shrink);
     }
@@ -232,7 +246,7 @@ impl Sprite {
     //-----------------------------------------------------------------
     // Sprite General Methods
     //-----------------------------------------------------------------
-    pub fn update(&mut self) -> SPRITEACTION {
+    pub fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION {
         //let msg = format!("before update>position={:?}", self.position());
         //unsafe { log(msg.as_ptr(), msg.len()); }
         // See if the sprite needs to be killed
@@ -244,11 +258,11 @@ impl Sprite {
         self.update_frame();
 
         // Update the position
-        let mut new_position = Point { x: 0, y: 0 };
-        let mut sprite_size = Point { x: 0, y: 0 };
-        let mut bounds_size = Point { x: 0, y: 0 };
-        new_position.x = self.position.left + self.velocity.x;
-        new_position.y = self.position.top + self.velocity.y;
+        let mut new_position = PointF::new();
+        let mut sprite_size = PointF::new();
+        let mut bounds_size = PointF::new();
+        new_position.x = self.position.left + self.velocity.x*elapsed_milis;
+        new_position.y = self.position.top + self.velocity.y*elapsed_milis;
         sprite_size.x = self.position.right - self.position.left;
         sprite_size.y = self.position.bottom - self.position.top;
         bounds_size.x = self.bounds.right - self.bounds.left;
@@ -309,20 +323,20 @@ impl Sprite {
             if new_position.x < self.bounds.left
                 || new_position.x > (self.bounds.right - sprite_size.x)
             {
-                new_position.x = cmp::max(
+                new_position.x = f64::max(
                     self.bounds.left,
-                    cmp::min(new_position.x, self.bounds.right - sprite_size.x),
+                    f64::min(new_position.x, self.bounds.right - sprite_size.x),
                 );
-                self.set_velocity(0, 0);
+                self.set_velocity(0.0, 0.0);
             }
             if new_position.y < self.bounds.top
                 || new_position.y > (self.bounds.bottom - sprite_size.y)
             {
-                new_position.y = cmp::max(
+                new_position.y = f64::max(
                     self.bounds.top,
-                    cmp::min(new_position.y, self.bounds.bottom - sprite_size.y),
+                    f64::min(new_position.y, self.bounds.bottom - sprite_size.y),
                 );
-                self.set_velocity(0, 0);
+                self.set_velocity(0.0, 0.0);
             }
         }
         self.set_position_point(&new_position);
@@ -337,15 +351,15 @@ impl Sprite {
         if !self.hidden {
             // Draw the appropriate frame, if necessary
             match self.num_frames {
-                1 => context.draw_image_at(self.bitmap.id, self.position.left, self.position.top),
+                1 => context.draw_image_at(self.bitmap.id, self.position.left as i32, self.position.top as i32),
                 _ => context.draw_image(
                     self.bitmap.id,
                     0,
                     self.cur_frame * self.height(),
                     self.width(),
                     self.height(),
-                    self.position.left,
-                    self.position.top,
+                    self.position.left as i32,
+                    self.position.top as i32,
                     self.width(),
                     self.height(),
                 ),
@@ -355,8 +369,8 @@ impl Sprite {
             if self.name.len()>0&&self.score>=0{
                 let score = &format!("({}分)", self.score);
                 let w = self.name.len()*5+score.len()*5;
-                let x = self.position.left+((self.position.right-self.position.left)/2-(w as i32/2));
-                let y = self.position.bottom+20;
+                let x = self.position.left as i32+((self.position.right-self.position.left) as i32/2-(w as i32/2));
+                let y = self.position.bottom as i32+20;
                 context.fill_text(&format!("{}{}", self.name, score), x, y);
             }
         }
@@ -392,28 +406,28 @@ impl Sprite {
         self.frame_delay = frame_delay;
     }
 
-    pub fn set_velocity(&mut self, x: i32, y: i32) {
+    pub fn set_velocity(&mut self, x: f64, y: f64) {
         self.velocity.x = x;
         self.velocity.y = y;
     }
 
-    pub fn set_velocity_point(&mut self, velocity: &Point) {
+    pub fn set_velocity_point(&mut self, velocity: &PointF) {
         self.velocity.x = velocity.x;
         self.velocity.y = velocity.y;
     }
 
-    pub fn velocity(&self) -> &Point {
+    pub fn velocity(&self) -> &PointF {
         &self.velocity
     }
 
-    pub fn set_position_point(&mut self, position: &Point) {
+    pub fn set_position_point(&mut self, position: &PointF) {
         let dx = position.x - self.position.left;
         let dy = position.y - self.position.top;
         self.position.offset(dx, dy);
         self.calc_collision_rect();
     }
 
-    pub fn set_position(&mut self, x: i32, y: i32) {
+    pub fn set_position(&mut self, x: f64, y: f64) {
         let x = x - self.position.left;
         let y = y - self.position.top;
         self.position.offset(x, y);
@@ -429,7 +443,7 @@ impl Sprite {
             && self.collision.top <= test.bottom && test.top <= self.collision.bottom
     }
 
-    pub fn is_point_inside(&self, x: i32, y: i32) -> bool {
+    pub fn is_point_inside(&self, x: f64, y: f64) -> bool {
         self.position.contain(x, y)
     }
 
@@ -492,7 +506,7 @@ impl Sprite {
 
         //重新计算位置
         self.position.bottom =
-            self.position.top + (self.position.bottom - self.position.top) / self.num_frames;
+            self.position.top + (self.position.bottom - self.position.top) / self.num_frames as f64;
     }
 
     pub fn kill(&mut self) {

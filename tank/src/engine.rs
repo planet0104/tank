@@ -1,4 +1,4 @@
-use sprite::{Sprite, SA_KILL, Point};
+use sprite::{Sprite, SA_KILL};
 use std::rc::Rc;
 use ::KeyEvent;
 //GameEngine 绘制和更新精灵
@@ -89,6 +89,7 @@ impl GameEngine {
         C: Fn(&mut GameEngine, usize, usize) -> bool,
     >(
         &mut self,
+        elapsed_milis:f64,
         sprite_dying: &mut D,
         sprite_collision: C,
     ) {
@@ -99,7 +100,7 @@ impl GameEngine {
             //保存旧的精灵位置以防需要恢复
             let old_sprite_pos = *self.sprites[i].position();
             //更新精灵
-            let sprite_action = self.sprites[i].update();
+            let sprite_action = self.sprites[i].update(elapsed_milis);
 
             //处理SA_ADDSPRITE
             // if sprite_action == SA_ADDSPRITE{

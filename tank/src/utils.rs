@@ -22,39 +22,58 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
     rand::thread_rng().gen_range(low, high + 1)
 }
 
-pub struct Timer{
-    frame_time: f64,
-    next_time: f64,
-}
+// pub struct Timer{
+//     fps: f64,
+//     frame_time: f64,
+//     next_time: f64,
+//     current_time: f64,
+//     start_time: f64,
+//     last_time: f64,
+// }
 
-impl Timer{
-    pub fn new(fps:f64)->Timer{
-        Timer{
-            frame_time: 1000.0 / fps,
-            next_time: 0.0
-        }
-    }
+// impl Timer{
+//     pub fn new(fps:f64)->Timer{
+//         Timer{
+//             frame_time: 1000.0 / fps,
+//             next_time: 0.0,
+//             fps: fps,
+//             current_time: 0.0,
+//             start_time: 0.0,
+//             last_time: 0.0
+//         }
+//     }
 
-    pub fn frame_time(&self)->f64{
-        self.frame_time
-    }
+//     pub fn frame_time(&self)->f64{
+//         self.frame_time
+//     }
 
-    pub fn next_time(&self)->f64{
-        self.next_time
-    }
+//     pub fn next_time(&self)->f64{
+//         self.next_time
+//     }
 
-    pub fn ready_for_next_frame(&mut self, timestamp:f64)->bool{
-        if self.next_time==0.0 {
-            self.next_time = timestamp;
-        }
-        if timestamp >= self.next_time {
-            self.next_time += self.frame_time;
-            true
-        }else{
-            false
-        }
-    }
-}
+//     pub fn current_time(&self)->f64{
+//         self.current_time
+//     }
+
+//     pub fn ready_for_next_frame(&mut self, timestamp:f64)->bool{
+//         if self.start_time == 0.0{
+//             self.start_time = timestamp;
+//             self.last_time = timestamp;
+//             self.next_time = timestamp;
+//         }
+//         //逝去的时间
+// 	    self.current_time = timestamp - self.start_time;
+
+//         if self.current_time >= self.next_time {
+//             //更新时间
+//             self.last_time = self.current_time;
+//             self.next_time = self.current_time + self.frame_time;
+//             true
+//         }else{
+//             false
+//         }
+//     }
+// }
 
 
 // //计时器
@@ -111,8 +130,8 @@ impl Timer{
 //     // }
 // }
 
-pub fn duration_to_milis(duration: &Duration) -> u64{
-    duration.as_secs() as u64 * 1000 + duration.subsec_nanos() as u64 / 1_000_000
+pub fn duration_to_milis(duration: &Duration) -> f64{
+    duration.as_secs() as f64 * 1000.0 + duration.subsec_nanos() as f64 / 1_000_000.0
 }
 
 /*
