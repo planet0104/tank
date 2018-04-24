@@ -46,8 +46,8 @@ pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 
 //pub const SERVER_IP:&str = "127.0.0.1:8080";
-//pub const SERVER_IP:&str = "192.168.192.122:8080";
-pub const SERVER_IP:&str = "50.3.18.60:8080";
+pub const SERVER_IP:&str = "192.168.192.122:8080";
+//pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -169,11 +169,17 @@ impl TankGame {
         //加入游戏
         let name = context.prompt("请输入你的名字", "未命名");
         context.console_log(&format!("玩家姓名:{}", name));
+        let name = if name.len() == 0{
+            "NULL".to_string()
+        }else{
+            name
+        };
         self.client_player = Some(Player{
             uuid: String::new(),
             name: name.clone(),
             killer_name: String::new(),
         });
+        self.console_log_1("send_message", &format!("{}\n{}", MSG_START, name));
         context.send_message(&format!("{}\n{}", MSG_START, name));
     }
 
@@ -301,6 +307,7 @@ impl TankGame {
         context.fill_text("↑ ↓ ← → ：移动  空格：开炮", 100, CLIENT_HEIGHT/2+30);
         context.set_canvas_font("29px 微软雅黑");
         context.fill_text("源码:https://github.com/planet0104/tank", 10, CLIENT_HEIGHT/2+70);
+        //context.console_log(&format!("self.engine.sprites().len()={}", self.engine.sprites().len()));
         self.engine.draw_sprites(context.clone());
         //绘制树木
         //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
@@ -309,11 +316,11 @@ impl TankGame {
         context.line_width(2);
         context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
 
-        if elapsed_ms>0.0{
-            context.fill_style("#fff");
-            context.set_canvas_font("24px 微软雅黑");
-            context.fill_text(&format!("FPS:{}", 1000/elapsed_ms as i32), 10, 40);
-        }
+        // if elapsed_ms>0.0{
+        //     context.fill_style("#fff");
+        //     context.set_canvas_font("24px 微软雅黑");
+        //     context.fill_text(&format!("FPS:{}", 1000/elapsed_ms as i32), 10, 40);
+        // }
 
         //死亡倒计时
         if self.client_dying_delay_ms > 0.0{
@@ -726,6 +733,7 @@ impl TankGame {
 
     fn client_handle_message(&mut self, messages:Vec<String>){
         for msg in messages{
+            self.console_log_1("client_handle_message", msg.clone());
             let c = self.client_context.clone();
             let context = c.as_ref().unwrap();
             //console_log(&format!("handle_message {}", msg));

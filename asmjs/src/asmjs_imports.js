@@ -18,20 +18,27 @@ const VK_DOWN = 40;
 
 const KEY_MAP = {
     "Left": VK_LEFT,
+	"a":VK_LEFT,
     "ArrowLeft": VK_LEFT,
     "Right": VK_RIGHT,
+	"d": VK_RIGHT,
     "ArrowRight": VK_RIGHT,
     "Up": VK_UP,
+	"w": VK_UP,
     "ArrowUp": VK_UP,
     "Down": VK_DOWN,
+	"s": VK_DOWN,
     "ArrowDown": VK_DOWN,
     " ": VK_SPACE,
+	"j": VK_SPACE,
+	"k": VK_SPACE,
+	"l": VK_SPACE
 };
 
 var keyPress = {};
 
 document.addEventListener("keyup", function(event){
-    //console.log("keyup:", event.keyCode);
+    //console.log("keyup:", event.key);
     if (KEY_MAP[event.key]){
         if(keyPress[event.key]){
             keyPress[event.key] = false;
