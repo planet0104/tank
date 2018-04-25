@@ -183,7 +183,7 @@ var imports = {
             ctx.drawImage(window.resMap.get(resId+""), x, y);
         },
         _draw_image: function(resId, sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight){
-            console.log("_draw_image_at", resId, window.resMap.get(resId+""));
+            //console.log("_draw_image_at", resId, window.resMap.get(resId+""));
             ctx.drawImage(window.resMap.get(resId+""), sourceX, sourceY, sourceWidth, sourceHeight, destX, destY, destWidth, destHeight);
         },
         _draw_image_repeat_y: function(resId, x, y, width, height){
@@ -376,7 +376,7 @@ function connect(url){
         exports.on_connect();
 
         socket.onmessage = function(event){
-            console.log("onmessage", event.data);
+            //console.log("js socket.onmessage", event.data);
             var msg = alloc_string(event.data);
             exports.on_message(msg.ptr, msg.len);
         };

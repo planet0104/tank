@@ -348,7 +348,7 @@ pub fn on_keydown_event(key: i32) {
 #[no_mangle]
 pub fn on_message(msg: *mut u8, length: usize) {
     let msg = unsafe{ String::from_raw_parts(msg, length, length) };
-    console_log(&format!("wasm_on_message = {:?}", msg));
+    //console_log(&format!("wasm_on_message = {:?}", msg));
     if let Ok(mut messages) = MESSAGES.lock(){
         messages.push(msg);
     }
