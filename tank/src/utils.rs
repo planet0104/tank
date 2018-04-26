@@ -133,6 +133,28 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
 pub fn duration_to_milis(duration: &Duration) -> f64{
     duration.as_secs() as f64 * 1000.0 + duration.subsec_nanos() as f64 / 1_000_000.0
 }
+pub type Id = u32;
+pub struct Counter {
+	count: Id,
+}
+impl Counter {
+	pub fn new() -> Self {
+		Counter { count: 0 }
+	}
+}
+
+impl Iterator for Counter {
+	type Item = Id;
+
+	fn next(&mut self) -> Option<Id> {
+		if self.count != Id::max_value() {
+			self.count += 1;
+			Some(self.count)
+		} else {
+			None
+		}
+	}
+}
 
 /*
 //生成指定范围的随即整数

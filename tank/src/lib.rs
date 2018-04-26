@@ -13,10 +13,10 @@ use std::fmt::Display;
 use std::fmt::Debug;
 
 //socket消息
-pub const MSG_CONNECT: i64 = 1;
-pub const MSG_DISCONNECT: i64 = 2;
-pub const MSG_START: i64 = 3;
-pub const MSG_KEY_EVENT: i64 = 4;
+pub const MSG_CONNECT: i32 = 1;
+pub const MSG_DISCONNECT: i32 = 2;
+pub const MSG_START: i32 = 3;
+pub const MSG_KEY_EVENT: i32 = 4;
 
 //server发送给客户端的消息
 pub const SERVER_MSG_ERR: isize = 0;
@@ -47,8 +47,8 @@ pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 
 //pub const SERVER_IP:&str = "127.0.0.1:8080";
-//pub const SERVER_IP:&str = "192.168.192.122:8080";
-pub const SERVER_IP:&str = "50.3.18.60:8080";
+pub const SERVER_IP:&str = "192.168.192.122:8080";
+//pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -345,9 +345,9 @@ impl TankGame {
             di += 1;
             d.0 += 1;
         }
-        //清除显示50帧以后的
+        //清除显示150帧以后的
         self.dying_players.retain(|d| d.0<150);
-                    
+
         //死亡倒计时
         if self.client_dying_delay_ms > 0.0{
             context.fill_style("#FFC0CB");
@@ -513,7 +513,7 @@ impl TankGame {
                 SpriteEvent::Delete => {
                     self.players.remove(&sprite.id);
                     if sprite.bitmap().id() == RES_TANK_BITMAP && sprite_info.killer_name.len()>0{
-                        //记录并显示死亡的玩家 50帧删除
+                        //记录并显示死亡的玩家
                         self.dying_players.push((0, sprite_info.killer_name.clone(), sprite_info.name.clone()));
                     }
                 }
