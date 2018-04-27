@@ -48,8 +48,8 @@ pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 
 //pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const SERVER_IP:&str = "192.168.192.122:8080";
-//pub const SERVER_IP:&str = "50.3.18.60:8080";
+//pub const SERVER_IP:&str = "192.168.192.122:8080";
+pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
