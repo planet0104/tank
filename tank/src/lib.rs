@@ -17,6 +17,7 @@ pub const MSG_CONNECT: i32 = 1;
 pub const MSG_DISCONNECT: i32 = 2;
 pub const MSG_START: i32 = 3;
 pub const MSG_KEY_EVENT: i32 = 4;
+pub const MSG_ID_ERR: i32 = 5;
 
 //server发送给客户端的消息
 pub const SERVER_MSG_ERR: isize = 0;
