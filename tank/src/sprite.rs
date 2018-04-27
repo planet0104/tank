@@ -144,6 +144,7 @@ pub struct Sprite {
     score: i32,
     killer: String,
     killer_name: String,
+    lives: u32,
 }
 
 impl Sprite {
@@ -182,6 +183,7 @@ impl Sprite {
             score: 0,
             killer: String::new(),
             killer_name: String::new(),
+            lives: 0,
         };
         sprite.calc_collision_rect();
         sprite
@@ -521,8 +523,15 @@ impl Sprite {
         self.score = score;
     }
 
-
     pub fn score(&self)->i32{
         self.score
+    }
+
+    pub fn set_lives(&mut self, lives: u32){
+        self.lives = lives;
+    }
+
+    pub fn lives(&self) -> u32{
+        self.lives
     }
 }

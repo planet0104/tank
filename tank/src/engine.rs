@@ -53,6 +53,11 @@ pub trait GameContext {
     fn current_time_millis(&self) -> u64;
 }
 
+pub trait UpdateCallback{
+    fn on_sprite_dying(&self, engine: &mut GameEngine, idx_sprite_dying:usize);
+    fn on_sprite_collision(&self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool;
+}
+
 pub struct GameEngine {
     sprites: Vec<Sprite>,
 }
@@ -84,14 +89,10 @@ impl GameEngine {
         }
     }
 
-    pub fn update_sprites<
-        D: FnMut(&mut GameEngine, usize),
-        C: Fn(&mut GameEngine, usize, usize) -> bool,
-    >(
+    pub fn update_sprites(
         &mut self,
         elapsed_milis:f64,
-        sprite_dying: &mut D,
-        sprite_collision: C,
+        callback: Option<&UpdateCallback>,
     ) {
         //log_string(format!("sprites={}", self.sprites.len()).as_str().as_bytes());
         //更新所有精灵
@@ -113,13 +114,15 @@ impl GameEngine {
             //处理 SA_KILL
             if sprite_action == SA_KILL {
                 //通知游戏精灵死亡
-                sprite_dying(self, i);
+                if callback.is_some(){
+                    callback.unwrap().on_sprite_dying(self, i);
+                }
                 //杀死精灵
                 sprites_to_kill.push(self.sprites[i].id.clone());
                 continue;
             }
 
-            if self.check_sprite_collision(i, &sprite_collision) {
+            if self.check_sprite_collision(i, callback) {
                 self.sprites[i].set_position_rect(old_sprite_pos);
             }
         }
@@ -130,10 +133,10 @@ impl GameEngine {
         }
     }
 
-    pub fn check_sprite_collision<C: Fn(&mut GameEngine, usize, usize) -> bool>(
+    pub fn check_sprite_collision(
         &mut self,
         test_sprite_id: usize,
-        sprite_collision: &C,
+        callback: Option<&UpdateCallback>,
     ) -> bool {
         //检查精灵是否和其他精灵相撞
         //let test_sprite = &self.sprites[test_sprite_id];
@@ -142,8 +145,8 @@ impl GameEngine {
             if i == test_sprite_id {
                 continue;
             }
-            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()) {
-                return sprite_collision(self, i, test_sprite_id);
+            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()) && callback.is_some(){
+                return callback.unwrap().on_sprite_collision(self, i, test_sprite_id);
             }
         }
         return false;

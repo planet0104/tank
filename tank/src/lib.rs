@@ -4,8 +4,8 @@ pub mod utils;
 pub mod engine;
 pub mod sprite;
 use uuid::Uuid;
-use engine::{GameContext, GameEngine};
-use sprite::{BitmapRes, Rect, Point, PointF, Sprite, BA_DIE, BA_WRAP};
+use engine::{GameContext, GameEngine, UpdateCallback};
+use sprite::{BitmapRes, Rect, PointF, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -47,9 +47,9 @@ pub const RES_SM_GUN_BITMAP: i32 = 4;
 pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 
-//pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
-pub const SERVER_IP:&str = "50.3.18.60:8080";
+//pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -135,10 +135,105 @@ thread_local!{
     pub static GAME: RefCell<TankGame> = RefCell::new(TankGame::new());
 }
 
+pub struct GameUpdateCallback{
+    events: Rc<Vec<(SpriteEvent, SpriteInfo)>>
+}
+impl UpdateCallback for GameUpdateCallback{
+    fn on_sprite_dying(&self, engine: &mut GameEngine, idx_sprite_dying:usize){
+        self.events.push(TankGame::get_event_info(SpriteEvent::Delete, &engine.sprites()[idx_sprite_dying]));
+        let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
+        //子弹精灵死亡添加小的爆炸精灵
+        if bitmap_id == RES_MISSILE_BITMAP{
+            let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_SM_EXPLOSION_BITMAP, true);
+            let pos = *engine.sprites()[idx_sprite_dying].position();
+            engine.sprites()[idx].set_position(pos.left, pos.top);
+            self.events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
+        }
+        //坦克死亡添加大的爆炸精灵
+        if bitmap_id == RES_TANK_BITMAP{
+            let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_LG_EXPLOSION_BITMAP, true);
+            let pos = *engine.sprites()[idx_sprite_dying].position();
+            engine.sprites()[idx].set_position(pos.left, pos.top);
+            self.events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
+            //增加凶手得分
+            let killer = engine.sprites()[idx_sprite_dying].killer();
+            if let Some(killer) = engine.query_sprite(&killer){
+                killer.add_score();
+                self.events.push(TankGame::get_event_info(SpriteEvent::Update, &killer));
+            }
+        }
+    }
+    fn on_sprite_collision(&self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool{
+        //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
+        //碰撞检测
+        
+        let (hitter_res, hitter_id, hitter_parent) = {
+            let hitter = &engine.sprites()[idx_sprite_hitter];
+            (hitter.bitmap().id(), hitter.id.clone(), hitter.parent.clone().unwrap_or("".to_string()))
+        };
+        let (hittee_res, hittee_id, hittee_parent) = {
+            let hittee = &engine.sprites()[idx_sprite_hittee];
+            (hittee.bitmap().id(), hittee.id.clone(), hittee.parent.clone().unwrap_or("".to_string()))
+        };
+        if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP {
+            //玩家碰到自己发射的子弹不会爆炸
+            if &hitter_parent == &hittee_id{
+                false
+            }else{
+                //子弹对应的玩家加分
+                let killer_name = if let Some(killer) = engine.query_sprite(&hitter_parent){
+                    killer.name().clone()
+                }else{
+                    String::new()
+                };
+                engine.sprites()[idx_sprite_hittee].set_killer(hitter_parent, killer_name);
+                //杀死相撞的子弹和坦克
+                engine.kill_sprite(idx_sprite_hittee);
+                engine.kill_sprite(idx_sprite_hitter);
+                true
+            }
+        } else if hitter_res == RES_TANK_BITMAP && hittee_res == RES_MISSILE_BITMAP {
+            //玩家碰到自己发射的子弹不会爆炸
+            if &hittee_parent == &hitter_id{
+                false
+            }else{
+                //子弹对应的玩家加分
+                let killer_name = if let Some(killer) = engine.query_sprite(&hittee_parent){
+                    killer.name().clone()
+                }else{
+                    String::new()
+                };
+                engine.sprites()[idx_sprite_hitter].set_killer(hittee_parent, killer_name);
+                //杀死相撞的子弹和坦克
+                engine.kill_sprite(idx_sprite_hittee);
+                engine.kill_sprite(idx_sprite_hitter);
+                true
+            }
+        } else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_MISSILE_BITMAP {
+            //检测子弹和子弹是否碰撞
+            //同一个玩家的子弹不会碰撞
+            if &hitter_parent != &hittee_parent{
+                engine.kill_sprite(idx_sprite_hittee);
+                engine.kill_sprite(idx_sprite_hitter);
+                true
+            }else{
+                false
+            }
+        } else if hittee_res == RES_TANK_BITMAP && hitter_res == RES_TANK_BITMAP{
+            //坦克之间不能互相穿过
+            engine.sprites()[idx_sprite_hitter].set_velocity(0.0,0.0);
+            self.events.push(TankGame::get_event_info(SpriteEvent::Update, &engine.sprites()[idx_sprite_hitter]));
+            true
+        }else {
+            false
+        }
+    }
+}
+
 pub struct TankGame {
     pub engine: GameEngine,
     client_context: Option<Rc<Box<GameContext>>>,
-    server_events: Vec<(SpriteEvent, SpriteInfo)>,
+    server_events: Rc<Vec<(SpriteEvent, SpriteInfo)>>,
     players: HashMap<String, Player>,
     client_player: Option<Player>,
     //client_messages: Vec<String>,
@@ -146,14 +241,16 @@ pub struct TankGame {
     client_dying_delay_ms: f64, //5秒重生
     last_timestamp: f64,
     leaders: Vec<(String, i32)>,
-    dying_players: Vec<(i32, String, String)>
+    dying_players: Vec<(i32, String, String)>,
+    update_callback: Box<GameUpdateCallback>
 }
 
 impl TankGame {
     fn new()->TankGame{
+        let events = Rc::new(vec![]);
         TankGame {
             engine: GameEngine::new(),
-            server_events: vec![],
+            server_events: events.clone(),
             players: HashMap::new(),
             client_player: None,
             client_context: None,
@@ -162,7 +259,8 @@ impl TankGame {
             client_dying_delay_ms: 0.0,
             last_timestamp: 0.0,
             leaders: vec![],
-            dying_players: vec![]
+            dying_players: vec![],
+            update_callback: Box::new(GameUpdateCallback{events})
         }
     }
 
@@ -294,7 +392,7 @@ impl TankGame {
 
         //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
         //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
-        self.engine.update_sprites(elapsed_ms, &mut |_, _| {}, |_, _, _| false);
+        self.engine.update_sprites(elapsed_ms, None);
         context.fill_style("#2e6da3");
         context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
         context.fill_style("#3e7daf");
@@ -384,7 +482,7 @@ impl TankGame {
                 score: 0
             },
         );
-        self.server_events.push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[sprite_index]));//添加事件
+        Rc::get_mut(&mut self.server_events).unwrap().push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[sprite_index]));//添加事件
         //println!("join_game {} {} 在线人数:{}", id, name, self.players.len());
     }
 
@@ -393,7 +491,7 @@ impl TankGame {
         //查找玩家id对应的精灵, 将其删除
         self.players.remove(id);
         if let Some(index) = self.engine.query_sprite_idx(id) {
-            self.server_events.push(TankGame::get_event_info(SpriteEvent::Delete, &self.engine.sprites()[index]));//事件
+            Rc::get_mut(&mut self.server_events).unwrap().push(TankGame::get_event_info(SpriteEvent::Delete, &self.engine.sprites()[index]));//事件
             self.engine.sprites().remove(index); //直接删除, 不kill
         }
         //println!("leave_game {} 在线人数:{}", id, self.players.len());
@@ -531,109 +629,7 @@ impl TankGame {
 
     //更新游戏
     pub fn server_update(&mut self, elapsed_milis: f64) {
-        let mut sprites_dying_events = vec![];
-        let mut sprites_add_events = vec![];
-
-        //更新游戏，并处理精灵死亡、碰撞检测回调
-        self.engine.update_sprites(elapsed_milis,
-            &mut |engine: &mut GameEngine, idx_sprite_dying| {
-                sprites_dying_events.push(TankGame::get_event_info(SpriteEvent::Delete, &engine.sprites()[idx_sprite_dying]));
-                let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
-                //子弹精灵死亡添加小的爆炸精灵
-                if bitmap_id == RES_MISSILE_BITMAP{
-                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_SM_EXPLOSION_BITMAP, true);
-                    let pos = *engine.sprites()[idx_sprite_dying].position();
-                    engine.sprites()[idx].set_position(pos.left, pos.top);
-                    sprites_add_events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
-                }
-                //坦克死亡添加大的爆炸精灵
-                if bitmap_id == RES_TANK_BITMAP{
-                    let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_LG_EXPLOSION_BITMAP, true);
-                    let pos = *engine.sprites()[idx_sprite_dying].position();
-                    engine.sprites()[idx].set_position(pos.left, pos.top);
-                    sprites_add_events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
-                    //增加凶手得分
-                    let killer = engine.sprites()[idx_sprite_dying].killer();
-                    if let Some(killer) = engine.query_sprite(&killer){
-                        killer.add_score();
-                        sprites_add_events.push(TankGame::get_event_info(SpriteEvent::Update, &killer));
-                    }
-                }
-            },
-            |engine, idx_sprite_hitter, idx_sprite_hittee| {
-                //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
-                //碰撞检测
-                
-                let (hitter_res, hitter_id, hitter_parent) = {
-                    let hitter = &engine.sprites()[idx_sprite_hitter];
-                    (hitter.bitmap().id(), hitter.id.clone(), hitter.parent.clone().unwrap_or("".to_string()))
-                };
-                let (hittee_res, hittee_id, hittee_parent) = {
-                    let hittee = &engine.sprites()[idx_sprite_hittee];
-                    (hittee.bitmap().id(), hittee.id.clone(), hittee.parent.clone().unwrap_or("".to_string()))
-                };
-                if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP {
-                    //玩家碰到自己发射的子弹不会爆炸
-                    if &hitter_parent == &hittee_id{
-                        false
-                    }else{
-                        //子弹对应的玩家加分
-                        let killer_name = if let Some(killer) = engine.query_sprite(&hitter_parent){
-                            killer.name().clone()
-                        }else{
-                            String::new()
-                        };
-                        engine.sprites()[idx_sprite_hittee].set_killer(hitter_parent, killer_name);
-                        //杀死相撞的子弹和坦克
-                        engine.kill_sprite(idx_sprite_hittee);
-                        engine.kill_sprite(idx_sprite_hitter);
-                        true
-                    }
-                } else if hitter_res == RES_TANK_BITMAP && hittee_res == RES_MISSILE_BITMAP {
-                    //玩家碰到自己发射的子弹不会爆炸
-                    if &hittee_parent == &hitter_id{
-                        false
-                    }else{
-                        //子弹对应的玩家加分
-                        let killer_name = if let Some(killer) = engine.query_sprite(&hittee_parent){
-                            killer.name().clone()
-                        }else{
-                            String::new()
-                        };
-                        engine.sprites()[idx_sprite_hitter].set_killer(hittee_parent, killer_name);
-                        //杀死相撞的子弹和坦克
-                        engine.kill_sprite(idx_sprite_hittee);
-                        engine.kill_sprite(idx_sprite_hitter);
-                        true
-                    }
-                } else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_MISSILE_BITMAP {
-                    //检测子弹和子弹是否碰撞
-                    //同一个玩家的子弹不会碰撞
-                    if &hitter_parent != &hittee_parent{
-                        engine.kill_sprite(idx_sprite_hittee);
-                        engine.kill_sprite(idx_sprite_hitter);
-                        true
-                    }else{
-                        false
-                    }
-                } else {
-                    false
-                }
-            },
-        );
-
-        //添加精灵事件
-        for e in sprites_add_events {
-            self.server_events.push(e);
-        }
-        //删除精灵事件
-        for e in sprites_dying_events {
-            //坦克死亡将玩家删除
-            if e.1.res_id == RES_TANK_BITMAP {
-                self.players.remove(&e.1.id);
-            }
-            self.server_events.push(e);
-        }
+        self.engine.update_sprites(elapsed_milis, Some(&self.update_callback));
     }
 
     //添加要分发的事件
