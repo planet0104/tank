@@ -375,6 +375,17 @@ impl Sprite {
                 let y = self.position.bottom as i32+20;
                 context.fill_text(&format!("{}{}", self.name, score), x, y);
             }
+            //绘制坦克生命值
+            let mut lives = String::new();
+            for _ in 0..self.lives{
+                //lives.push_str("❤️");
+                lives.push_str("♡");
+            }
+            context.fill_style(if self.lives>3{
+                "#ffff00"}else{
+                    "#ff0000"
+                });
+            context.fill_text(&lives, self.position.left as i32, self.position.bottom as  i32+40);
         }
     }
 

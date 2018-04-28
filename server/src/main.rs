@@ -68,12 +68,12 @@ fn main() {
                             println!("玩家连接 {}", uuid);
                             /*
                                 玩家连线，返回所有精灵列表
-                                SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
+                                SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame...\n...
                             */
                             let sprites = game.sprites();
                             let mut msg = format!("{}\n", SERVER_MSG_DATA);
                             for sprite in sprites{
-                                msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                                msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                                     sprite.id.clone(),
                                     sprite.bitmap().id(),
                                     sprite.position().left,
@@ -85,7 +85,8 @@ fn main() {
                                     sprite.current_frame(),
                                     sprite.name().clone(),
                                     sprite.score(),
-                                    sprite.killer_name()
+                                    sprite.killer_name(),
+                                    sprite.lives(),
                                 ));
                             }
                             //删掉最后一个换行键
@@ -140,7 +141,7 @@ fn main() {
                         //println!("分发事件 {:?}", events);
                         let mut msg = format!("{}\n", SERVER_MSG_EVENT);
                         for event in events{
-                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
+                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                                 event.0.to_i64(),
                                 event.1.id.clone(),
                                 event.1.res_id,
@@ -153,7 +154,8 @@ fn main() {
                                 event.1.current_frame,
                                 event.1.name,
                                 event.1.score,
-                                event.1.killer_name
+                                event.1.killer_name,
+                                event.1.lives
                             ));
                         }
                         //删掉最后一个换行键
