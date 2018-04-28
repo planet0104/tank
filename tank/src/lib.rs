@@ -52,9 +52,9 @@ pub const PLAYER_LIVES :u32 = 6; //生命值
 pub const TANK_BITMAP_WIDTH:i32 = 57;
 pub const TANK_BITMAP_HEIGHT:i32 = 57;
 
-pub const SERVER_IP:&str = "127.0.0.1:8080";
+//pub const SERVER_IP:&str = "127.0.0.1:8080";
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
-//pub const SERVER_IP:&str = "50.3.18.60:8080";
+pub const SERVER_IP:&str = "50.3.18.60:8080";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -692,7 +692,7 @@ impl TankGame {
         //随机出现一个护士
         if self.next_nurse_time == 0.0{
             self.next_nurse_time = self.time_elpased_ms + (rand_int(8, 15) *1000) as f64;
-            println!("self.next_nurse_time={}", self.next_nurse_time);
+            //println!("self.next_nurse_time={}", self.next_nurse_time);
         }
         if self.time_elpased_ms>= self.next_nurse_time{
             //有玩家的时候随机产生护士
