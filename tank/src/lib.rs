@@ -134,36 +134,43 @@ TankGame提供所有游戏更新方法
 thread_local!{
     pub static GAME: RefCell<TankGame> = RefCell::new(TankGame::new());
 }
-
-pub struct GameUpdateCallback{
-    events: Rc<Vec<(SpriteEvent, SpriteInfo)>>
+//客户端游戏更新(不做任何处理)
+pub struct ClientUpdateCallback{}
+impl UpdateCallback for ClientUpdateCallback{
+    fn on_sprite_dying(&mut self, _engine: &mut GameEngine, _idx_sprite_dying:usize){}
+    fn on_sprite_collision(&mut self, _engine: &mut GameEngine, _idx_sprite_hitter:usize, _idx_sprite_hittee:usize)->bool{ false }
 }
-impl UpdateCallback for GameUpdateCallback{
-    fn on_sprite_dying(&self, engine: &mut GameEngine, idx_sprite_dying:usize){
-        self.events.push(TankGame::get_event_info(SpriteEvent::Delete, &engine.sprites()[idx_sprite_dying]));
+
+//服务器端游戏更新
+pub struct ServerUpdateCallback{
+    events: Rc<RefCell<Vec<(SpriteEvent, SpriteInfo)>>>
+}
+impl UpdateCallback for ServerUpdateCallback{
+    fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying:usize){
+        self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Delete, &engine.sprites()[idx_sprite_dying]));
         let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
         //子弹精灵死亡添加小的爆炸精灵
         if bitmap_id == RES_MISSILE_BITMAP{
             let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_SM_EXPLOSION_BITMAP, true);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
-            self.events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
+            self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
         }
         //坦克死亡添加大的爆炸精灵
         if bitmap_id == RES_TANK_BITMAP{
             let idx = TankGame::add_sprite(engine, Uuid::new_v4().hyphenated().to_string(), RES_LG_EXPLOSION_BITMAP, true);
             let pos = *engine.sprites()[idx_sprite_dying].position();
             engine.sprites()[idx].set_position(pos.left, pos.top);
-            self.events.push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
+            self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
             //增加凶手得分
             let killer = engine.sprites()[idx_sprite_dying].killer();
             if let Some(killer) = engine.query_sprite(&killer){
                 killer.add_score();
-                self.events.push(TankGame::get_event_info(SpriteEvent::Update, &killer));
+                self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &killer));
             }
         }
     }
-    fn on_sprite_collision(&self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool{
+    fn on_sprite_collision(&mut self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool{
         //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
         //碰撞检测
         
@@ -222,7 +229,7 @@ impl UpdateCallback for GameUpdateCallback{
         } else if hittee_res == RES_TANK_BITMAP && hitter_res == RES_TANK_BITMAP{
             //坦克之间不能互相穿过
             engine.sprites()[idx_sprite_hitter].set_velocity(0.0,0.0);
-            self.events.push(TankGame::get_event_info(SpriteEvent::Update, &engine.sprites()[idx_sprite_hitter]));
+            self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &engine.sprites()[idx_sprite_hitter]));
             true
         }else {
             false
@@ -233,34 +240,32 @@ impl UpdateCallback for GameUpdateCallback{
 pub struct TankGame {
     pub engine: GameEngine,
     client_context: Option<Rc<Box<GameContext>>>,
-    server_events: Rc<Vec<(SpriteEvent, SpriteInfo)>>,
+    server_events: Rc<RefCell<Vec<(SpriteEvent, SpriteInfo)>>>,
     players: HashMap<String, Player>,
     client_player: Option<Player>,
-    //client_messages: Vec<String>,
-    //client_key_events: Vec<(KeyEvent, i32)>,
     client_dying_delay_ms: f64, //5秒重生
     last_timestamp: f64,
     leaders: Vec<(String, i32)>,
     dying_players: Vec<(i32, String, String)>,
-    update_callback: Box<GameUpdateCallback>
+    server_update_callback: Rc<RefCell<ServerUpdateCallback>>,
+    client_update_callback: Rc<RefCell<ClientUpdateCallback>>
 }
 
 impl TankGame {
     fn new()->TankGame{
-        let events = Rc::new(vec![]);
+        let events = Rc::new(RefCell::new(vec![]));
         TankGame {
             engine: GameEngine::new(),
             server_events: events.clone(),
             players: HashMap::new(),
             client_player: None,
             client_context: None,
-            //client_messages: vec![],
-            //client_key_events: vec![],
             client_dying_delay_ms: 0.0,
             last_timestamp: 0.0,
             leaders: vec![],
             dying_players: vec![],
-            update_callback: Box::new(GameUpdateCallback{events})
+            server_update_callback: Rc::new(RefCell::new(ServerUpdateCallback{events})),
+            client_update_callback: Rc::new(RefCell::new(ClientUpdateCallback{})),
         }
     }
 
@@ -392,7 +397,7 @@ impl TankGame {
 
         //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
         //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
-        self.engine.update_sprites(elapsed_ms, None);
+        self.engine.update_sprites(elapsed_ms, self.client_update_callback.clone());
         context.fill_style("#2e6da3");
         context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
         context.fill_style("#3e7daf");
@@ -482,7 +487,7 @@ impl TankGame {
                 score: 0
             },
         );
-        Rc::get_mut(&mut self.server_events).unwrap().push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[sprite_index]));//添加事件
+        self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[sprite_index]));//添加事件
         //println!("join_game {} {} 在线人数:{}", id, name, self.players.len());
     }
 
@@ -491,7 +496,7 @@ impl TankGame {
         //查找玩家id对应的精灵, 将其删除
         self.players.remove(id);
         if let Some(index) = self.engine.query_sprite_idx(id) {
-            Rc::get_mut(&mut self.server_events).unwrap().push(TankGame::get_event_info(SpriteEvent::Delete, &self.engine.sprites()[index]));//事件
+            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Delete, &self.engine.sprites()[index]));//事件
             self.engine.sprites().remove(index); //直接删除, 不kill
         }
         //println!("leave_game {} 在线人数:{}", id, self.players.len());
@@ -629,7 +634,7 @@ impl TankGame {
 
     //更新游戏
     pub fn server_update(&mut self, elapsed_milis: f64) {
-        self.engine.update_sprites(elapsed_milis, Some(&self.update_callback));
+        self.engine.update_sprites(elapsed_milis, self.server_update_callback.clone());
     }
 
     //添加要分发的事件
@@ -704,27 +709,27 @@ impl TankGame {
                                 }
                                 _ => {}
                             }}
-                            self.server_events.push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[missile_idx]));
+                            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &self.engine.sprites()[missile_idx]));
                         }
                         VK_LEFT => {
                             self.engine.sprites()[idx].set_current_frame(2);
                             self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0.0);
-                            self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_RIGHT => {
                             self.engine.sprites()[idx].set_current_frame(3);
                             self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0.0);
-                            self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_UP => {
                             self.engine.sprites()[idx].set_current_frame(0);
                             self.engine.sprites()[idx].set_velocity(0.0, -TANK_VELOCITY);
-                            self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         VK_DOWN => {
                             self.engine.sprites()[idx].set_current_frame(1);
                             self.engine.sprites()[idx].set_velocity(0.0, TANK_VELOCITY);
-                            self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                            self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
                         other => {
                             println!("未定义按键 {}", other);
@@ -747,7 +752,7 @@ impl TankGame {
                         }
                     };
                     if do_update {
-                        self.server_events.push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                        self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                     }
                 }
             }
@@ -756,8 +761,8 @@ impl TankGame {
         }
     }
 
-    pub fn events(&mut self) -> &mut Vec<(SpriteEvent, SpriteInfo)> {
-        &mut self.server_events
+    pub fn events(&mut self) -> Rc<RefCell<Vec<(SpriteEvent, SpriteInfo)>>> {
+        self.server_events.clone()
     }
 
     pub fn sprites(&mut self) -> &Vec<Sprite> {

@@ -2,6 +2,8 @@ extern crate websocket;
 extern crate futures;
 extern crate tokio_core;
 extern crate tank;
+extern crate hyper;
+mod ws_server;
 use tank::utils::{duration_to_milis};
 use tank::{
     GAME,
@@ -20,7 +22,7 @@ use tank::{
 
 use websocket::message::OwnedMessage;
 use websocket::server::InvalidConnection;
-use websocket::async::Server;
+use ws_server::WsServer;
 use std::sync::mpsc::{Sender, Receiver, channel};
 
 use tokio_core::reactor::{Core, Remote};
@@ -43,7 +45,7 @@ fn main() {
     //其他线程的 handle
     let remote = core.remote();
 	// 绑定服务器
-	let server = Server::bind(SERVER_IP, &handle).unwrap();
+	let server = WsServer::bind(SERVER_IP, &handle).unwrap();
 
     //启动游戏线程
     let remote_clone = remote.clone();
@@ -51,14 +53,14 @@ fn main() {
     let builder = thread::Builder::new().name("tank_game".into());
     let _gs  = builder.spawn(move || {
         GAME.with(|game|{
-            let mut total_frames = 0;
+            //let mut total_frames = 0;
             let start_time = Instant::now();
             let mut last_time = start_time.elapsed();
             let mut game = game.borrow_mut();
             loop{
                 let timestamp = start_time.elapsed();
                 let elapsed_ms = timestamp-last_time;
-                let now = Instant::now();
+                //let now = Instant::now();
                 //处理websocket传来的消息
                 if let Ok((msg_id, uuid, data)) = game_receiver.try_recv(){
                     match msg_id{
@@ -131,8 +133,9 @@ fn main() {
                     游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
                     SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
                 */
+                let game_events = game.events();
                 {
-                    let events = game.events();
+                    let events = &*game_events.borrow_mut();
                     if events.len()>0{
                         //println!("分发事件 {:?}", events);
                         let mut msg = format!("{}\n", SERVER_MSG_EVENT);
@@ -168,24 +171,28 @@ fn main() {
                     }
                 }
                 //清空事件
-                game.events().clear();
+                game_events.borrow_mut().clear();
                 last_time = timestamp;
                 thread::park_timeout(Duration::from_millis(20));
-                total_frames += 1;
-                if total_frames%(50*60) == 0{
-                    println!("now={:?}", now.elapsed());
-                }
+                //total_frames += 1;
+                // if total_frames%(50*60) == 0{
+                //     println!("now={:?}", now.elapsed());
+                // }
             }
         });
     });
-
+    
     //构建服务器的future
     //这将是一个包含服务器将要做的所有事情的结构
     //传入连接的流
 	let f = server.incoming()
-        //过滤掉无效的连接流
-        .map_err(|InvalidConnection { error, .. }| error)
+        .map_err(|InvalidConnection { error, .. }|{ error})
         .for_each(|(upgrade, _addr)| {
+            if upgrade.key().is_none(){
+                return Ok(());
+            }
+            println!("客户端连接>>>>>>>>>>>>>");
+
             //根据key生成uuid
             let uuid = {
                 let key = upgrade.key().unwrap();

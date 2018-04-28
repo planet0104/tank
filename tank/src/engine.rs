@@ -1,5 +1,6 @@
 use sprite::{Sprite, SA_KILL};
 use std::rc::Rc;
+use std::cell::RefCell;
 use ::KeyEvent;
 //GameEngine 绘制和更新精灵
 pub trait GameContext {
@@ -54,8 +55,8 @@ pub trait GameContext {
 }
 
 pub trait UpdateCallback{
-    fn on_sprite_dying(&self, engine: &mut GameEngine, idx_sprite_dying:usize);
-    fn on_sprite_collision(&self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool;
+    fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying:usize);
+    fn on_sprite_collision(&mut self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool;
 }
 
 pub struct GameEngine {
@@ -89,10 +90,10 @@ impl GameEngine {
         }
     }
 
-    pub fn update_sprites(
+    pub fn update_sprites<C: UpdateCallback>(
         &mut self,
         elapsed_milis:f64,
-        callback: Option<&UpdateCallback>,
+        callback: Rc<RefCell<C>>,
     ) {
         //log_string(format!("sprites={}", self.sprites.len()).as_str().as_bytes());
         //更新所有精灵
@@ -114,15 +115,13 @@ impl GameEngine {
             //处理 SA_KILL
             if sprite_action == SA_KILL {
                 //通知游戏精灵死亡
-                if callback.is_some(){
-                    callback.unwrap().on_sprite_dying(self, i);
-                }
+                callback.borrow_mut().on_sprite_dying(self, i);
                 //杀死精灵
                 sprites_to_kill.push(self.sprites[i].id.clone());
                 continue;
             }
 
-            if self.check_sprite_collision(i, callback) {
+            if self.check_sprite_collision(i, &callback) {
                 self.sprites[i].set_position_rect(old_sprite_pos);
             }
         }
@@ -133,10 +132,10 @@ impl GameEngine {
         }
     }
 
-    pub fn check_sprite_collision(
+    pub fn check_sprite_collision<C: UpdateCallback>(
         &mut self,
         test_sprite_id: usize,
-        callback: Option<&UpdateCallback>,
+        callback: &Rc<RefCell<C>>,
     ) -> bool {
         //检查精灵是否和其他精灵相撞
         //let test_sprite = &self.sprites[test_sprite_id];
@@ -145,8 +144,8 @@ impl GameEngine {
             if i == test_sprite_id {
                 continue;
             }
-            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()) && callback.is_some(){
-                return callback.unwrap().on_sprite_collision(self, i, test_sprite_id);
+            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()){
+                return callback.borrow_mut().on_sprite_collision(self, i, test_sprite_id);
             }
         }
         return false;
