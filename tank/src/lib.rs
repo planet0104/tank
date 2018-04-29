@@ -56,7 +56,7 @@ pub const TANK_BITMAP_HEIGHT:i32 = 57;
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 //pub const SERVER_IP:&str = "50.3.18.60:8080";
 pub const SERVER_IP:&str = "172.31.33.204:8414";
-pub const CLIENT_IP:&str = "54.29.68.59:8414";
+pub const CLIENT_IP:&str = "54.249.68.59:8414";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
