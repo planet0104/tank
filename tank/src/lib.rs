@@ -56,6 +56,7 @@ pub const TANK_BITMAP_HEIGHT:i32 = 57;
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 //pub const SERVER_IP:&str = "50.3.18.60:8080";
 pub const SERVER_IP:&str = "172.31.33.204:8414";
+pub const CLIENT_IP:&str = "54.29.68.59:8414";
 
 pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -355,8 +356,7 @@ impl TankGame {
         if num == total {
             //资源加载完成, 启动游戏循环
             context.request_animation_frame();
-            //connect("ws://50.3.18.60:8080");
-            context.connect(&format!("ws://{}", SERVER_IP));
+            context.connect(&format!("ws://{}", CLIENT_IP));
         }
     }
 
