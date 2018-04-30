@@ -162,7 +162,7 @@ fn main() {
 
                         //广播
                         let mut keys = vec![];
-                        for key in connections_clone.read().unwrap().keys(){   
+                        for key in connections_clone.read().unwrap().keys(){
                             keys.push(key.clone());
                         }
 
@@ -243,7 +243,9 @@ fn main() {
                                     let _ = game_sender_clone.send((MSG_ID_ERR, uuid, "".to_string()));
                                 }
                                 OwnedMessage::Close(_) => {
-                                   //玩家下线
+                                    //玩家下线
+                                    //删除sink
+                                    connections_clone.write().unwrap().remove(&uuid.clone());
                                     let _ = game_sender_clone.send((MSG_DISCONNECT, uuid, "".to_string()));
                                 }
                                 _ => {},
