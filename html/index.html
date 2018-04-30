@@ -40,6 +40,54 @@
     }else{
         append_js("wasm_client.js");
     }
+
+    /**
+    * 产生L到B之间的随机整数
+    */
+    Math.randInt = function (L, B) {
+        return Math.floor( Math.random()*(B - L + 1)) + L;
+    };
+
+    //随机移动
+    function random_move(){
+        //随机走一段距离
+        if (Math.random()>0.75){
+            var keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
+            var idx = Math.randInt(0, 3);
+            var event = new Event('keydown');
+            event.key = keys[idx];
+            document.dispatchEvent(event);
+        
+            setTimeout(() => {
+                var event = new Event('keyup');
+                event.key = keys[idx];
+                document.dispatchEvent(event);
+            }, Math.randInt(500, 3000));
+        }
+    }
+
+    //随机发射炮弹
+    function random_fire(){
+        if (Math.random()>0.75){
+            var event = new Event('keydown');
+            event.key = " ";
+            document.dispatchEvent(event);
+
+            var event = new Event('keyup');
+            event.key = " ";
+            document.dispatchEvent(event);
+        }
+    }
+
+    function random_action(){
+        random_move();
+        random_fire();
+    }
+
+    // setInterval(() => {
+    //     random_action();
+    // }, 400);
+    
 </script>
 </body>
 </html>

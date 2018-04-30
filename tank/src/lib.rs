@@ -14,7 +14,7 @@ use std::fmt::Display;
 use std::fmt::Debug;
 
 //socket消息
-pub const MSG_CONNECT: i32 = 1;
+pub const MSG_PULL: i32 = 1;
 pub const MSG_DISCONNECT: i32 = 2;
 pub const MSG_START: i32 = 3;
 pub const MSG_KEY_EVENT: i32 = 4;
@@ -52,13 +52,15 @@ pub const PLAYER_LIVES :u32 = 6; //生命值
 pub const TANK_BITMAP_WIDTH:i32 = 57;
 pub const TANK_BITMAP_HEIGHT:i32 = 57;
 
-//pub const SERVER_IP:&str = "127.0.0.1:8080";
+// pub const SERVER_IP:&str = "127.0.0.1:8080";
+// pub const CLIENT_IP:&str = "127.0.0.1:8080";
+
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
-//pub const SERVER_IP:&str = "50.3.18.60:8080";
+
 pub const SERVER_IP:&str = "172.31.33.204:8414";
 pub const CLIENT_IP:&str = "54.249.68.59:8414";
 
-pub const GMAE_TITLE: &'static str = "Tank";
+//pub const GMAE_TITLE: &'static str = "Tank";
 
 #[derive(Debug)]
 pub enum KeyEvent {
@@ -130,6 +132,17 @@ pub struct Player {
     pub score: i32,
 }
 
+impl Player{
+    pub fn empty()->Player{
+        Player{
+            uuid: String::new(),
+            name: String::new(),
+            killer_name: String::new(),
+            score: 0
+        }
+    }
+}
+
 /*
 游戏循环由服务器和客户端各自执行(HTML5中游戏循环需要调用request_animation_frame)
 TankGame提供所有游戏更新方法
@@ -171,9 +184,23 @@ impl UpdateCallback for ServerUpdateCallback{
             engine.sprites()[idx].set_position(pos.left, pos.top);
             self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
             //增加凶手得分
+            let dying_name = engine.sprites()[idx_sprite_dying].name().clone();
             let killer = engine.sprites()[idx_sprite_dying].killer();
             if let Some(killer) = engine.query_sprite(&killer){
                 killer.add_score();
+                //println!("{}杀死了{}", killer.name(), dying_name);
+                self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &killer));
+            }
+        }
+        //护士死亡
+        if bitmap_id == RES_NURSE_BITMAP{
+            //子弹对应的玩家增加生命值
+            let killer = engine.sprites()[idx_sprite_dying].killer();
+            if let Some(killer) = engine.query_sprite(&killer){
+                let lives = killer.lives();
+                if lives<6{
+                    killer.set_lives(lives+1);
+                }
                 self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &killer));
             }
         }
@@ -242,6 +269,17 @@ impl UpdateCallback for ServerUpdateCallback{
                     true
                 }
             }
+        }else if hitter_res == RES_NURSE_BITMAP && hittee_res == RES_MISSILE_BITMAP ||
+            hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_NURSE_BITMAP{
+            //子弹和护士相撞, 玩家血量+1
+            engine.sprites()[idx_sprite_hitter].kill();
+            engine.sprites()[idx_sprite_hitter].set_killer(
+                match hitter_res{
+                    RES_NURSE_BITMAP => hittee_parent,
+                    _ => hitter_parent
+                }
+                , String::new());
+            true
         }else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_MISSILE_BITMAP {
             //检测子弹和子弹是否碰撞
             //同一个玩家的子弹不会碰撞
@@ -320,15 +358,15 @@ impl TankGame {
             name.chars().take(4).collect::<String>()
         };
         
-        context.console_log(&format!("玩家姓名:{}", name));
+        context.console_log(&format!("客户端连接成功 玩家姓名:{}", name));
         self.client_player = Some(Player{
             uuid: String::new(),
             name: name.clone(),
             killer_name: String::new(),
             score: 0,
         });
-        self.console_log_1("send_message", &format!("{}\n{}", MSG_START, name));
-        context.send_message(&format!("{}\n{}", MSG_START, name));
+        //拉取精灵列表
+        context.send_message(&format!("{}\n", MSG_PULL));
     }
 
     pub fn client_on_resource_load(&self, num: i32, total: i32){
@@ -454,7 +492,7 @@ impl TankGame {
         // }
         context.fill_style("#fff");
         context.set_canvas_font("22px 微软雅黑");
-        context.fill_text(&format!("在线玩家:{}", self.players.len()), 10, 40);
+        context.fill_text(&format!("{}在线玩家:{}", self.client_player.as_ref().unwrap_or(&Player::empty()).name, self.players.len()), 10, 40);
 
         //前三名
         let mut lead = 1;
@@ -493,8 +531,8 @@ impl TankGame {
             if self.client_dying_delay_ms <= 0.0{
                 //重新加入游戏
                 let player = self.client_player.as_mut().unwrap();
-                //player.uuid = String::new();
-                context.send_message(&format!("{}\n{}", 3, player.name));
+                context.console_log(&format!("重新加入游戏 MSG_ID={} player={}", MSG_START, player.name));
+                context.send_message(&format!("{}\n{}", MSG_START, player.name));
             }
         }
         self.last_timestamp = timestamp;
@@ -503,7 +541,8 @@ impl TankGame {
 
     //玩家加入游戏
     pub fn server_join_game(&mut self, id: String, name: String) {
-        //println!("join_game: {} {}", id, name.clone());
+        //println!("{}加入游戏 id:{}", name.clone(), id);
+        //println!("{}加入游戏", name.clone());
         //添加坦克精灵
         let sprite_index =
             TankGame::add_sprite(&mut self.engine, id.clone(), RES_TANK_BITMAP, true);
@@ -692,12 +731,11 @@ impl TankGame {
         self.time_elpased_ms += elapsed_milis;
         //随机出现一个护士
         if self.next_nurse_time == 0.0{
-            self.next_nurse_time = self.time_elpased_ms + (rand_int(8, 15) *1000) as f64;
-            //println!("self.next_nurse_time={}", self.next_nurse_time);
+            self.next_nurse_time = self.time_elpased_ms + (rand_int(5, 10) *1000) as f64;
         }
         if self.time_elpased_ms>= self.next_nurse_time{
             //有玩家的时候随机产生护士
-            if self.players.len()>0{
+            if self.players.len()>1{
                 let sprite_index = TankGame::add_sprite(&mut self.engine, Uuid::new_v4().hyphenated().to_string(), RES_NURSE_BITMAP, true);
                 //随机速度 velocity = 0.05~0.2
                 let velocity = rand_int(5, 20)as f64/100.0;
@@ -826,8 +864,8 @@ impl TankGame {
                             self.engine.sprites()[idx].set_velocity(0.0, TANK_VELOCITY);
                             self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
                         }
-                        other => {
-                            println!("未定义按键 {}", other);
+                        _other => {
+                            //println!("未定义按键 {}", other);
                         }
                     }
                 }
@@ -852,7 +890,7 @@ impl TankGame {
                 }
             }
         }else{
-            println!("没有找到ID {}", sprite_id);
+            //println!("没有找到ID {}", sprite_id);
         }
     }
 
@@ -955,7 +993,11 @@ impl TankGame {
                             match event{
                                 SpriteEvent::Delete => {
                                     let mut player = self.client_player.as_mut().unwrap();
+                                    if info.res_id == RES_TANK_BITMAP{
+                                        context.console_log(&format!("SpriteEvent::Delete info.id={}[{}] player.uuid={}[{}]", info.id, info.name, player.uuid, player.name));
+                                    }
                                     if info.id == player.uuid{
+                                        context.console_log("开始死亡倒计时");
                                         player.killer_name = info.killer_name.clone();
                                         self.client_dying_delay_ms = 5000.0;
                                     }
@@ -967,15 +1009,23 @@ impl TankGame {
                         }
                     }
                 },
-                SERVER_MSG_UUID => {
-                    self.client_player.as_mut().unwrap().uuid = data.to_string();
-                    context.console_log(&format!("client.uuid={}", self.client_player.as_ref().unwrap().uuid));
-                },
+                // SERVER_MSG_UUID => {
+                //     self.client_player.as_mut().unwrap().uuid = data.to_string();
+                //     context.console_log(&format!("client.uuid={}", self.client_player.as_ref().unwrap().uuid));
+                // },
                 SERVER_MSG_DATA => {
                     context.console_log("绘制所有精灵");
                     //绘制所有精灵
                     //ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n
-                    let sprites:Vec<&str> = data.split('\n').collect();
+                    let mut sprites:Vec<&str> = data.split('\n').collect();
+
+                    //提取uuid
+                    self.client_player.as_mut().unwrap().uuid = String::from(sprites.remove(0));
+                    context.console_log(&format!("UUID={}", self.client_player.as_ref().unwrap().uuid));
+                    //数据拉取成功, 加入游戏
+                    //self.console_log_1("send_message", &format!("{}\n{}", MSG_START, name));
+                    context.send_message(&format!("{}\n{}", MSG_START, self.client_player.as_ref().unwrap().name));
+
                     for sprite in sprites{
                         let items:Vec<&str> = sprite.split('␟').collect();
                         if items.len() != 13{ return; }

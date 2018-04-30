@@ -9,7 +9,7 @@ use tank::{
     GAME,
     SERVER_IP,
     KeyEvent,
-    MSG_CONNECT,
+    MSG_PULL,
     MSG_DISCONNECT,
     MSG_START,
     MSG_KEY_EVENT,
@@ -64,14 +64,14 @@ fn main() {
                 //处理websocket传来的消息
                 if let Ok((msg_id, uuid, data)) = game_receiver.try_recv(){
                     match msg_id{
-                        MSG_CONNECT => {
-                            println!("玩家连接 {}", uuid);
+                        MSG_PULL => {
+                            //println!("玩家连接 {}", uuid);
                             /*
                                 玩家连线，返回所有精灵列表
                                 SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame...\n...
                             */
                             let sprites = game.sprites();
-                            let mut msg = format!("{}\n", SERVER_MSG_DATA);
+                            let mut msg = format!("{}\n{}\n", SERVER_MSG_DATA, uuid);
                             for sprite in sprites{
                                 msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
                                     sprite.id.clone(),
@@ -96,7 +96,6 @@ fn main() {
 
                         MSG_START => {
                             //玩家加入游戏
-                            //println!("join_game {} {}", uuid, data);
                             game.server_join_game(uuid, data);
                         }
 
@@ -193,7 +192,6 @@ fn main() {
             if upgrade.key().is_none(){
                 return Ok(());
             }
-            println!("客户端连接>>>>>>>>>>>>>");
 
             //根据key生成uuid
             let uuid = {
@@ -201,7 +199,8 @@ fn main() {
                 format!("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
                  key[0],key[1],key[1],key[3],key[4],key[5],key[6],key[7],key[9],key[9],key[10],key[11],key[12],key[13],key[14],key[15])
             };
-            let uuid_map = uuid.clone();
+            println!("客户端连接. UUID={}", uuid);
+            //let uuid_map = uuid.clone();
 
             let handle_clone = handle.clone();
             let connections_clone = connections.clone();
@@ -209,23 +208,23 @@ fn main() {
             let f = upgrade
                 .accept()
                 // 发送uuid到客户端
-                .and_then(move |(s, _)|{
-                    println!("客户端连接: uuid={}", uuid);
-                    s.send(OwnedMessage::Text(format!("{}\n{}", SERVER_MSG_UUID, uuid)))
-                })
+                // .and_then(move |(s, _)|{
+                //     println!("下发UUID {}", uuid);
+                //     s.send(OwnedMessage::Text(format!("{}\n{}", SERVER_MSG_UUID, uuid)))
+                // })
                 // 处理客户端发来的消息
-                .and_then(move |s| {
+                .and_then(move |(s, _)| {
                     let (sink, stream) = s.split();
                     //将sink存入hahsmap
-                    connections_clone.write().unwrap().insert(uuid_map.clone(), sink);
+                    connections_clone.write().unwrap().insert(uuid.clone(), sink);
                     //用户上线
-                    let _ = game_sender_clone.send((MSG_CONNECT, uuid_map.clone(), "".to_string()));
+                    //let _ = game_sender_clone.send((MSG_CONNECT, uuid.clone(), "".to_string()));
                     handle_clone.spawn(
                         stream.for_each(move |msg| {
-                            let uuid = uuid_map.clone();
+                            let uuid = uuid.clone();
                             match msg {
                                 OwnedMessage::Text(text) =>{
-                                    //         //println!("on_message:{:?}", msg);
+                                    //println!("on_message:{}", text);
                                     /*
                                         服务器端接收的消息:
                                             玩家加入游戏=> MSG_START\nNAME
