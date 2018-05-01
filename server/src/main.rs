@@ -193,6 +193,7 @@ fn main() {
 
 			let connections_clone = ws_connections.clone();
 			for message in receiver.incoming_messages() {
+                info!("on message:{:?}", message);
 				if message.is_err(){
 					info!("消息错误: {:?}", message.err());
 					return;
@@ -201,7 +202,7 @@ fn main() {
 
 				match message {
 					OwnedMessage::Text(text) =>{
-						info!("on text message:{}", text);
+						//info!("on text message:{}", text);
                         /*
                             服务器端接收的消息:
                                 玩家加入游戏=> MSG_START\nNAME
