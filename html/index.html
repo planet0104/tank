@@ -40,8 +40,10 @@
         }
     };
 
-    if(!support_webassembly() || is_QQInnerBro()){
-        console.log('不支持Webassembly.');
+    var useasmjs = is_QQInnerBro() && navigator.userAgent.indexOf("iPhone")>-1;
+
+    if(!support_webassembly() || useasmjs){
+        //console.log('不支持Webassembly.');
         //加载asmjs版本 asmjs_client.js asmjs_imports.js
         append_js("asmjs_imports.js");
         append_js("asmjs_client.js");
@@ -98,7 +100,7 @@
         }, 400);
     }
 
-    _start();
+    //_start();
     
 </script>
 </body>

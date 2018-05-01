@@ -93,7 +93,7 @@ fn main() {
                         }
 
                         MSG_START => {
-                            info!("join_game {} {}", uuid, data);
+                            //info!("join_game {} {}", uuid, data);
                             //玩家加入游戏
                             game.server_join_game(uuid, data);
                         }
@@ -136,7 +136,7 @@ fn main() {
                 {
                     let events = &*game_events.borrow_mut();
                     if events.len()>0{
-                        info!("分发事件 {:?}", events);
+                        //info!("分发事件 {:?}", events);
                         let mut msg = format!("{}\n", SERVER_MSG_EVENT);
                         for event in events{
                             msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
@@ -193,7 +193,7 @@ fn main() {
 
 			let connections_clone = ws_connections.clone();
 			for message in receiver.incoming_messages() {
-                info!("on message:{:?}", message);
+                //info!("on message:{:?}", message);
 				if message.is_err(){
 					info!("消息错误: {:?}", message.err());
                     break;
@@ -240,7 +240,7 @@ fn main() {
 }
 
 fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String, message:String){
-    info!("send_message: {} to {}", message, uuid);
+    //info!("send_message: {} to {}", message, uuid);
     let mut connections = connections.write().unwrap();
     if !connections.contains_key(uuid){
         info!("uuid不存在 {}", uuid);
@@ -260,7 +260,7 @@ fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String,
 }
 
 fn broad_cast_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message:String){
-    info!("broad_cast_message: {}", message);
+    //info!("broad_cast_message: {}", message);
     let mut aborted_connections = vec![];
     let message = OwnedMessage::Text(message);
     for (addr, sender) in connections.write().unwrap().iter_mut(){
