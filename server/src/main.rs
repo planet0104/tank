@@ -193,10 +193,10 @@ fn main() {
 
 			let connections_clone = ws_connections.clone();
 			for message in receiver.incoming_messages() {
-                info!("on message:{:?}", message);
+                //info!("on message:{:?}", message);
 				if message.is_err(){
 					info!("消息错误: {:?}", message.err());
-					return;
+                    break;
 				}
 				let message = message.unwrap();
 
@@ -219,7 +219,7 @@ fn main() {
                             }
                         }
                         let _ = game_sender_clone.send((MSG_ID_ERR, ip.to_string(), "".to_string()));
-                        info!("on_message Ok.");
+                        //info!("on_message Ok.");
 					}
 					OwnedMessage::Close(_) => {
 						info!("Client {} Close断开连接", ip);
@@ -240,14 +240,14 @@ fn main() {
 }
 
 fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String, message:String){
-    println!("send_message: {} to {}", message, uuid);
+    info!("send_message: {} to {}", message, uuid);
     let mut connections = connections.write().unwrap();
     if !connections.contains_key(uuid){
         info!("uuid不存在 {}", uuid);
         return;
     }
     if let Err(err) = connections.get_mut(uuid).unwrap().send_message(&OwnedMessage::Text(message)){
-        info!("消息发泄失败: {:?}", err);
+        info!("消息发送失败: {:?}", err);
         match err{
             WebSocketError::IoError(err) => {
                 if err.kind() == ErrorKind::ConnectionAborted{
@@ -260,7 +260,7 @@ fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String,
 }
 
 fn broad_cast_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message:String){
-    println!("broad_cast_message: {}", message);
+    //info!("broad_cast_message: {}", message);
     let mut aborted_connections = vec![];
     let message = OwnedMessage::Text(message);
     for (addr, sender) in connections.write().unwrap().iter_mut(){
