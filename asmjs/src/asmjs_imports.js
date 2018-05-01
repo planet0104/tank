@@ -64,6 +64,7 @@ let game_pad_button_a = document.getElementById("game_pad_button_a");
 let game_pad_button_b = document.getElementById("game_pad_button_b");
 game_pad_direction.status = 0; // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
 var game_pad_direction_active = function(event){
+    event.preventDefault();
     //方向按钮按下 判断按钮方向
     let x = (event.type=="click"? event.clientX : event.touches[0].clientX) - game_pad.offsetLeft - game_pad_direction.offsetLeft;
     let y = (event.type=="click"? event.clientY : event.touches[0].clientY) - game_pad.offsetTop - game_pad_direction.offsetTop;
@@ -84,25 +85,24 @@ var game_pad_direction_active = function(event){
         game_pad_direction.status = 4;
         Module._on_keydown_event(VK_RIGHT);
     }
-    event.preventDefault();
 }
 
 game_pad_direction.addEventListener("touchmove", game_pad_direction_active);
-game_pad_direction.addEventListener("click", game_pad_direction_active);
+//game_pad_direction.addEventListener("click", game_pad_direction_active);
 game_pad_direction.addEventListener("touchstart", game_pad_direction_active);
 game_pad_direction.addEventListener("touchend", function(event){
+    event.preventDefault();
     //方向按钮弹起
     Module._on_keyup_event(VK_LEFT);
     game_pad_direction.status = 0;
-    event.preventDefault();
 });
 game_pad_button_a.addEventListener("touchstart", function(event){
-    Module._on_keydown_event(VK_SPACE);
     event.preventDefault();
+    Module._on_keydown_event(VK_SPACE);
 });
 game_pad_button_b.addEventListener("touchstart", function(event){
-    Module._on_keydown_event(VK_SPACE);
     event.preventDefault();
+    Module._on_keydown_event(VK_SPACE);
 });
 
 //下面是要导入webassembly的JS帮助函数
@@ -215,8 +215,10 @@ function _emscripten_draw_image_repeat(resId, x, y, width, height){
 function _emscripten_send_message(str){
     if(socket){
         let msg = UTF8ToString(str);
-        //console.log("send_message:", msg);
-        socket.send(msg);
+        //console.log("send_message:", msg);\
+        try{socket.send(msg);}catch(e){
+            console.log(e);
+        }
     }
 }
 function _emscripten_connect(url){

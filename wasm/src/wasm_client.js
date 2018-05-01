@@ -57,6 +57,7 @@ let game_pad_button_a = document.getElementById("game_pad_button_a");
 let game_pad_button_b = document.getElementById("game_pad_button_b");
 game_pad_direction.status = 0; // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
 var game_pad_direction_active = function(event){
+    event.preventDefault();
     //方向按钮按下 判断按钮方向
     let x = (event.type=="click"? event.clientX : event.touches[0].clientX) - game_pad.offsetLeft - game_pad_direction.offsetLeft;
     let y = (event.type=="click"? event.clientY : event.touches[0].clientY) - game_pad.offsetTop - game_pad_direction.offsetTop;
@@ -77,25 +78,24 @@ var game_pad_direction_active = function(event){
         game_pad_direction.status = 4;
         exports.on_keydown_event(VK_RIGHT);
     }
-    event.preventDefault();
 }
 
 game_pad_direction.addEventListener("touchmove", game_pad_direction_active);
-game_pad_direction.addEventListener("click", game_pad_direction_active);
+//game_pad_direction.addEventListener("click", game_pad_direction_active);
 game_pad_direction.addEventListener("touchstart", game_pad_direction_active);
 game_pad_direction.addEventListener("touchend", function(event){
+    event.preventDefault();
     //方向按钮弹起
     exports.on_keyup_event(VK_LEFT);
     game_pad_direction.status = 0;
-    event.preventDefault();
 });
 game_pad_button_a.addEventListener("touchstart", function(event){
-    exports.on_keydown_event(VK_SPACE);
     event.preventDefault();
+    exports.on_keydown_event(VK_SPACE);
 });
 game_pad_button_b.addEventListener("touchstart", function(event){
-    exports.on_keydown_event(VK_SPACE);
     event.preventDefault();
+    exports.on_keydown_event(VK_SPACE);
 });
 
 
@@ -203,7 +203,11 @@ var imports = {
             ctx.fillRect(x, y, width, height);
         },
         _send_message: function(str, len){
-            socket.send(read_string(str, len));
+            try{
+                socket.send(read_string(str, len));
+            }catch(e){
+                console.log(e);
+            }
         },
         _connect: function(url, len){
             connect(read_string(url, len));

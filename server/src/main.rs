@@ -267,11 +267,16 @@ fn main() {
 }
 
 fn send_message(connections: Arc<RwLock<HashMap<String, SplitSink>>>, remote: &Remote, uuid:String, msg:String){
-    let sink = connections.write()
-                        .unwrap()
+
+    let connections_clone = connections.clone();
+    let sink = connections_clone.write();
+    if sink.is_err(){
+        return;
+    }
+    let sink = sink.unwrap()
                         .remove(&uuid)
                         .expect("无效连接, 消息发送失败",);
-
+    
     let f = sink.send(OwnedMessage::Text(msg))
                 .and_then(move |sink| {
                                 connections.write().unwrap().insert(uuid, sink);
