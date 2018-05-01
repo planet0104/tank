@@ -201,7 +201,7 @@ fn main() {
 
 				match message {
 					OwnedMessage::Text(text) =>{
-						//info!("on text message:{}", text);
+						info!("on text message:{}", text);
                         /*
                             服务器端接收的消息:
                                 玩家加入游戏=> MSG_START\nNAME
@@ -221,7 +221,7 @@ fn main() {
                         info!("on_message Ok.");
 					}
 					OwnedMessage::Close(_) => {
-						//info!("Client {} Close断开连接", ip);
+						info!("Client {} Close断开连接", ip);
 						break;
 					}
 					other => {
@@ -239,6 +239,7 @@ fn main() {
 }
 
 fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String, message:String){
+    println!("send_message: {} to {}", message, uuid);
     let mut connections = connections.write().unwrap();
     if !connections.contains_key(uuid){
         info!("uuid不存在 {}", uuid);
@@ -258,6 +259,7 @@ fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String,
 }
 
 fn broad_cast_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message:String){
+    println!("broad_cast_message: {}", message);
     let mut aborted_connections = vec![];
     let message = OwnedMessage::Text(message);
     for (addr, sender) in connections.write().unwrap().iter_mut(){
