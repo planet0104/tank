@@ -240,7 +240,7 @@ fn main() {
 }
 
 fn send_message(connections: Arc<RwLock<HashMap<String, Writer>>>, uuid:&String, message:String){
-    info!("send_message: {} to {}", message, uuid);
+    //info!("send_message: {} to {}", message, uuid);
     let mut connections = connections.write().unwrap();
     if !connections.contains_key(uuid){
         info!("uuid不存在 {}", uuid);
