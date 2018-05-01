@@ -267,7 +267,8 @@ fn broad_cast_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message
             info!("消息发泄失败: {:?}", err);
             match err{
                 WebSocketError::IoError(err) => {
-                    if err.kind() == ErrorKind::ConnectionAborted{
+                    if err.kind() == ErrorKind::ConnectionAborted
+                    || err.kind() == ErrorKind::BrokenPipe{
                         aborted_connections.push(addr.clone());
                     }
                 },
