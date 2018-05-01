@@ -204,7 +204,9 @@ var imports = {
         },
         _send_message: function(str, len){
             try{
-                socket.send(read_string(str, len));
+                var msg = read_string(str, len);
+                //console.log("send message", msg);
+                socket.send(msg);
             }catch(e){
                 console.log(e);
             }

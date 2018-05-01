@@ -6,8 +6,5 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 [dependencies]
 tank = { path = "../tank" }
 websocket = "0.20.2"
-tokio-core = "0.1.17"
-futures = "0.1.21"
-futures-cpupool = "0.1.8"
-bytes = "0.4.6"
-hyper = "0.10.6"
+log = "0.4.0"
+env_logger = "0.5.9"
