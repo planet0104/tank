@@ -65,7 +65,7 @@ pub const CLIENT_IP:&str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum KeyEvent {
     KeyDown,
     KeyUp,
@@ -187,7 +187,7 @@ impl UpdateCallback for ServerUpdateCallback{
             engine.sprites()[idx].set_position(pos.left, pos.top);
             self.events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Add, &engine.sprites()[idx]));
             //增加凶手得分
-            let dying_name = engine.sprites()[idx_sprite_dying].name().clone();
+            //let dying_name = engine.sprites()[idx_sprite_dying].name().clone();
             let killer = engine.sprites()[idx_sprite_dying].killer();
             if let Some(killer) = engine.query_sprite(&killer){
                 killer.add_score();
@@ -464,6 +464,7 @@ impl TankGame {
         let key_events = context.pick_key_events();
         for key_event in key_events{
             //self.console_log_2("send_message", MSG_KEY_EVENT, key_event.0.to_i64());
+            self.client_on_key_event(key_event.0.clone(), key_event.1);
             context.send_message(&format!("{}\n{}␟{}", MSG_KEY_EVENT, key_event.0.to_i64(), key_event.1));
         }
 
@@ -692,7 +693,9 @@ impl TankGame {
             //let context = c.as_ref().unwrap();
             //设置精灵信息
             let mut sprite = &mut self.engine.sprites()[sprite_idx];
-            sprite.set_position_rect(sprite_info.position);
+            if sprite.id != self.client_player.as_ref().unwrap().uuid{
+                sprite.set_position_rect(sprite_info.position);
+            }
             sprite.set_velocity_point(&sprite_info.velocity);
             sprite.set_current_frame(sprite_info.current_frame);
             sprite.set_name(sprite_info.name.clone());
@@ -889,6 +892,55 @@ impl TankGame {
                     };
                     if do_update {
                         self.server_events.borrow_mut().push(TankGame::get_event_info(SpriteEvent::Update, &self.engine.sprites()[idx]));
+                    }
+                }
+            }
+        }else{
+            //println!("没有找到ID {}", sprite_id);
+        }
+    }
+
+    //键盘按下，坦克移动、发射子弹
+    pub fn client_on_key_event(&mut self, event: KeyEvent, key: i32) {
+        if self.client_player.is_none(){
+            return;
+        }
+        if let Some(idx) = self.engine.query_sprite_idx(&(self.client_player.as_ref().unwrap().uuid)) {
+            match event {
+                KeyEvent::KeyDown => {
+                    match key {
+                        VK_LEFT => {
+                            self.engine.sprites()[idx].set_current_frame(2);
+                            self.engine.sprites()[idx].set_velocity(-TANK_VELOCITY, 0.0);
+                        }
+                        VK_RIGHT => {
+                            self.engine.sprites()[idx].set_current_frame(3);
+                            self.engine.sprites()[idx].set_velocity(TANK_VELOCITY, 0.0);
+                        }
+                        VK_UP => {
+                            self.engine.sprites()[idx].set_current_frame(0);
+                            self.engine.sprites()[idx].set_velocity(0.0, -TANK_VELOCITY);
+                        }
+                        VK_DOWN => {
+                            self.engine.sprites()[idx].set_current_frame(1);
+                            self.engine.sprites()[idx].set_velocity(0.0, TANK_VELOCITY);
+                        }
+                        _other => {
+                            //println!("未定义按键 {}", other);
+                        }
+                    }
+                }
+
+                KeyEvent::KeyUp => {
+                    //键盘弹起坦克停止走动
+                    match key {
+                        VK_LEFT
+                        | VK_RIGHT
+                        | VK_UP
+                        | VK_DOWN => {
+                            self.engine.sprites()[idx].set_velocity(0.0, 0.0);
+                        }
+                        _ => {},
                     }
                 }
             }

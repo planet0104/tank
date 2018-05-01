@@ -101,7 +101,18 @@
     }
 
     //_start();
-    
+
+    function ping(ip, callback) {
+        var img = new Image();
+        img.onload = function() {callback(Date.now()-this.start)};
+        img.onerror = function() {callback(Date.now()-this.start)};
+        img.start = Date.now();
+        img.src = "http://"+ip;
+    }
+
+    ping("54.249.68.59", function(time){
+            console.log("ping:"+time+"ms");
+        });
 </script>
 </body>
 </html>

@@ -101,6 +101,8 @@ game_pad_button_b.addEventListener("touchstart", function(event){
 
 var prompt_ptr;
 
+var lastSend = Date.now();
+
 //下面是要导入webassembly的JS帮助函数
 var imports = {
     env: {
@@ -206,6 +208,8 @@ var imports = {
             try{
                 var msg = read_string(str, len);
                 //console.log("send message", msg);
+                lastSend = Date.now();
+                console.log(lastSend, "send");
                 socket.send(msg);
             }catch(e){
                 console.log(e);
@@ -383,6 +387,7 @@ function connect(url){
 
         socket.onmessage = function(event){
             //console.log("js socket.onmessage", event.data);
+            console.log((Date.now()-lastSend)+"ms", "recv");
             var msg = alloc_string(event.data);
             exports.on_message(msg.ptr, msg.len);
         };
