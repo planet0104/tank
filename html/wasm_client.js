@@ -215,6 +215,16 @@ var imports = {
                 console.log(e);
             }
         },
+        _send_binary_message: function(buffer, len){
+            console.log("_send_binary_message... buffer=", buffer, "len=", len);
+            try{
+                let array = readUint8Array(buffer, len);
+                console.log("_send_binary_message", array);
+                socket.send(array);
+            }catch(e){
+                console.log("消息发送失败:", e);
+            }       
+        },
         _connect: function(url, len){
             connect(read_string(url, len));
         }
@@ -233,6 +243,11 @@ function read_string(offset, len){
     }
 }
 
+function readUint8Array(offset, len){
+    var array = new Uint8Array(exports.memory.buffer, offset, len);
+    return ArrayBuffer.transfer(array.buffer, len);
+}
+
 //想Webassembly的memory.buffer写入utf8字符串，并返回该字符串的指针
 //string 字符串
 //buffer wasm的内存
@@ -248,6 +263,19 @@ function alloc_string(string){
     const bytes = new Uint8Array(exports.memory.buffer, offset, encoded.length);
     bytes.set(encoded);
     return { ptr:offset, len:bytes.length };
+}
+
+function alloc_blob(blob, callback){
+    var offset = exports.alloc(blob.size);
+    const bytes = new Uint8Array(exports.memory.buffer, offset, blob.size);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        //console.log("blog读取结果", reader.result, e);
+        //设置数据
+        bytes.set(new Uint8Array(reader.result));
+        callback({ ptr:offset, len:blob.size });
+    }
+    reader.readAsArrayBuffer(blob);
 }
 
 //加载图片资源 srcMap为json对象
@@ -383,14 +411,21 @@ function connect(url){
     console.log("连接服务器...");
 
     socket.onopen = function(event) {
-		console.log("socket.onopen", event, socket);
         exports.on_connect();
 
         socket.onmessage = function(event){
             //console.log("js socket.onmessage", event.data);
             console.log((Date.now()-lastSend)+"ms", "recv");
-            var msg = alloc_string(event.data);
-            exports.on_message(msg.ptr, msg.len);
+            if (event.data instanceof String){
+                var msg = alloc_string(event.data);
+                exports.on_message(msg.ptr, msg.len);
+            }else if(event.data instanceof Blob){
+                alloc_blob(event.data, function(msg){
+                    exports.on_binary_message(msg.ptr, msg.len);
+                });
+            }else{
+                console.log("未定义消息.");
+            }
         };
 
         socket.onclose = function(event) {

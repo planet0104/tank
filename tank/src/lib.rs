@@ -20,10 +20,9 @@ use std::fmt::Debug;
 use vector_2d::Vector2D;
 
 //socket消息
-pub const MSG_DISCONNECT: i32 = 1;
-pub const MSG_START: i32 = 2;
-pub const MSG_KEY_EVENT: i32 = 3;
-pub const MSG_ID_ERR: i32 = 4;
+pub const MSG_DISCONNECT: u8 = 1;
+pub const MSG_START: u8 = 2;
+pub const MSG_KEY_EVENT: u8 = 3;
 
 //server发送给客户端的消息
 pub const SERVER_MSG_ERR: u8 = 0;
@@ -58,20 +57,20 @@ pub const PLAYER_LIVES: u32 = 6; //生命值
 pub const TANK_BITMAP_WIDTH: i32 = 57;
 pub const TANK_BITMAP_HEIGHT: i32 = 57;
 
-// pub const SERVER_IP:&str = "127.0.0.1:8080";
-// pub const CLIENT_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-pub const SERVER_IP: &str = "172.31.33.204:8414";
-pub const CLIENT_IP: &str = "54.249.68.59:8414";
+// pub const SERVER_IP: &str = "172.31.33.204:8414";
+// pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum KeyEvent {
     KeyDown,
     KeyUp,
@@ -473,11 +472,10 @@ impl TankGame {
             killer_name: String::new(),
             score: 0,
         });
-        context.send_message(&format!(
-            "{}\n{}",
-            MSG_START,
-            self.client_player.as_ref().unwrap().name
-        ));
+        if let Ok(mut encoded) = serialize(&self.client_player.as_ref().unwrap().name) {
+            encoded.insert(0, MSG_START);
+            context.send_binary_message(&encoded);
+        }
     }
 
     pub fn client_on_resource_load(&self, num: i32, total: i32) {
@@ -575,14 +573,16 @@ impl TankGame {
         //键盘事件
         let key_events = context.pick_key_events();
         for key_event in key_events {
-            //self.console_log_2("send_message", MSG_KEY_EVENT, key_event.0.to_i64());
+            //self.console_log_2("send_binary_message", MSG_KEY_EVENT, key_event.0.to_i64());
             self.client_on_key_event(key_event.0.clone(), key_event.1);
-            context.send_message(&format!(
-                "{}\n{}␟{}",
-                MSG_KEY_EVENT,
-                key_event.0.to_i64(),
-                key_event.1
-            ));
+            if let Ok(mut encoded) = serialize(&(
+                key_event.0,
+                key_event.1,
+                self.client_player.as_ref().unwrap().id,
+            )) {
+                encoded.insert(0, MSG_KEY_EVENT);
+                context.send_binary_message(&encoded);
+            }
         }
 
         //客户端不在update_sprites处理函数中做任何操作如:精灵死亡添加爆炸、碰撞检测杀死精灵等
@@ -699,7 +699,10 @@ impl TankGame {
                     "重新加入游戏 MSG_ID={} player={}",
                     MSG_START, player.name
                 ));
-                context.send_message(&format!("{}\n{}", MSG_START, player.name));
+                if let Ok(mut encoded) = serialize(&player.name) {
+                    encoded.insert(0, MSG_START);
+                    context.send_binary_message(&encoded);
+                }
             }
         }
         self.last_timestamp = timestamp;
@@ -707,7 +710,7 @@ impl TankGame {
     }
 
     //玩家加入游戏
-    pub fn server_join_game(&mut self, ip: String, name: String) {
+    pub fn server_join_game(&mut self, ip: String, name: String) -> u32 {
         //println!("{}加入游戏 id:{}", name.clone(), id);
         //println!("{}加入游戏", name.clone());
         //添加坦克精灵
@@ -745,6 +748,8 @@ impl TankGame {
             }
         });
         //println!("join_game {} {} 在线人数:{}", id, name, self.players.len());
+
+        sid
     }
 
     //离开游戏/断线
@@ -860,6 +865,9 @@ impl TankGame {
                             x: sdata.x as f64,
                             y: sdata.y as f64,
                         });
+                        //计算速度
+                        //>>>>>>>>>>>>>>>>>>>>>>>>>>>> 服务器接收到数据以后，计算时差，计算坦克目标位置。 】】】】】】】】】】】】】
+                        
                         //更新得分
                         if ext_id.is_ok() {
                             let ext = &sync_data.ext[ext_id.unwrap()];
@@ -939,13 +947,14 @@ impl TankGame {
             if let Some(sprite_idx) = self.engine.query_sprite_idx(data.id) {
                 let mut sprite = &mut self.engine.sprites()[sprite_idx];
                 sprite.kill();
-                if sprite.bitmap().id() == RES_TANK_BITMAP{
+                if sprite.bitmap().id() == RES_TANK_BITMAP {
                     self.players.remove(&data.id);
                     //记录并显示死亡的玩家
-                    self.dying_players.push((0, data.killer_name.clone(), data.name));
+                    self.dying_players
+                        .push((0, data.killer_name.clone(), data.name));
                 }
                 //检查玩家是否死亡
-                if data.id == self.client_player.as_ref().unwrap().id{
+                if data.id == self.client_player.as_ref().unwrap().id {
                     self.client_player.as_mut().unwrap().killer_name = data.killer_name.clone();
                     self.client_dying_delay_ms = 5000.0;
                 }
@@ -1187,20 +1196,20 @@ impl TankGame {
     pub fn get_sync_data(&mut self) -> SyncData {
         let mut ext = vec![];
         self.server_extras.borrow_mut().append(&mut ext);
-        
+
         let mut data = vec![];
-        for sprite in self.engine.sprites(){
-            data.push(SData{
+        for sprite in self.engine.sprites() {
+            data.push(SData {
                 id: sprite.id,
                 x: sprite.position().left as u16,
                 y: sprite.position().top as u16,
-                res: sprite.bitmap().id() as u16
+                res: sprite.bitmap().id() as u16,
             });
         }
 
-        SyncData{
-            ext: ext, 
-            data: data
+        SyncData {
+            ext: ext,
+            data: data,
         }
     }
 

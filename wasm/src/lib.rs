@@ -48,6 +48,7 @@ extern "C" {
         dest_height: i32,
     );
     pub fn _send_message(text: *const u8, len: usize);
+    pub fn _send_binary_message(data: *const u8, len: usize);
     pub fn _connect(url: *const u8, len: usize);
 }
 struct JS {
@@ -169,6 +170,13 @@ pub fn set_canvas_font(font: &str) {
 pub fn send_message(msg: &str) {
     unsafe {
         _send_message(msg.as_ptr(), msg.len());
+    }
+}
+
+pub fn send_binary_message(msg: &Vec<u8>) {
+    console_log(&format!("wasm:send_binary_message {:?} len={}", msg, msg.len()));
+    unsafe {
+        _send_binary_message(msg.as_ptr(), msg.len());
     }
 }
 
@@ -556,6 +564,10 @@ impl GameContext for JSGameContext {
 
     fn send_message(&self, msg: &str) {
         send_message(msg);
+    }
+
+    fn send_binary_message(&self, msg: &Vec<u8>){
+        send_binary_message(msg);
     }
 
     fn connect(&self, url: &str) {
