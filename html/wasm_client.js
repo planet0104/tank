@@ -383,6 +383,7 @@ function connect(url){
     console.log("连接服务器...");
 
     socket.onopen = function(event) {
+		console.log("socket.onopen", event, socket);
         exports.on_connect();
 
         socket.onmessage = function(event){

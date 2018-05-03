@@ -1,8 +1,6 @@
-use std::cmp;
 use engine::GameContext;
-//use utils::js_rand_int as rand_int;
-use utils::rand_int;
 use std::rc::Rc;
+use vector_2d::Vector2D;
 //精灵代码
 
 pub type SPRITEACTION = u32;
@@ -63,7 +61,12 @@ pub struct Rect {
 
 impl Rect {
     pub fn new(left: f64, top: f64, right: f64, bottom: f64) -> Rect {
-        Rect {left, top, right, bottom}
+        Rect {
+            left,
+            top,
+            right,
+            bottom,
+        }
     }
 
     pub fn zero() -> Rect {
@@ -101,11 +104,9 @@ pub struct PointF {
     pub y: f64,
 }
 
-impl PointF{
-    pub fn new() -> PointF{
-        PointF{
-            x: 0.0, y: 0.0
-        }
+impl PointF {
+    pub fn new() -> PointF {
+        PointF { x: 0.0, y: 0.0 }
     }
 }
 
@@ -115,23 +116,22 @@ pub struct Point {
     pub y: i32,
 }
 
-impl Point{
-    pub fn new() -> Point{
-        Point{
-            x: 0, y: 0
-        }
+impl Point {
+    pub fn new() -> Point {
+        Point { x: 0, y: 0 }
     }
 }
 
 pub struct Sprite {
-    pub id: String,
-    pub parent: Option<String>,
+    pub id: u32,
+    pub parent_id: u32,
     bitmap: BitmapRes,
     num_frames: i32,
     cur_frame: i32,
     frame_delay: i32,
     frame_trigger: i32,
     position: Rect,
+    target: PointF,
     bounds: Rect,
     velocity: PointF,
     z_order: i32,
@@ -142,14 +142,16 @@ pub struct Sprite {
     one_cycle: bool,
     name: String,
     score: i32,
-    killer: String,
+    killer_id: u32,
     killer_name: String,
     lives: u32,
+    rotation: f64,
+    look_at: Vector2D,
 }
 
 impl Sprite {
     pub fn new(
-        id: String,
+        id: u32,
         bitmap: BitmapRes,
         position: PointF,
         velocity: PointF,
@@ -159,13 +161,17 @@ impl Sprite {
     ) -> Sprite {
         let mut sprite = Sprite {
             id: id,
-            parent: None,
+            parent_id: 0,
             position: Rect::new(
                 position.x,
                 position.y,
                 position.x + bitmap.width() as f64,
                 position.y + bitmap.height() as f64,
             ),
+            target: PointF {
+                x: position.x,
+                y: position.y,
+            },
             bitmap: bitmap,
             num_frames: 1,
             cur_frame: 0,
@@ -181,62 +187,54 @@ impl Sprite {
             name: "".to_string(),
             collision: Rect::zero(),
             score: 0,
-            killer: String::new(),
+            killer_id: 0,
             killer_name: String::new(),
             lives: 0,
+            rotation: 0.0,
+            look_at: Vector2D::normalize(Vector2D::new(0.0, 1.0)), //默认朝上
         };
         sprite.calc_collision_rect();
         sprite
     }
 
-    pub fn from_bitmap(id:String, bitmap: BitmapRes, bounds: Rect) -> Sprite {
-        Sprite::new(
-            id,
-            bitmap,
-            PointF::new(),
-            PointF::new(),
-            0,
-            bounds,
-            BA_STOP,
-        )
+    pub fn from_bitmap(id: u32, bitmap: BitmapRes, bounds: Rect) -> Sprite {
+        Sprite::new(id, bitmap, PointF::new(), PointF::new(), 0, bounds, BA_STOP)
     }
 
     pub fn with_bounds_action(
-        id: String,
+        id: u32,
         bitmap: BitmapRes,
-        bounds: Rect,
-        bounds_action: BOUNDSACTION
-    ) -> Sprite {
-        //计算随即位置
-        let x = rand_int(0, (bounds.right - bounds.left) as i32) as f64;
-        let y = rand_int(0, (bounds.bottom - bounds.top) as i32) as f64;
-        Sprite::new(
-            id,
-            bitmap,
-            PointF { x: x, y: y },
-            PointF::new(),
-            0,
-            bounds,
-            bounds_action,
-        )
-    }
-
-    pub fn with_bounds_action_norand(
-        id: String,
-        bitmap: BitmapRes,
+        position: PointF,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
     ) -> Sprite {
         Sprite::new(
             id,
             bitmap,
-            PointF::new(),
+            position,
             PointF::new(),
             0,
             bounds,
             bounds_action,
         )
     }
+
+    // pub fn with_bounds_action_norand(
+    //     id: u32,
+    //     bitmap: BitmapRes,
+    //     bounds: Rect,
+    //     bounds_action: BOUNDSACTION,
+    // ) -> Sprite {
+    //     Sprite::new(
+    //         id,
+    //         bitmap,
+    //         PointF::new(),
+    //         PointF::new(),
+    //         0,
+    //         bounds,
+    //         bounds_action,
+    //     )
+    // }
 
     fn calc_collision_rect(&mut self) {
         let x_shrink = (self.position.left - self.position.right) / 12.0;
@@ -263,8 +261,8 @@ impl Sprite {
         let mut new_position = PointF::new();
         let mut sprite_size = PointF::new();
         let mut bounds_size = PointF::new();
-        new_position.x = self.position.left + self.velocity.x*elapsed_milis;
-        new_position.y = self.position.top + self.velocity.y*elapsed_milis;
+        new_position.x = self.position.left + self.velocity.x * elapsed_milis;
+        new_position.y = self.position.top + self.velocity.y * elapsed_milis;
         sprite_size.x = self.position.right - self.position.left;
         sprite_size.y = self.position.bottom - self.position.top;
         bounds_size.x = self.bounds.right - self.bounds.left;
@@ -353,7 +351,11 @@ impl Sprite {
         if !self.hidden {
             // Draw the appropriate frame, if necessary
             match self.num_frames {
-                1 => context.draw_image_at(self.bitmap.id, self.position.left as i32, self.position.top as i32),
+                1 => context.draw_image_at(
+                    self.bitmap.id,
+                    self.position.left as i32,
+                    self.position.top as i32,
+                ),
                 _ => context.draw_image(
                     self.bitmap.id,
                     0,
@@ -368,24 +370,26 @@ impl Sprite {
             }
             context.fill_style("#ccccff");
             context.set_canvas_font("16px 微软雅黑");
-            if self.name.len()>0&&self.score>=0{
+            if self.name.len() > 0 && self.score >= 0 {
                 let score = &format!("({}分)", self.score);
-                let w = self.name.len()*5+score.len()*5;
-                let x = self.position.left as i32+((self.position.right-self.position.left) as i32/2-(w as i32/2));
-                let y = self.position.bottom as i32+20;
+                let w = self.name.len() * 5 + score.len() * 5;
+                let x = self.position.left as i32
+                    + ((self.position.right - self.position.left) as i32 / 2 - (w as i32 / 2));
+                let y = self.position.bottom as i32 + 20;
                 context.fill_text(&format!("{}{}", self.name, score), x, y);
             }
             //绘制坦克生命值
             let mut lives = String::new();
-            for _ in 0..self.lives{
+            for _ in 0..self.lives {
                 //lives.push_str("❤️");
                 lives.push_str("♡");
             }
-            context.fill_style(if self.lives>3{
-                "#ffff00"}else{
-                    "#ff0000"
-                });
-            context.fill_text(&lives, self.position.left as i32, self.position.bottom as  i32+40);
+            context.fill_style(if self.lives > 3 { "#ffff00" } else { "#ff0000" });
+            context.fill_text(
+                &lives,
+                self.position.left as i32,
+                self.position.bottom as i32 + 40,
+            );
         }
     }
 
@@ -461,9 +465,9 @@ impl Sprite {
     }
 
     pub fn height(&self) -> i32 {
-        if self.num_frames>0 {
+        if self.num_frames > 0 {
             self.bitmap.height / self.num_frames
-        }else{
+        } else {
             self.bitmap.height
         }
     }
@@ -488,28 +492,24 @@ impl Sprite {
         self.hidden
     }
 
-    // pub fn id(&self)->Uuid{
-    //     self.id
-    // }
-
     pub fn name(&self) -> &String {
         &self.name
     }
 
-    pub fn set_name(&mut self, name:String){
+    pub fn set_name(&mut self, name: String) {
         self.name = name;
     }
 
-    pub fn set_killer(&mut self, killer:String, name:String){
-        self.killer = killer;
-        self.killer_name = name;
+    pub fn set_killer(&mut self, killer_id: u32, killer_name: String) {
+        self.killer_id = killer_id;
+        self.killer_name = killer_name;
     }
 
-    pub fn killer(&self) -> String{
-        self.killer.clone()
+    pub fn killer_id(&self) -> u32 {
+        self.killer_id
     }
 
-    pub fn killer_name(&self) -> &String{
+    pub fn killer_name(&self) -> &String {
         &self.killer_name
     }
 
@@ -525,24 +525,43 @@ impl Sprite {
     pub fn kill(&mut self) {
         self.dying = true;
     }
-    
-    pub fn add_score(&mut self){
+
+    pub fn add_score(&mut self) {
         self.score += 1;
     }
 
-    pub fn set_score(&mut self, score:i32){
+    pub fn set_score(&mut self, score: i32) {
         self.score = score;
     }
 
-    pub fn score(&self)->i32{
+    pub fn score(&self) -> i32 {
         self.score
     }
 
-    pub fn set_lives(&mut self, lives: u32){
+    pub fn set_lives(&mut self, lives: u32) {
         self.lives = lives;
     }
 
-    pub fn lives(&self) -> u32{
+    pub fn lives(&self) -> u32 {
         self.lives
+    }
+
+    pub fn set_rotation(&mut self, rotation: f64) {
+        self.rotation = rotation;
+    }
+
+    pub fn look_at(&mut self) -> &mut Vector2D {
+        &mut self.look_at
+    }
+    pub fn set_look_at(&mut self, v: Vector2D) {
+        self.look_at = v;
+    }
+
+    pub fn target(&self) -> &PointF {
+        &self.target
+    }
+
+    pub fn set_target(&mut self, point: PointF) {
+        self.target = point;
     }
 }

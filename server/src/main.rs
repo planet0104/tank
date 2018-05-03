@@ -9,15 +9,13 @@ use tank::{
     GAME,
     SERVER_IP,
     KeyEvent,
-    MSG_PULL,
     MSG_DISCONNECT,
     MSG_START,
     MSG_KEY_EVENT,
     MSG_ID_ERR,
     SERVER_MSG_ERR,
-    SERVER_MSG_EVENT,
-    SERVER_MSG_UUID,
-    SERVER_MSG_DATA
+    SERVER_MSG_SYNC,
+    SERVER_MSG_UID,
 };
 
 use std::sync::mpsc::{Sender, Receiver, channel};
@@ -54,54 +52,25 @@ fn main() {
             let start_time = Instant::now();
             let mut last_time = start_time.elapsed();
             let mut game = game.borrow_mut();
+            //下一次同步(广播)数据的时间
+            let mut next_sync_time = start_time.elapsed();
             loop{
                 let timestamp = start_time.elapsed();
                 let elapsed_ms = timestamp-last_time;
                 //let now = Instant::now();
                 //处理websocket传来的消息
-                if let Ok((msg_id, uuid, data)) = game_receiver.try_recv(){
+                if let Ok((msg_id, ip, data)) = game_receiver.try_recv(){
                     match msg_id{
-                        MSG_PULL => {
-                            //info!("玩家连接 {}", uuid);
-                            /*
-                                玩家连线，返回所有精灵列表
-                                SERVER_MSG_ID\nID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame...\n...
-                            */
-                            let sprites = game.sprites();
-                            let mut msg = format!("{}\n{}\n", SERVER_MSG_DATA, uuid);
-                            for sprite in sprites{
-                                msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
-                                    sprite.id.clone(),
-                                    sprite.bitmap().id(),
-                                    sprite.position().left,
-                                    sprite.position().top,
-                                    sprite.position().right,
-                                    sprite.position().bottom,
-                                    sprite.velocity().x,
-                                    sprite.velocity().y,
-                                    sprite.current_frame(),
-                                    sprite.name().clone(),
-                                    sprite.score(),
-                                    sprite.killer_name(),
-                                    sprite.lives(),
-                                ));
-                            }
-                            //删掉最后一个换行键
-                            let _ = msg.pop();
-                            
-                            send_message(connections_clone.clone(), &uuid, msg);
-                        }
-
                         MSG_START => {
                             //info!("join_game {} {}", uuid, data);
                             //玩家加入游戏
-                            game.server_join_game(uuid, data);
+                            game.server_join_game(data);
                         }
 
                         MSG_DISCONNECT => {
-                            info!("玩家离开游戏{}", uuid);
+                            info!("玩家离开游戏{}", sid);
                             //玩家断开连接
-                            game.server_leave_game(&uuid)
+                            game.server_leave_game(sid)
                         }
 
                         MSG_KEY_EVENT => {
@@ -111,14 +80,14 @@ fn main() {
                                 if let Ok(event) = slices[0].parse::<i64>(){
                                     if let Ok(key) = slices[1].parse::<i32>(){
                                         //info!("key event {} {:?} {}", event, slices[1], uuid);
-                                        game.server_on_key_event(KeyEvent::from_i64(event), key, &uuid);
+                                        game.server_on_key_event(KeyEvent::from_i64(event), key, sid);
                                     }
                                 }
                             }
                         }
 
                         MSG_ID_ERR => {
-                            send_message(connections_clone.clone(), &uuid, format!("{}\n消息格式错误", SERVER_MSG_ERR));
+                            send_message(connections_clone.clone(), sid, format!("{}\n消息格式错误", SERVER_MSG_ERR));
                         }
 
                         other => {
@@ -127,44 +96,13 @@ fn main() {
                     }
                 }
                 game.server_update(duration_to_milis(&elapsed_ms));
-
-                /*
-                    游戏更新以后，获取精更新、死亡、添加事件，分发到客户端
-                    SERVER_MSG_ID\nEventId␟ID␟RES␟Left␟Top␟Right␟Bottom␟VelocityX␟VelocityY␟Frame\n...
-                */
-                let game_events = game.events();
-                {
-                    let events = &*game_events.borrow_mut();
-                    if events.len()>0{
-                        //info!("分发事件 {:?}", events);
-                        let mut msg = format!("{}\n", SERVER_MSG_EVENT);
-                        for event in events{
-                            msg.push_str(&format!("{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}␟{}\n",
-                                event.0.to_i64(),
-                                event.1.id.clone(),
-                                event.1.res_id,
-                                event.1.position.left,
-                                event.1.position.top,
-                                event.1.position.right,
-                                event.1.position.bottom,
-                                event.1.velocity.x,
-                                event.1.velocity.y,
-                                event.1.current_frame,
-                                event.1.name,
-                                event.1.score,
-                                event.1.killer_name,
-                                event.1.lives
-                            ));
-                        }
-                        //删掉最后一个换行键
-                        let _ = msg.pop();
-
-                        //广播
-                        broad_cast_message(connections_clone.clone(), msg);
-                    }
+                
+                //5帧的速度广播
+                if timestamp >= next_sync_time{
+                    s
+                    next_sync_time = timestamp+Duration::from_millis(200);
                 }
-                //清空事件
-                game_events.borrow_mut().clear();
+                
                 last_time = timestamp;
                 thread::park_timeout(Duration::from_millis(20));
                 //total_frames += 1;
@@ -265,7 +203,7 @@ fn broad_cast_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message
     let message = OwnedMessage::Text(message);
     for (addr, sender) in connections.write().unwrap().iter_mut(){
         if let Err(err) = sender.send_message(&message){
-            info!("消息发泄失败: {:?}", err);
+            info!("消息发送失败: {:?}", err);
             match err{
                 WebSocketError::IoError(err) => {
                     if err.kind() == ErrorKind::ConnectionAborted

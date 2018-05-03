@@ -1,6 +1,6 @@
 extern crate rand;
 use rand::Rng;
-use std::time::{SystemTime, Duration, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 //导入的JS帮助函数
 // extern "C" {
@@ -8,18 +8,44 @@ use std::time::{SystemTime, Duration, UNIX_EPOCH};
 //     pub fn _current_time_millis() -> f64;
 // }
 
-pub fn current_time_millis()->f64{
+pub fn current_time_millis() -> f64 {
     let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH)
+    let since_the_epoch = start
+        .duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
-    let in_ms = since_the_epoch.as_secs() as f64 * 1000.0 +
-        since_the_epoch.subsec_nanos() as f64 / 1_000_000.0;
+    let in_ms = since_the_epoch.as_secs() as f64 * 1000.0
+        + since_the_epoch.subsec_nanos() as f64 / 1_000_000.0;
     in_ms
 }
 
 //返回[low, low] 区间的数
 pub fn rand_int(low: i32, high: i32) -> i32 {
     rand::thread_rng().gen_range(low, high + 1)
+}
+
+pub struct Counter {
+    count: u32,
+}
+
+impl Counter {
+    pub fn new() -> Self {
+        Counter { count: 0 }
+    }
+}
+
+impl Iterator for Counter {
+    type Item = u32;
+
+    fn next(&mut self) -> Option<u32> {
+        if self.count != u32::max_value() {
+            self.count += 1;
+            Some(self.count)
+        } else {
+            //超出范围从0开始
+            self.count += 1;
+            Some(self.count)
+        }
+    }
 }
 
 // pub struct Timer{
@@ -75,7 +101,6 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
 //     }
 // }
 
-
 // //计时器
 // pub struct ServerTimer{
 //     frame_time:Duration,
@@ -130,30 +155,8 @@ pub fn rand_int(low: i32, high: i32) -> i32 {
 //     // }
 // }
 
-pub fn duration_to_milis(duration: &Duration) -> f64{
+pub fn duration_to_milis(duration: &Duration) -> f64 {
     duration.as_secs() as f64 * 1000.0 + duration.subsec_nanos() as f64 / 1_000_000.0
-}
-pub type Id = u32;
-pub struct Counter {
-	count: Id,
-}
-impl Counter {
-	pub fn new() -> Self {
-		Counter { count: 0 }
-	}
-}
-
-impl Iterator for Counter {
-	type Item = Id;
-
-	fn next(&mut self) -> Option<Id> {
-		if self.count != Id::max_value() {
-			self.count += 1;
-			Some(self.count)
-		} else {
-			None
-		}
-	}
 }
 
 /*

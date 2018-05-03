@@ -5,4 +5,6 @@ authors = ["Jia Ye <planet0104@gmail.com>"]
 
 [dependencies]
 rand = "0.4.2"
-uuid = { version = "0.6", features = ["v4"] }
+bincode = "1.0.0"
+serde_derive = "1.0.43"
+serde = "1.0.37"

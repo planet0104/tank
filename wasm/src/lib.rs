@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 extern "C" {
     pub fn _alert(text: *const u8, len: usize);
     pub fn _prompt(t1: *const u8, len: usize, t2: *const u8, len: usize) -> usize;
-    pub fn _get_prompt_ptr()->*mut u8;
+    pub fn _get_prompt_ptr() -> *mut u8;
     pub fn _console_log(text: *const u8, len: usize);
     pub fn _current_time_millis() -> f64;
     pub fn _random() -> f64;
@@ -28,14 +28,14 @@ extern "C" {
     pub fn _load_resource(json: *const u8, len: usize);
     pub fn _fill_style(text: *const u8, len: usize);
     pub fn _stroke_style(text: *const u8, len: usize);
-    pub fn _line_width(width:i32);
+    pub fn _line_width(width: i32);
     pub fn _fill_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn _stroke_rect(x: i32, y: i32, width: i32, height: i32);
     pub fn _fill_text(text: *const u8, len: usize, x: i32, y: i32);
     pub fn _draw_image_at(res_id: i32, x: i32, y: i32);
     pub fn _draw_image_repeat_y(resId: i32, x: i32, y: i32, width: i32, height: i32);
-    pub fn _draw_image_repeat_x(resId: i32, x:i32 , y: i32, width: i32, height: i32);
-    pub fn _draw_image_repeat(resId: i32, x:i32 , y: i32, width: i32, height: i32);
+    pub fn _draw_image_repeat_x(resId: i32, x: i32, y: i32, width: i32, height: i32);
+    pub fn _draw_image_repeat(resId: i32, x: i32, y: i32, width: i32, height: i32);
     pub fn _draw_image(
         res_id: i32,
         source_x: i32,
@@ -64,6 +64,7 @@ struct JS {
 lazy_static! {
     static ref KEY_EVENTS: Arc<Mutex<Vec<(KeyEvent, i32)>>> = Arc::new(Mutex::new(vec![]));
     static ref MESSAGES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref BINARY_MESSAGES: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(vec![]));
 }
 
 thread_local!{
@@ -82,15 +83,20 @@ thread_local!{
 }
 
 pub fn random() -> f64 {
-    unsafe{
-        _random()
-    }
+    unsafe { _random() }
 }
 
-pub fn prompt(title:&str, default_msg:&str) -> String{
-    let len = unsafe{ _prompt(title.as_ptr(), title.len(), default_msg.as_ptr(), default_msg.len()) };
-    let ptr = unsafe{ _get_prompt_ptr() };
-    let prompt = unsafe{ String::from_raw_parts(ptr, len, len) };
+pub fn prompt(title: &str, default_msg: &str) -> String {
+    let len = unsafe {
+        _prompt(
+            title.as_ptr(),
+            title.len(),
+            default_msg.as_ptr(),
+            default_msg.len(),
+        )
+    };
+    let ptr = unsafe { _get_prompt_ptr() };
+    let prompt = unsafe { String::from_raw_parts(ptr, len, len) };
     return String::from(prompt.clone());
 }
 
@@ -172,8 +178,8 @@ pub fn connect(url: &str) {
     }
 }
 
-pub fn line_width(width:i32){
-    unsafe{
+pub fn line_width(width: i32) {
+    unsafe {
         _line_width(width);
     }
 }
@@ -274,7 +280,6 @@ pub fn set_on_resource_load_listener(listener: fn(num: i32, total: i32)) {
     });
 }
 
-
 pub fn request_animation_frame() {
     unsafe {
         _request_animation_frame();
@@ -330,7 +335,7 @@ pub fn on_close() {
 pub fn on_keyup_event(key: i32) {
     //console_log("on_keydown_up");
     //console_log(&format!("on_keyup_event={}", key));
-    if let Ok(mut events) = KEY_EVENTS.lock(){
+    if let Ok(mut events) = KEY_EVENTS.lock() {
         events.push((KeyEvent::KeyUp, key));
     }
     //console_log(&format!("on_keyup_event push OK.={}", key));
@@ -339,7 +344,7 @@ pub fn on_keyup_event(key: i32) {
 #[no_mangle]
 pub fn on_keydown_event(key: i32) {
     //console_log(&format!("on_keydown_event={}", key));
-    if let Ok(mut events) = KEY_EVENTS.lock(){
+    if let Ok(mut events) = KEY_EVENTS.lock() {
         events.push((KeyEvent::KeyDown, key));
     }
     //console_log(&format!("on_keydown_event push OK.={}", key));
@@ -347,12 +352,18 @@ pub fn on_keydown_event(key: i32) {
 
 #[no_mangle]
 pub fn on_message(msg: *mut u8, length: usize) {
-    let msg = unsafe{ String::from_raw_parts(msg, length, length) };
-    //console_log(&format!("wasm_on_message = {:?}", msg));
-    if let Ok(mut messages) = MESSAGES.lock(){
+    let msg = unsafe { String::from_raw_parts(msg, length, length) };
+    if let Ok(mut messages) = MESSAGES.lock() {
         messages.push(msg);
     }
-    //console_log("on_message 222");
+}
+
+#[no_mangle]
+pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
+    let msg = Vec::from_raw_parts(msg, length, length);
+    if let Ok(mut messages) = BINARY_MESSAGES.lock() {
+        messages.push(msg);
+    }
 }
 
 #[no_mangle]
@@ -365,9 +376,9 @@ pub fn alloc(size: usize) -> *const u8 {
 
 #[no_mangle]
 pub fn start() {
-    GAME.with(|game|{
+    GAME.with(|game| {
         let mut game = game.borrow_mut();
-        game.set_game_context(Box::new(JSGameContext{}));
+        game.set_game_context(Box::new(JSGameContext {}));
         game.client_start();
     });
 }
@@ -375,16 +386,16 @@ pub fn start() {
 pub struct JSGameContext {}
 
 impl GameContext for JSGameContext {
-    fn current_time_millis(&self) -> u64{
+    fn current_time_millis(&self) -> u64 {
         current_time_millis()
     }
-    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
         draw_image_repeat(res_id, x, y, width, height);
     }
-    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
         draw_image_repeat_x(res_id, x, y, width, height);
     }
-    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32){
+    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
         draw_image_repeat_y(res_id, x, y, width, height);
     }
     fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
@@ -403,7 +414,17 @@ impl GameContext for JSGameContext {
         dest_width: i32,
         dest_height: i32,
     ) {
-        draw_image(res_id, source_x, source_y, source_width, source_height, dest_x, dest_y, dest_width, dest_height);
+        draw_image(
+            res_id,
+            source_x,
+            source_y,
+            source_width,
+            source_height,
+            dest_x,
+            dest_y,
+            dest_width,
+            dest_height,
+        );
     }
 
     fn fill_style(&self, style: &str) {
@@ -422,7 +443,7 @@ impl GameContext for JSGameContext {
         fill_rect(x, y, width, height);
     }
 
-    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32){
+    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32) {
         stroke_rect(x, y, width, height);
     }
 
@@ -431,31 +452,31 @@ impl GameContext for JSGameContext {
     }
 
     fn set_frame_callback(&self, callback: fn(f64)) {
-        JS.with(|js|{
+        JS.with(|js| {
             js.borrow_mut().request_animation_frame_callback = Some(callback);
         });
     }
 
     fn set_on_window_resize_listener(&self, listener: fn()) {
-        JS.with(|js|{
+        JS.with(|js| {
             js.borrow_mut().on_window_resize_listener = Some(listener);
         });
     }
 
     fn set_on_connect_listener(&self, listener: fn()) {
-        JS.with(|js|{
+        JS.with(|js| {
             js.borrow_mut().on_connect_listener = Some(listener);
         });
     }
 
     fn set_on_close_listener(&self, listener: fn()) {
-        JS.with(|js|{
+        JS.with(|js| {
             js.borrow_mut().on_close_listener = Some(listener);
         });
     }
 
     fn set_on_resource_load_listener(&self, listener: fn(num: i32, total: i32)) {
-        JS.with(|js|{
+        JS.with(|js| {
             js.borrow_mut().on_resource_load_listener = Some(listener);
         });
     }
@@ -477,22 +498,30 @@ impl GameContext for JSGameContext {
     //         js.borrow_mut().on_key_down_listener = Some(listener);
     //     });
     // }
-    
-    fn pick_key_events(&self)->Vec<(KeyEvent, i32)>{
+
+    fn pick_key_events(&self) -> Vec<(KeyEvent, i32)> {
         let mut events = vec![];
         //console_log(&format!("es_len={}", es.len()));
-        if let Ok(mut e) = KEY_EVENTS.lock(){
+        if let Ok(mut e) = KEY_EVENTS.lock() {
             events.append(&mut e);
             //console_log(&format!("pick_key_events={:?}", events));
         }
         events
     }
 
-    fn pick_messages(&self)->Vec<String>{
+    fn pick_messages(&self) -> Vec<String> {
         let mut msgs = vec![];
-        if let Ok(mut m) = MESSAGES.lock(){
+        if let Ok(mut m) = MESSAGES.lock() {
             msgs.append(&mut m);
             //console_log(&format!("pick_messages={:?}", msgs));
+        }
+        msgs
+    }
+
+    fn pick_binary_messages(&self) -> Vec<Vec<u8>> {
+        let mut msgs = vec![];
+        if let Ok(mut m) = BINARY_MESSAGES.lock() {
+            msgs.append(&mut m);
         }
         msgs
     }
@@ -509,7 +538,7 @@ impl GameContext for JSGameContext {
         alert(msg);
     }
 
-    fn line_width(&self, width:i32){
+    fn line_width(&self, width: i32) {
         line_width(width);
     }
 
@@ -517,11 +546,11 @@ impl GameContext for JSGameContext {
         load_resource(json);
     }
 
-    fn window_inner_width(&self, ) -> i32 {
+    fn window_inner_width(&self) -> i32 {
         window_inner_width()
     }
 
-    fn window_inner_height(&self, ) -> i32 {
+    fn window_inner_height(&self) -> i32 {
         window_inner_height()
     }
 
@@ -549,7 +578,7 @@ impl GameContext for JSGameContext {
         set_canvas_height(height);
     }
 
-    fn prompt(&self, title:&str, default_msg:&str)->String{
+    fn prompt(&self, title: &str, default_msg: &str) -> String {
         prompt(title, default_msg)
     }
 }

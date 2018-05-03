@@ -1,7 +1,8 @@
 use sprite::{Sprite, SA_KILL};
 use std::rc::Rc;
 use std::cell::RefCell;
-use ::KeyEvent;
+use KeyEvent;
+use utils::Counter;
 //GameEngine 绘制和更新精灵
 pub trait GameContext {
     fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
@@ -20,7 +21,7 @@ pub trait GameContext {
         dest_width: i32,
         dest_height: i32,
     );
-    fn line_width(&self, width:i32);
+    fn line_width(&self, width: i32);
     fn set_canvas_font(&self, font: &str);
     fn fill_style(&self, style: &str);
     fn stroke_style(&self, style: &str);
@@ -43,29 +44,39 @@ pub trait GameContext {
     //fn set_on_key_up_listener(&self, listener: fn(key: i32));
     //fn set_on_key_down_listener(&self, listener: fn(key: i32));
     fn send_message(&self, msg: &str);
-    fn prompt(&self, title:&str, default_msg:&str)->String;
+    fn prompt(&self, title: &str, default_msg: &str) -> String;
     fn set_on_close_listener(&self, listener: fn());
     fn request_animation_frame(&self);
     fn connect(&self, url: &str);
     fn set_frame_callback(&self, callback: fn(f64));
     //fn set_on_message_listener(&self, callback: fn(&str));
-    fn pick_key_events(&self)->Vec<(KeyEvent, i32)>;
-    fn pick_messages(&self)->Vec<String>;
+    fn pick_key_events(&self) -> Vec<(KeyEvent, i32)>;
+    fn pick_messages(&self) -> Vec<String>;
+    fn pick_binary_messages(&self) -> Vec<Vec<u8>>;
     fn current_time_millis(&self) -> u64;
 }
 
-pub trait UpdateCallback{
-    fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying:usize);
-    fn on_sprite_collision(&mut self, engine: &mut GameEngine, idx_sprite_hitter:usize, idx_sprite_hittee:usize)->bool;
+pub trait UpdateCallback {
+    fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying: usize);
+    fn on_sprite_collision(
+        &mut self,
+        engine: &mut GameEngine,
+        idx_sprite_hitter: usize,
+        idx_sprite_hittee: usize,
+    ) -> bool;
 }
 
 pub struct GameEngine {
     sprites: Vec<Sprite>,
+    counter: Counter,
 }
 
 impl GameEngine {
     pub fn new() -> GameEngine {
-        GameEngine { sprites: vec![] }
+        GameEngine {
+            sprites: vec![],
+            counter: Counter::new(),
+        }
     }
 
     pub fn add_sprite(&mut self, sprite: Sprite) -> usize {
@@ -92,12 +103,12 @@ impl GameEngine {
 
     pub fn update_sprites<C: UpdateCallback>(
         &mut self,
-        elapsed_milis:f64,
+        elapsed_milis: f64,
         callback: Rc<RefCell<C>>,
     ) {
         //log_string(format!("sprites={}", self.sprites.len()).as_str().as_bytes());
         //更新所有精灵
-        let mut sprites_to_kill: Vec<String> = vec![];
+        let mut sprites_to_kill: Vec<u32> = vec![];
         for i in 0..self.sprites.len() {
             //保存旧的精灵位置以防需要恢复
             let old_sprite_pos = *self.sprites[i].position();
@@ -144,8 +155,10 @@ impl GameEngine {
             if i == test_sprite_id {
                 continue;
             }
-            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()){
-                return callback.borrow_mut().on_sprite_collision(self, i, test_sprite_id);
+            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()) {
+                return callback
+                    .borrow_mut()
+                    .on_sprite_collision(self, i, test_sprite_id);
             }
         }
         return false;
@@ -155,18 +168,18 @@ impl GameEngine {
         self.sprites.clear();
     }
 
-    pub fn query_sprite(&mut self, id: &String) -> Option<&mut Sprite> {
+    pub fn query_sprite(&mut self, id: u32) -> Option<&mut Sprite> {
         for sprite in &mut self.sprites {
-            if sprite.id == id.as_ref() {
+            if sprite.id == id {
                 return Some(sprite);
             }
         }
         None
     }
 
-    pub fn query_sprite_idx(&self, id: &String) -> Option<usize> {
+    pub fn query_sprite_idx(&self, id: u32) -> Option<usize> {
         for i in 0..self.sprites.len() {
-            if self.sprites[i].id == id.as_ref() {
+            if self.sprites[i].id == id {
                 return Some(i);
             }
         }
@@ -186,6 +199,10 @@ impl GameEngine {
     //         s.kill();
     //     }
     // }
+
+    pub fn next_sprite_id(&mut self) -> u32 {
+        self.counter.next().unwrap()
+    }
 
     pub fn kill_sprite(&mut self, idx: usize) {
         self.sprites[idx].kill();
