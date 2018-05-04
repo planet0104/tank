@@ -27,13 +27,13 @@ pub const BA_DIE: BOUNDSACTION = 3;
 // }
 
 pub struct BitmapRes {
-    id: i32,
+    id: u8,
     width: i32,
     height: i32,
 }
 
 impl BitmapRes {
-    pub fn new(id: i32, width: i32, height: i32) -> BitmapRes {
+    pub fn new(id: u8, width: i32, height: i32) -> BitmapRes {
         BitmapRes {
             id: id,
             width: width,
@@ -46,7 +46,7 @@ impl BitmapRes {
     pub fn height(&self) -> i32 {
         self.height
     }
-    pub fn id(&self) -> i32 {
+    pub fn id(&self) -> u8 {
         self.id
     }
 }
@@ -261,6 +261,7 @@ impl Sprite {
         let mut new_position = PointF::new();
         let mut sprite_size = PointF::new();
         let mut bounds_size = PointF::new();
+
         new_position.x = self.position.left + self.velocity.x * elapsed_milis;
         new_position.y = self.position.top + self.velocity.y * elapsed_milis;
         sprite_size.x = self.position.right - self.position.left;
@@ -352,12 +353,12 @@ impl Sprite {
             // Draw the appropriate frame, if necessary
             match self.num_frames {
                 1 => context.draw_image_at(
-                    self.bitmap.id,
+                    self.bitmap.id as i32,
                     self.position.left as i32,
                     self.position.top as i32,
                 ),
                 _ => context.draw_image(
-                    self.bitmap.id,
+                    self.bitmap.id as i32,
                     0,
                     self.cur_frame * self.height(),
                     self.width(),
@@ -524,6 +525,10 @@ impl Sprite {
 
     pub fn kill(&mut self) {
         self.dying = true;
+    }
+
+    pub fn dying(&self) -> bool{
+        self.dying
     }
 
     pub fn add_score(&mut self) {

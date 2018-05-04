@@ -18,6 +18,7 @@ use std::cell::RefCell;
 use std::fmt::Display;
 use std::fmt::Debug;
 use vector_2d::Vector2D;
+use std::time::{Duration, Instant};
 
 //socket消息
 pub const MSG_DISCONNECT: u8 = 1;
@@ -43,12 +44,12 @@ pub const VK_DOWN: i32 = 40;
 //--------------------------------------------
 //-------------游戏资源ID----------------------
 //--------------------------------------------
-pub const RES_TANK_BITMAP: i32 = 0;
-pub const RES_MISSILE_BITMAP: i32 = 1;
-pub const RES_LG_EXPLOSION_BITMAP: i32 = 2;
-pub const RES_SM_EXPLOSION_BITMAP: i32 = 3;
-pub const RES_SM_GUN_BITMAP: i32 = 4;
-pub const RES_NURSE_BITMAP: i32 = 5;
+pub const RES_TANK_BITMAP: u8 = 0;
+pub const RES_MISSILE_BITMAP: u8 = 1;
+pub const RES_LG_EXPLOSION_BITMAP: u8 = 2;
+pub const RES_SM_EXPLOSION_BITMAP: u8 = 3;
+pub const RES_SM_GUN_BITMAP: u8 = 4;
+pub const RES_NURSE_BITMAP: u8 = 5;
 
 pub const SPRITE_UPDATE_FPS: u32 = 5;
 pub const TANK_VELOCITY: f64 = 0.3;
@@ -56,17 +57,18 @@ pub const MISSILE_VELOCITY: f64 = 0.5;
 pub const PLAYER_LIVES: u32 = 6; //生命值
 pub const TANK_BITMAP_WIDTH: i32 = 57;
 pub const TANK_BITMAP_HEIGHT: i32 = 57;
+pub const SERVER_SYNC_DELAY: u64 = 66; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
 
-pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const CLIENT_IP:&str = "127.0.0.1:8080";
+// pub const SERVER_IP:&str = "127.0.0.1:8080";
+// pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-// pub const SERVER_IP: &str = "172.31.33.204:8414";
-// pub const CLIENT_IP: &str = "54.249.68.59:8414";
+pub const SERVER_IP: &str = "172.31.33.204:8414";
+pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -122,21 +124,22 @@ impl SpriteEvent {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SyncData {
     data: Vec<SData>,
-    ext: Vec<ExtData>,
+    ext: Vec<PlayerData>,
 }
 
 //精灵信息
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SData {
     pub id: u32,
-    pub x: u16,
-    pub y: u16,
-    pub res: u16,
+    pub x: i16,
+    pub y: i16,
+    pub res: u8,
+    pub frame: u8,
 }
 
 //精灵附加信息
 #[derive(Serialize, Deserialize, Debug)]
-pub struct ExtData {
+pub struct PlayerData {
     pub id: u32,
     pub name: String,
     pub score: u16,
@@ -183,37 +186,59 @@ impl UpdateCallback for ClientUpdateCallback {
     fn on_sprite_dying(&mut self, _engine: &mut GameEngine, _idx_sprite_dying: usize) {}
     fn on_sprite_collision(
         &mut self,
-        _engine: &mut GameEngine,
-        _idx_sprite_hitter: usize,
-        _idx_sprite_hittee: usize,
+        engine: &mut GameEngine,
+        idx_sprite_hitter: usize,
+        idx_sprite_hittee: usize,
     ) -> bool {
-        false
+        let (hitter_res, hitter_id, hitter_parent) = {
+            let hitter = &engine.sprites()[idx_sprite_hitter];
+            (hitter.bitmap().id(), hitter.id.clone(), hitter.parent_id)
+        };
+        let (hittee_res, hittee_id, hittee_parent) = {
+            let hittee = &engine.sprites()[idx_sprite_hittee];
+            (hittee.bitmap().id(), hittee.id.clone(), hittee.parent_id)
+        };
+        if hittee_res == RES_TANK_BITMAP && hitter_res == RES_TANK_BITMAP {
+            //坦克之间不能互相穿过
+            engine.sprites()[idx_sprite_hittee].set_velocity(0.0, 0.0);
+            true
+        }else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP 
+        || hitter_res == RES_TANK_BITMAP && hittee_res == RES_MISSILE_BITMAP{
+            //子弹碰撞坦克or坦克碰撞子弹
+            let left_is_missile = hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP;
+            //子弹可以穿过玩家自己
+            if left_is_missile && hitter_parent == hittee_id {
+                false
+            } else if !left_is_missile && hittee_parent == hitter_id {
+                false
+            }else{
+                //子弹碰到坦克 停止,等待服务器添加爆炸精灵
+                true
+            }
+        }else if hitter_res == RES_NURSE_BITMAP && hittee_res == RES_MISSILE_BITMAP
+            || hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_NURSE_BITMAP
+        {
+            //子弹和护士碰撞，停止走动
+            true
+        }
+         else {
+            false
+        }
     }
 }
 
 //服务器端游戏更新
 pub struct ServerUpdateCallback {
-    extras: Rc<RefCell<Vec<(ExtData)>>>,
+    extras: Rc<RefCell<Vec<(PlayerData)>>>,
 }
 impl UpdateCallback for ServerUpdateCallback {
     fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying: usize) {
-        //精灵死亡, 在update回调中添加ExtraData，此次更新完成后，精灵将会从列表删除，服务器将删除的精灵信息分发给客户端
-        self.extras.borrow_mut().push({
-            let sprite = &engine.sprites()[idx_sprite_dying];
-            ExtData {
-                id: sprite.id,
-                name: sprite.name().clone(),
-                score: sprite.score() as u16,
-                killer_name: sprite.killer_name().clone(),
-                lives: sprite.lives() as u16,
-            }
-        });
         let bitmap_id = engine.sprites()[idx_sprite_dying].bitmap().id();
         //子弹精灵死亡添加小的爆炸精灵
         if bitmap_id == RES_MISSILE_BITMAP {
             let sid = engine.next_sprite_id();
             let pos = *engine.sprites()[idx_sprite_dying].position();
-            let idx = TankGame::add_sprite(
+            TankGame::add_sprite(
                 engine,
                 sid,
                 RES_SM_EXPLOSION_BITMAP,
@@ -222,20 +247,21 @@ impl UpdateCallback for ServerUpdateCallback {
                     y: pos.top,
                 },
             );
-            //创建精灵附加信息
-            self.extras.borrow_mut().push({
-                let sprite = &engine.sprites()[idx];
-                ExtData {
-                    id: sprite.id,
-                    name: sprite.name().clone(),
-                    score: sprite.score() as u16,
-                    killer_name: sprite.killer_name().clone(),
-                    lives: sprite.lives() as u16,
-                }
-            });
         }
+        //玩家死亡, 在update回调中添加ExtraData，此次更新完成后，精灵将会从列表删除，服务器将删除的精灵信息分发给客户端
+        self.extras.borrow_mut().push({
+            let sprite = &engine.sprites()[idx_sprite_dying];
+            PlayerData {
+                id: sprite.id,
+                name: sprite.name().clone(),
+                score: sprite.score() as u16,
+                killer_name: sprite.killer_name().clone(),
+                lives: sprite.lives() as u16,
+            }
+        });
         //坦克死亡添加大的爆炸精灵
         if bitmap_id == RES_TANK_BITMAP {
+
             let sid = engine.next_sprite_id();
             let pos = *engine.sprites()[idx_sprite_dying].position();
             let idx = TankGame::add_sprite(
@@ -247,32 +273,11 @@ impl UpdateCallback for ServerUpdateCallback {
                     y: pos.top,
                 },
             );
-            //创建精灵附加信息
-            self.extras.borrow_mut().push({
-                let sprite = &engine.sprites()[idx];
-                ExtData {
-                    id: sprite.id,
-                    name: sprite.name().clone(),
-                    score: sprite.score() as u16,
-                    killer_name: sprite.killer_name().clone(),
-                    lives: sprite.lives() as u16,
-                }
-            });
             //增加凶手得分
             //let dying_name = engine.sprites()[idx_sprite_dying].name().clone();
             let killer = engine.sprites()[idx_sprite_dying].killer_id();
             if let Some(killer) = engine.query_sprite(killer) {
                 killer.add_score();
-                //更新精灵附加信息
-                self.extras.borrow_mut().push({
-                    ExtData {
-                        id: killer.id,
-                        name: killer.name().clone(),
-                        score: killer.score() as u16,
-                        killer_name: killer.killer_name().clone(),
-                        lives: killer.lives() as u16,
-                    }
-                });
             }
         }
         //护士死亡
@@ -283,16 +288,6 @@ impl UpdateCallback for ServerUpdateCallback {
                 let lives = killer.lives();
                 if lives < 6 {
                     killer.set_lives(lives + 1);
-                    //更新精灵附加信息
-                    self.extras.borrow_mut().push({
-                        ExtData {
-                            id: killer.id,
-                            name: killer.name().clone(),
-                            score: killer.score() as u16,
-                            killer_name: killer.killer_name().clone(),
-                            lives: killer.lives() as u16,
-                        }
-                    });
                 }
             }
         }
@@ -315,7 +310,7 @@ impl UpdateCallback for ServerUpdateCallback {
             let hittee = &engine.sprites()[idx_sprite_hittee];
             (hittee.bitmap().id(), hittee.id.clone(), hittee.parent_id)
         };
-        if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP {
+        if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP{
             //子弹碰撞坦克or坦克碰撞子弹
             let left_is_missile = hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP;
             //玩家碰到自己发射的子弹不会爆炸
@@ -349,17 +344,6 @@ impl UpdateCallback for ServerUpdateCallback {
                     engine.sprites()[dying_idx].set_lives(lives - 1);
                     //杀死子弹
                     engine.kill_sprite(missile_idx);
-                    //玩家生命值更新以后需要返回更新的数据
-                    self.extras.borrow_mut().push({
-                        let sprite = &engine.sprites()[dying_idx];
-                        ExtData {
-                            id: sprite.id,
-                            name: sprite.name().clone(),
-                            score: sprite.score() as u16,
-                            killer_name: sprite.killer_name().clone(),
-                            lives: sprite.lives() as u16,
-                        }
-                    });
                     false
                 } else {
                     //子弹对应的玩家加分
@@ -380,6 +364,7 @@ impl UpdateCallback for ServerUpdateCallback {
         {
             //子弹和护士相撞, 玩家血量+1
             engine.sprites()[idx_sprite_hitter].kill();
+            engine.sprites()[idx_sprite_hittee].kill();
             engine.sprites()[idx_sprite_hitter].set_killer(
                 match hitter_res {
                     RES_NURSE_BITMAP => hittee_parent,
@@ -411,17 +396,19 @@ impl UpdateCallback for ServerUpdateCallback {
 pub struct TankGame {
     pub engine: GameEngine,
     client_context: Option<Rc<Box<GameContext>>>,
-    server_extras: Rc<RefCell<Vec<ExtData>>>,
+    server_extras: Rc<RefCell<Vec<PlayerData>>>,
     players: HashMap<u32, Player>,
     client_player: Option<Player>,
     client_dying_delay_ms: f64, //5秒重生
-    last_timestamp: f64,
     leaders: Vec<(u32, i32)>,
     dying_players: Vec<(i32, String, String)>,
     server_update_callback: Rc<RefCell<ServerUpdateCallback>>,
     client_update_callback: Rc<RefCell<ClientUpdateCallback>>,
-    next_nurse_time: f64,
-    time_elpased_ms: f64,
+    last_timestamp: f64, //(client)上次绘制时间
+    start_time_milis: f64, //(client)游戏开始时间
+    time_elpased_ms: f64, //(server/client)游戏运行时间
+    last_sync_time: f64,  //(client)上次数据同步时间
+    next_nurse_time: f64, //(server)上次出现护士时间
 }
 
 impl TankGame {
@@ -441,6 +428,8 @@ impl TankGame {
             client_update_callback: Rc::new(RefCell::new(ClientUpdateCallback {})),
             next_nurse_time: 0.0,
             time_elpased_ms: 0.0,
+            last_sync_time: 0.0,
+            start_time_milis: 0.0
         }
     }
 
@@ -562,6 +551,10 @@ impl TankGame {
     pub fn client_update(&mut self, timestamp: f64) {
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
+        if self.start_time_milis == 0.0{
+            self.start_time_milis = timestamp;
+        }
+        self.time_elpased_ms = timestamp - self.start_time_milis;
         if self.last_timestamp == 0.0 {
             self.last_timestamp = timestamp;
         }
@@ -664,7 +657,7 @@ impl TankGame {
             let y = 40 + di * 50;
             context.fill_text(&d.1, 20, y);
             context.fill_text(&d.2, 170, y);
-            context.draw_image_at(RES_SM_GUN_BITMAP, 110, y - 40);
+            context.draw_image_at(RES_SM_GUN_BITMAP as i32, 110, y - 40);
             di += 1;
             d.0 += 1;
         }
@@ -736,18 +729,6 @@ impl TankGame {
                 score: 0,
             },
         );
-        //添加玩家附加信息
-        self.server_extras.borrow_mut().push({
-            let sprite = &self.engine.sprites()[sprite_index];
-            ExtData {
-                id: sprite.id,
-                name: sprite.name().clone(),
-                score: sprite.score() as u16,
-                killer_name: sprite.killer_name().clone(),
-                lives: sprite.lives() as u16,
-            }
-        });
-        //println!("join_game {} {} 在线人数:{}", id, name, self.players.len());
 
         sid
     }
@@ -773,7 +754,7 @@ impl TankGame {
     }
 
     //创建游戏精灵
-    pub fn add_sprite(engine: &mut GameEngine, id: u32, res: i32, position: PointF) -> usize {
+    pub fn add_sprite(engine: &mut GameEngine, id: u32, res: u8, position: PointF) -> usize {
         match res {
             RES_TANK_BITMAP => {
                 //创建玩家坦克
@@ -823,6 +804,7 @@ impl TankGame {
                     Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                 );
                 sprite.set_num_frames(8, true);
+                sprite.set_position(position.x, position.y);
                 engine.add_sprite(sprite)
             }
             RES_LG_EXPLOSION_BITMAP => {
@@ -833,46 +815,104 @@ impl TankGame {
                     Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
                 );
                 sprite.set_num_frames(8, true);
+                sprite.set_position(position.x, position.y);
                 engine.add_sprite(sprite)
             }
             _ => 0,
         }
     }
 
+    //差值同步精灵位置
+    pub fn synchronize_sprites_velocity(context: Rc<Box<GameContext>>, sdata:&SData, sprite:&mut Sprite){
+        let distance = {
+            let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
+            (dx * dx + dy * dy).sqrt()
+        };
+        sprite.set_current_frame(sdata.frame as i32);
+
+        if distance.abs()<1.0{
+            //防止抖动
+            sprite.set_velocity(0.0, 0.0);
+        }else if distance.abs()>100.0{
+            sprite.set_velocity(0.0, 0.0);
+            sprite.set_position(sdata.x as f64, sdata.y as f64);
+        }
+        else{
+            let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
+            //context.console_log(&format!("distance:{} dx={},dy={} {:?} position={:?}", distance, dx, dy, sdata, sprite.position()));
+            //context.console_log(&format!("uid={}, (dx, dy)={:?} time={} sprite.position()={:?}", sprite.id, (dx, dy), time, sprite.position()));
+            //if time!=0.0{
+                sprite.set_velocity(dx/SERVER_SYNC_DELAY as f64, dy/SERVER_SYNC_DELAY as f64);
+            //}
+        }
+    }
+
     //Client接收服务器广播列表，对精灵当前位置和服务器位置的距离计算速度(时间为：1s/5、200ms)，精灵自动移动到下一个位置。
     pub fn client_synchronize_sprites(&mut self, sync_data: SyncData) {
+        let context = self.client_context.as_ref().unwrap();
+        //self.console_log_1("client_synchronize_sprites", &sync_data);
+        if self.last_sync_time == 0.0{
+            self.last_sync_time = self.time_elpased_ms;
+        }
         let mut sync_data = sync_data;
+        let time = self.time_elpased_ms - self.last_sync_time;
+        //context.console_log(&format!("客户端精灵数量 {}", self.engine.sprites().len()));
         //更新每个精灵
         for sdata in sync_data.data {
-            let ext_id = sync_data.ext.binary_search_by(|s| s.id.cmp(&sdata.id));
+            let mut ext_id = None;
+            let mut ext_index:usize = 0;
+            for e in &sync_data.ext{
+                if e.id == sdata.id{
+                    ext_id = Some(ext_index);
+                    break;
+                }
+                ext_index += 1;
+            }
+            //context.console_log(&format!("查询ext_id结果：{:?}", ext_id));
             let sprite_id = self.engine.query_sprite_idx(sdata.id);
-
             if let Some(sprite_idx) = sprite_id {
                 let mut sprite = &mut self.engine.sprites()[sprite_idx];
+                
                 //更新精灵
-                match sdata.res as i32 {
+                match sdata.res {
+                    RES_NURSE_BITMAP => {
+                        TankGame::synchronize_sprites_velocity(context.clone(), &sdata, &mut sprite);
+                    }
                     RES_TANK_BITMAP => {
-                        //旋转坦克角度
-                        let new_look_at = Vector2D::normalize(Vector2D::new(
-                            sdata.x as f64 - sprite.position().left,
-                            sdata.y as f64 - sprite.position().top,
-                        ));
-                        let degree = Vector2D::dot(&sprite.look_at(), &new_look_at);
-                        sprite.set_rotation(degree);
-                        sprite.set_look_at(new_look_at);
-                        //设置目标位置
-                        sprite.set_target(PointF {
-                            x: sdata.x as f64,
-                            y: sdata.y as f64,
-                        });
-                        //计算速度
-                        //>>>>>>>>>>>>>>>>>>>>>>>>>>>> 服务器接收到数据以后，计算时差，计算坦克目标位置。 】】】】】】】】】】】】】
+                        //玩家自己的坦克不更新
+                        if sdata.id != self.client_player.as_ref().unwrap().id{
+                            TankGame::synchronize_sprites_velocity(context.clone(), &sdata, &mut sprite);
+                        }
+                        //更新除玩家以外的精灵
+                        //if sdata.id != self.client_player.as_ref().unwrap().id{
+                            //旋转坦克角度
+                            // let new_look_at = Vector2D::normalize(Vector2D::new(
+                            //     sdata.x as f64 - sprite.position().left,
+                            //     sdata.y as f64 - sprite.position().top,
+                            // ));
+                            // let degree = Vector2D::dot(&sprite.look_at(), &new_look_at);
+                            // sprite.set_rotation(degree);
+                            //sprite.set_look_at(new_look_at);
+                            //设置目标位置
+                            // sprite.set_target(PointF {
+                            //     x: sdata.x as f64,
+                            //     y: sdata.y as f64,
+                            // });
+                            //sprite.set_position(sdata.x as f64, sdata.y as f64);
+                            //计算达到目标位置的速度 (时间距离上次同步的时间)
+                            //let time = self.time_elpased_ms - self.last_sync_time;
+                            //context.console_log(&format!("time={}ms", time));
+                            //let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
+                            //context.console_log(&format!("(dx, dy)={:?}", (dx, dy)));
+                            //sprite.set_velocity(dx/time, dy/time);
+                        //}
                         
                         //更新得分
-                        if ext_id.is_ok() {
+                        if ext_id.is_some() {
                             let ext = &sync_data.ext[ext_id.unwrap()];
                             sprite.set_score(ext.score as i32);
                             sprite.set_lives(ext.lives as u32);
+                            sprite.set_name(ext.name.clone());
                             //更新玩家列表中的得分
                             if let Some(player) = self.players.get_mut(&sprite.id) {
                                 player.score = ext.score as i32;
@@ -880,18 +920,7 @@ impl TankGame {
                         }
                     }
                     RES_MISSILE_BITMAP => {
-                        //子弹的方向不变，只更新位置
-                        sprite.set_target(PointF {
-                            x: sdata.x as f64,
-                            y: sdata.y as f64,
-                        });
-                    }
-                    RES_NURSE_BITMAP => {
-                        //护士的方向不变, 只更新位置
-                        sprite.set_target(PointF {
-                            x: sdata.x as f64,
-                            y: sdata.y as f64,
-                        });
+
                     }
                     _ => {}
                 }
@@ -900,49 +929,54 @@ impl TankGame {
                 let sidx = TankGame::add_sprite(
                     &mut self.engine,
                     sdata.id,
-                    sdata.res as i32,
+                    sdata.res,
                     PointF {
                         x: sdata.x as f64,
                         y: sdata.y as f64,
                     },
                 );
-                if ext_id.is_ok() {
-                    let ext = &sync_data.ext[ext_id.unwrap()];
-                    let mut sprite = &mut self.engine.sprites()[sidx];
-                    match sdata.res as i32 {
-                        RES_TANK_BITMAP => {
-                            sprite.set_name(ext.name.clone());
-                            sprite.set_score(ext.score as i32);
-                            sprite.set_lives(ext.lives as u32);
-                            //坦克的出生默认朝上, 这里不再设置
+                let mut sprite = &mut self.engine.sprites()[sidx];
+                sprite.set_current_frame(sdata.frame as i32);
+                //context.console_log(&format!("创建精灵：{:?}", sdata));
 
-                            self.players.insert(
-                                ext.id,
-                                Player {
-                                    id: ext.id,
-                                    ip: String::new(),
-                                    name: ext.name.clone(),
-                                    score: ext.score as i32,
-                                    killer_name: ext.killer_name.clone(),
-                                },
-                            );
-                        }
-                        RES_MISSILE_BITMAP => {
-                            //子弹角度
-                        }
-                        RES_NURSE_BITMAP => {
-                            //护士角度
-                        }
+                //子弹的初始速度
+                if sdata.res == RES_MISSILE_BITMAP{
+                    match sprite.current_frame() {
+                        0 => sprite.set_velocity(0.0, -MISSILE_VELOCITY),
+                        1 => sprite.set_velocity(0.0, MISSILE_VELOCITY),
+                        2 => sprite.set_velocity(-MISSILE_VELOCITY, 0.0),
+                        3 => sprite.set_velocity(MISSILE_VELOCITY, 0.0),
                         _ => {}
                     }
+                    //context.console_log(&format!("子弹速度{:?}", sprite.position()));
+                }
+
+                //玩家的信息
+                if ext_id.is_some() && sdata.res == RES_TANK_BITMAP {
+                    let ext = &sync_data.ext[ext_id.unwrap()];
+                    sprite.set_name(ext.name.clone());
+                    sprite.set_score(ext.score as i32);
+                    sprite.set_lives(ext.lives as u32);
+                    self.players.insert(
+                        ext.id,
+                        Player {
+                            id: ext.id,
+                            ip: String::new(),
+                            name: ext.name.clone(),
+                            score: ext.score as i32,
+                            killer_name: ext.killer_name.clone(),
+                        },
+                    );
                 }
             }
             //删除ext中已经处理完毕的精灵数据
-            if ext_id.is_ok() {
-                sync_data.ext.remove(ext_id.unwrap());
+            if ext_id.is_some() {
+                let _r = sync_data.ext.remove(ext_id.unwrap());
+                //context.console_log(&format!("删除ext: {:?}", r));
             }
         }
         //删除剩下的在最新精灵列表中不存在的精灵
+        //context.console_log(&format!("sync_data.ext={:?}", sync_data.ext));
         for data in sync_data.ext {
             if let Some(sprite_idx) = self.engine.query_sprite_idx(data.id) {
                 let mut sprite = &mut self.engine.sprites()[sprite_idx];
@@ -953,8 +987,11 @@ impl TankGame {
                     self.dying_players
                         .push((0, data.killer_name.clone(), data.name));
                 }
+                //let now = Instant::now();
+                //context.console_log(&format!("sync_data.nowext={:?}", sync_data.ext));
                 //检查玩家是否死亡
                 if data.id == self.client_player.as_ref().unwrap().id {
+                    context.console_log(&format!("玩家死亡!! {}", data.id));
                     self.client_player.as_mut().unwrap().killer_name = data.killer_name.clone();
                     self.client_dying_delay_ms = 5000.0;
                 }
@@ -971,6 +1008,8 @@ impl TankGame {
             .take(3)
             .map(|p| (*p).clone())
             .collect::<Vec<_>>();
+
+        self.last_sync_time = self.time_elpased_ms;
     }
 
     //更新游戏
@@ -1195,16 +1234,27 @@ impl TankGame {
     //服务器同步数据时, 从这里获取附加数据
     pub fn get_sync_data(&mut self) -> SyncData {
         let mut ext = vec![];
-        self.server_extras.borrow_mut().append(&mut ext);
+        ext.append(&mut self.server_extras.borrow_mut());
 
         let mut data = vec![];
         for sprite in self.engine.sprites() {
             data.push(SData {
                 id: sprite.id,
-                x: sprite.position().left as u16,
-                y: sprite.position().top as u16,
-                res: sprite.bitmap().id() as u16,
+                frame: sprite.current_frame() as u8,
+                x: sprite.position().left as i16,
+                y: sprite.position().top as i16,
+                res: sprite.bitmap().id(),
             });
+            //玩家信息
+            if sprite.bitmap().id() == RES_TANK_BITMAP{
+                ext.push(PlayerData {
+                    id: sprite.id,
+                    name: sprite.name().clone(),
+                    score: sprite.score() as u16,
+                    killer_name: sprite.killer_name().clone(),
+                    lives: sprite.lives() as u16,
+                });
+            }
         }
 
         SyncData {
@@ -1248,30 +1298,35 @@ impl TankGame {
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
         for message in &mut messages {
+            let msg_len = message.len() as f32/1024.0;
             let msg_id = message.remove(0);
             match msg_id {
                 SERVER_MSG_ERR => {
+                    //context.console_log(&format!("SERVER_MSG_ERR {:0.2}K", msg_len));
                     let r: Result<String, _> = deserialize(&message[..]);
                     if let Ok(msg) = r {
                         context.console_log(&format!("服务器错误:{}", msg));
                     } else {
-                        println!("SERVER_MSG_ERR 消息解析失败 {:?}", r.err());
+                        context.console_log(&format!("SERVER_MSG_ERR 消息解析失败 {:?}", r.err()));
                     }
                 }
                 SERVER_MSG_UID => {
+                    //context.console_log(&format!("SERVER_MSG_UID {:0.2}K", msg_len));
                     let r: Result<u32, _> = deserialize(&message[..]);
                     if let Ok(uid) = r {
+                        self.console_log_1("SERVER_MSG_UID", uid);
                         self.client_player.as_mut().unwrap().id = uid;
                     } else {
-                        println!("SERVER_MSG_UUID 消息解析失败 {:?}", r.err());
+                        context.console_log(&format!("SERVER_MSG_UUID 消息解析失败 {:?}", r.err()));
                     }
                 }
                 SERVER_MSG_SYNC => {
+                    //context.console_log(&format!("SERVER_MSG_SYNC {:0.2}K {}", msg_len, context.current_time_millis()));
                     let r = deserialize(&message[..]);
                     if let Ok(msg) = r {
                         self.client_synchronize_sprites(msg);
                     } else {
-                        println!("SERVER_MSG_SYNC 消息解析失败 {:?}", r.err());
+                        context.console_log(&format!("SERVER_MSG_SYNC 消息解析失败 {:?}", r.err()));
                     }
                 }
                 _ => {}
@@ -1279,7 +1334,11 @@ impl TankGame {
         }
     }
 
-    fn console_log_1<A: Display + Debug, B: Display + Debug>(&self, msg: A, obj: B) {
+    pub fn players(&self) -> &HashMap<u32,Player>{
+        &self.players
+    }
+
+    fn console_log_1<A: Debug, B: Debug>(&self, msg: A, obj: B) {
         let msg = format!("{:?} {:?}", msg, obj);
         self.client_context.as_ref().unwrap().console_log(&msg);
     }

@@ -8,7 +8,7 @@ use bincode::{deserialize, serialize};
 
 use tank::utils::duration_to_milis;
 use tank::{KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, SERVER_IP, SERVER_MSG_ERR,
-           SERVER_MSG_SYNC, SERVER_MSG_UID};
+           SERVER_MSG_SYNC, SERVER_MSG_UID, SERVER_SYNC_DELAY};
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
@@ -58,10 +58,10 @@ fn main() {
                         let msg_id = msg.remove(0);
                         match msg_id {
                             MSG_START => {
-                                //info!("join_game {} {}", uuid, data);
                                 //玩家加入游戏
                                 let r: Result<String, _> = deserialize(&msg[..]);
                                 if let Ok(username) = r {
+                                    info!("join_game ip={} username={}", ip, username);
                                     let uid = game.server_join_game(ip.clone(), username);
                                     //下发用户ID
                                     if let Ok(mut encoded) = serialize(&uid) {
@@ -97,12 +97,14 @@ fn main() {
 
                 //5帧的速度广播
                 if timestamp >= next_sync_time {
-                    let sync_data = game.get_sync_data();
-                    if let Ok(mut encoded) = serialize(&sync_data) {
-                        encoded.insert(0, SERVER_MSG_SYNC);
-                        broad_cast_binary_message(connections_clone.clone(), encoded);
+                    if game.players().len() > 0{
+                        let sync_data = game.get_sync_data();
+                        if let Ok(mut encoded) = serialize(&sync_data) {
+                            encoded.insert(0, SERVER_MSG_SYNC);
+                            broad_cast_binary_message(connections_clone.clone(), encoded);
+                        }
                     }
-                    next_sync_time = timestamp + Duration::from_millis(200);
+                    next_sync_time = timestamp + Duration::from_millis(SERVER_SYNC_DELAY);
                 }
 
                 last_time = timestamp;
@@ -145,7 +147,8 @@ fn main() {
                         info!("on text message:{}", text);
                     }
                     OwnedMessage::Binary(buffer) => {
-                        info!("binary {}", buffer.len());
+                        //info!("binary {}", buffer.len());
+                        //info!("{:?}", buffer);
                         let _ = game_sender_clone.send((ip.to_string(), buffer));
                     }
                     OwnedMessage::Close(_) => {
@@ -158,7 +161,7 @@ fn main() {
                 }
             }
             connections_clone.write().unwrap().remove(&ip.to_string());
-            let _ = game_sender_clone.send((ip.to_string(), vec![]));
+            let _ = game_sender_clone.send((ip.to_string(), vec![MSG_DISCONNECT]));
             info!("连接关闭: {}", ip);
         });
     }

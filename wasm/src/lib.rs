@@ -174,7 +174,7 @@ pub fn send_message(msg: &str) {
 }
 
 pub fn send_binary_message(msg: &Vec<u8>) {
-    console_log(&format!("wasm:send_binary_message {:?} len={}", msg, msg.len()));
+    //console_log(&format!("wasm:send_binary_message {:?} len={}", msg, msg.len()));
     unsafe {
         _send_binary_message(msg.as_ptr(), msg.len());
     }
@@ -369,6 +369,7 @@ pub fn on_message(msg: *mut u8, length: usize) {
 #[no_mangle]
 pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
     let msg = Vec::from_raw_parts(msg, length, length);
+    //console_log(&format!("wasm:on_binary_message {:?} len={}", msg, msg.len()));
     if let Ok(mut messages) = BINARY_MESSAGES.lock() {
         messages.push(msg);
     }
@@ -531,6 +532,7 @@ impl GameContext for JSGameContext {
         if let Ok(mut m) = BINARY_MESSAGES.lock() {
             msgs.append(&mut m);
         }
+        //console_log(&format!("wasm:pick_binary_messages {:?} len={}", msgs, msgs.len()));
         msgs
     }
 

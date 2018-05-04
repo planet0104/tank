@@ -215,15 +215,13 @@ var imports = {
                 console.log(e);
             }
         },
-        _send_binary_message: function(buffer, len){
-            console.log("_send_binary_message... buffer=", buffer, "len=", len);
+        _send_binary_message: function(ptr, len){
             try{
-                let array = readUint8Array(buffer, len);
-                console.log("_send_binary_message", array);
-                socket.send(array.buffer);
+                let buffer = readArrayBuffer(ptr, len);
+                socket.send(buffer);
             }catch(e){
                 console.log("消息发送失败:", e);
-            }       
+            }
         },
         _connect: function(url, len){
             connect(read_string(url, len));
@@ -243,9 +241,8 @@ function read_string(offset, len){
     }
 }
 
-function readUint8Array(offset, len){
-    var array = new Uint8Array(exports.memory.buffer, offset, len);
-    return array.slice(offset, len);
+function readArrayBuffer(ptr, len){
+    return exports.memory.buffer.slice(ptr, ptr+len);
 }
 
 //想Webassembly的memory.buffer写入utf8字符串，并返回该字符串的指针
@@ -415,7 +412,7 @@ function connect(url){
 
         socket.onmessage = function(event){
             //console.log("js socket.onmessage", event.data);
-            console.log((Date.now()-lastSend)+"ms", "recv");
+            //console.log((Date.now()-lastSend)+"ms", "recv");
             if (event.data instanceof String){
                 var msg = alloc_string(event.data);
                 exports.on_message(msg.ptr, msg.len);
