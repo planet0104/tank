@@ -202,19 +202,11 @@ impl UpdateCallback for ClientUpdateCallback {
             //坦克之间不能互相穿过
             engine.sprites()[idx_sprite_hittee].set_velocity(0.0, 0.0);
             true
-        }else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP 
-        || hitter_res == RES_TANK_BITMAP && hittee_res == RES_MISSILE_BITMAP{
-            //子弹碰撞坦克or坦克碰撞子弹
-            let left_is_missile = hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP;
-            //子弹可以穿过玩家自己
-            if left_is_missile && hitter_parent == hittee_id {
-                false
-            } else if !left_is_missile && hittee_parent == hitter_id {
-                false
-            }else{
-                //子弹碰到坦克 停止,等待服务器添加爆炸精灵
-                true
-            }
+        }else if hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_TANK_BITMAP {
+            //子弹碰撞到其他坦克 停止移动
+            ! hitter_parent == hittee_id
+        }else if hitter_res == RES_TANK_BITMAP && hittee_res == RES_MISSILE_BITMAP{
+            ! hittee_parent == hitter_id
         }else if hitter_res == RES_NURSE_BITMAP && hittee_res == RES_MISSILE_BITMAP
             || hitter_res == RES_MISSILE_BITMAP && hittee_res == RES_NURSE_BITMAP
         {
