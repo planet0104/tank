@@ -59,16 +59,16 @@ pub const TANK_BITMAP_WIDTH: i32 = 57;
 pub const TANK_BITMAP_HEIGHT: i32 = 57;
 pub const SERVER_SYNC_DELAY: u64 = 66; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
 
-pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const CLIENT_IP:&str = "127.0.0.1:8080";
+// pub const SERVER_IP:&str = "127.0.0.1:8080";
+// pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-// pub const SERVER_IP: &str = "172.31.33.204:8414";
-// pub const CLIENT_IP: &str = "54.249.68.59:8414";
+pub const SERVER_IP: &str = "172.31.33.204:8414";
+pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 

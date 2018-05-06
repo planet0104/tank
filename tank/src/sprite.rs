@@ -253,40 +253,68 @@ impl Sprite {
 
         // Update the frame
         self.update_frame();
+        
+        //检查是否到达目标位置
+        // if let Some(target) = self.target.clone(){
+        //     let pos = Vector2D::new(self.position.left, self.position.top);
+        //     let to_target = target - pos;
+        //     //计算到目标位置的距离
+        //     let dist = Vector2D::length(&to_target);
+        //     let force = if dist>2.0{
+        //         let desired_velocity = to_target * 0.3 / dist;
+        //         desired_velocity - Vector2D::new(0.0, 0.0)
+        //     }else{
+        //         Vector2D::new(0.0,0.0)
+        //     };
 
-        let mut new_position = PointF::new();
-
-        if let Some(target) = self.target.clone(){
-            let pos = Vector2D::new(self.position.left, self.position.top);
-            let to_target = target - pos;
-            //计算到目标位置的距离
-            let dist = Vector2D::length(&to_target);
-            let force = if dist>2.0{
-                let desired_velocity = to_target * 0.3 / dist;
-                desired_velocity - Vector2D::new(0.0, 0.0)
-            }else{
-                Vector2D::new(0.0,0.0)
-            };
-
-            let mut pos = Vector2D::new(self.position.left, self.position.top);
-            pos += force*elapsed_milis;
+        //     let mut pos = Vector2D::new(self.position.left, self.position.top);
+        //     pos += force*elapsed_milis;
             
-            // self.set_position_point(&PointF{
-            //     x: pos.x,
-            //     y: pos.y
-            // });
-            new_position.x = pos.x;
-            new_position.y = pos.y;
-        }else{
-            new_position.x = self.position.left + self.velocity.x * elapsed_milis;
-            new_position.y = self.position.top + self.velocity.y * elapsed_milis;
+        //     self.set_position_point(&PointF{
+        //         x: pos.x,
+        //         y: pos.y
+        //     });
+        // }
+
+        //检查是否到达目标位置
+        if let Some(target) = self.target.as_ref(){
+            let mut tmp_position = PointF{
+                x: self.position.left,
+                y: self.position.top,
+            };
+            let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
+            if dx > 0.0{
+                self.velocity.x = 0.3;
+            }
+            if dx<0.0{
+                self.velocity.x = -0.3;   
+            }
+            if dy > 0.0{
+                self.velocity.y = 0.3;
+            }
+            if dy < 0.0{
+                self.velocity.y = -0.3;
+            }
+            for _ in 0..elapsed_milis as u32{
+                tmp_position.x += self.velocity.x;
+                tmp_position.y += self.velocity.y;
+                let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
+                let distance =  (dx * dx + dy * dy).sqrt();
+                if distance<3.0{
+                    self.velocity.x = 0.0;
+                    self.velocity.y = 0.0;
+                    return SA_NONE;
+                }
+            }
         }
 
         //Update the position
-        
+        let mut new_position = PointF::new();
         let mut sprite_size = PointF::new();
         let mut bounds_size = PointF::new();
 
+        new_position.x = self.position.left + self.velocity.x * elapsed_milis;
+        new_position.y = self.position.top + self.velocity.y * elapsed_milis;
         sprite_size.x = self.position.right - self.position.left;
         sprite_size.y = self.position.bottom - self.position.top;
         bounds_size.x = self.bounds.right - self.bounds.left;
