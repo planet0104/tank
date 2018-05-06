@@ -135,6 +135,8 @@ pub struct SData {
     pub y: i16,
     pub res: u8,
     pub frame: u8,
+    pub velocity_x: f32,
+    pub velocity_y: f32,
 }
 
 //精灵附加信息
@@ -816,6 +818,11 @@ impl TankGame {
 
     //差值同步精灵位置
     pub fn synchronize_sprites_velocity(context: Rc<Box<GameContext>>, sdata:&SData, sprite:&mut Sprite){
+        //设置目标位置
+        sprite.set_target(PointF {
+            x: sdata.x as f64,
+            y: sdata.y as f64,
+        });
         let distance = {
             let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
             (dx * dx + dy * dy).sqrt()
@@ -885,11 +892,7 @@ impl TankGame {
                             // let degree = Vector2D::dot(&sprite.look_at(), &new_look_at);
                             // sprite.set_rotation(degree);
                             //sprite.set_look_at(new_look_at);
-                            //设置目标位置
-                            // sprite.set_target(PointF {
-                            //     x: sdata.x as f64,
-                            //     y: sdata.y as f64,
-                            // });
+                            
                             //sprite.set_position(sdata.x as f64, sdata.y as f64);
                             //计算达到目标位置的速度 (时间距离上次同步的时间)
                             //let time = self.time_elpased_ms - self.last_sync_time;
@@ -1236,6 +1239,8 @@ impl TankGame {
                 x: sprite.position().left as i16,
                 y: sprite.position().top as i16,
                 res: sprite.bitmap().id(),
+                velocity_x: sprite.velocity().x as f32,
+                velocity_y: sprite.velocity().y as f32,
             });
             //玩家信息
             if sprite.bitmap().id() == RES_TANK_BITMAP{

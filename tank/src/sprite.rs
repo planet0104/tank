@@ -131,7 +131,7 @@ pub struct Sprite {
     frame_delay: i32,
     frame_trigger: i32,
     position: Rect,
-    target: PointF,
+    target: Option<PointF>,
     bounds: Rect,
     velocity: PointF,
     z_order: i32,
@@ -168,10 +168,7 @@ impl Sprite {
                 position.x + bitmap.width() as f64,
                 position.y + bitmap.height() as f64,
             ),
-            target: PointF {
-                x: position.x,
-                y: position.y,
-            },
+            target: None,
             bitmap: bitmap,
             num_frames: 1,
             cur_frame: 0,
@@ -256,6 +253,17 @@ impl Sprite {
 
         // Update the frame
         self.update_frame();
+
+        //检查是否到达目标位置
+        if let Some(target) = self.target{
+            let distance = {
+            let (dx, dy) = (target.x - self.position.left, target.y - self.position.top);
+                (dx * dx + dy * dy).sqrt()
+            };
+            if distance<1.0{
+                return SA_NONE;
+            }
+        }
 
         // Update the position
         let mut new_position = PointF::new();
@@ -562,11 +570,11 @@ impl Sprite {
         self.look_at = v;
     }
 
-    pub fn target(&self) -> &PointF {
-        &self.target
+    pub fn target(&self) -> Option<&PointF> {
+        self.target.as_ref()
     }
 
     pub fn set_target(&mut self, point: PointF) {
-        self.target = point;
+        self.target = Some(point);
     }
 }
