@@ -1,4 +1,4 @@
-use std::ops::{Mul, Sub, AddAssign, SubAssign, DivAssign, MulAssign};
+use std::ops::{Mul, Sub, Div, AddAssign, SubAssign, DivAssign, MulAssign};
 
 #[derive(Debug)]
 pub struct Vector2D{
@@ -60,6 +60,18 @@ impl Mul<f64> for Vector2D {
         vec
     }
 }
+
+// Vecotr2D/f64
+impl Div<f64> for Vector2D {
+    type Output = Vector2D;
+    fn div(self, rhs: f64) -> Vector2D {
+        Vector2D{
+            x: self.x / rhs,
+            y: self.y / rhs 
+        }
+    }
+}
+
 //重载 f64*Vector2D
 impl Mul<Vector2D> for f64 {
     type Output = Vector2D;

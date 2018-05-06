@@ -819,10 +819,7 @@ impl TankGame {
     //差值同步精灵位置
     pub fn synchronize_sprites_velocity(context: Rc<Box<GameContext>>, sdata:&SData, sprite:&mut Sprite){
         //设置目标位置
-        sprite.set_target(PointF {
-            x: sdata.x as f64,
-            y: sdata.y as f64,
-        });
+        sprite.set_target(Vector2D::new(sdata.x as f64, sdata.y as f64));
         // let distance = {
         //     let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
         //     (dx * dx + dy * dy).sqrt()
