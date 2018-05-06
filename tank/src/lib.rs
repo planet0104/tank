@@ -59,16 +59,16 @@ pub const TANK_BITMAP_WIDTH: i32 = 57;
 pub const TANK_BITMAP_HEIGHT: i32 = 57;
 pub const SERVER_SYNC_DELAY: u64 = 66; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
 
-// pub const SERVER_IP:&str = "127.0.0.1:8080";
-// pub const CLIENT_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-pub const SERVER_IP: &str = "172.31.33.204:8414";
-pub const CLIENT_IP: &str = "54.249.68.59:8414";
+// pub const SERVER_IP: &str = "172.31.33.204:8414";
+// pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -823,27 +823,27 @@ impl TankGame {
             x: sdata.x as f64,
             y: sdata.y as f64,
         });
-        let distance = {
-            let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
-            (dx * dx + dy * dy).sqrt()
-        };
+        // let distance = {
+        //     let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
+        //     (dx * dx + dy * dy).sqrt()
+        // };
         sprite.set_current_frame(sdata.frame as i32);
 
-        if distance.abs()<1.0{
-            //防止抖动
-            sprite.set_velocity(0.0, 0.0);
-        }else if distance.abs()>100.0{
-            sprite.set_velocity(0.0, 0.0);
-            sprite.set_position(sdata.x as f64, sdata.y as f64);
-        }
-        else{
-            let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
-            //context.console_log(&format!("distance:{} dx={},dy={} {:?} position={:?}", distance, dx, dy, sdata, sprite.position()));
-            //context.console_log(&format!("uid={}, (dx, dy)={:?} time={} sprite.position()={:?}", sprite.id, (dx, dy), time, sprite.position()));
-            //if time!=0.0{
-                sprite.set_velocity(dx/SERVER_SYNC_DELAY as f64, dy/SERVER_SYNC_DELAY as f64);
-            //}
-        }
+        // if distance.abs()<1.0{
+        //     //防止抖动
+        //     sprite.set_velocity(0.0, 0.0);
+        // }else if distance.abs()>100.0{
+        //     sprite.set_velocity(0.0, 0.0);
+        //     sprite.set_position(sdata.x as f64, sdata.y as f64);
+        // }
+        // else{
+        //     let (dx, dy) = (sdata.x as f64 - sprite.position().left, sdata.y as f64 - sprite.position().top);
+        //     //context.console_log(&format!("distance:{} dx={},dy={} {:?} position={:?}", distance, dx, dy, sdata, sprite.position()));
+        //     //context.console_log(&format!("uid={}, (dx, dy)={:?} time={} sprite.position()={:?}", sprite.id, (dx, dy), time, sprite.position()));
+        //     //if time!=0.0{
+        //         sprite.set_velocity(dx/SERVER_SYNC_DELAY as f64, dy/SERVER_SYNC_DELAY as f64);
+        //     //}
+        // }
     }
 
     //Client接收服务器广播列表，对精灵当前位置和服务器位置的距离计算速度(时间为：1s/5、200ms)，精灵自动移动到下一个位置。

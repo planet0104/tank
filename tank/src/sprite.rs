@@ -188,7 +188,7 @@ impl Sprite {
             killer_name: String::new(),
             lives: 0,
             rotation: 0.0,
-            look_at: Vector2D::normalize(Vector2D::new(0.0, 1.0)), //默认朝上
+            look_at: Vector2D::new(0.0, 1.0), //默认朝上
         };
         sprite.calc_collision_rect();
         sprite
@@ -256,12 +256,33 @@ impl Sprite {
 
         //检查是否到达目标位置
         if let Some(target) = self.target{
-            let distance = {
-            let (dx, dy) = (target.x - self.position.left, target.y - self.position.top);
-                (dx * dx + dy * dy).sqrt()
+            let mut tmp_position = PointF{
+                x: self.position.left,
+                y: self.position.top,
             };
-            if distance<1.0{
-                return SA_NONE;
+            let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
+            if dx > 0.0{
+                self.velocity.x = 0.3;
+            }
+            if dx<0.0{
+                self.velocity.x = -0.3;   
+            }
+            if dy > 0.0{
+                self.velocity.y = 0.3;
+            }
+            if dy < 0.0{
+                self.velocity.y = -0.3;
+            }
+            for _ in 0..elapsed_milis as u32{
+                tmp_position.x += self.velocity.x;
+                tmp_position.y += self.velocity.y;
+                let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
+                let distance =  (dx * dx + dy * dy).sqrt();
+                if distance<1.0{
+                    self.velocity.x = 0.0;
+                    self.velocity.y = 0.0;
+                    return SA_NONE;
+                }
             }
         }
 
