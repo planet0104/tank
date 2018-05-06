@@ -277,7 +277,7 @@ impl Sprite {
         // }
 
         //检查是否到达目标位置
-        if let Some(target) = self.target.as_ref(){
+        if let Some(target) = self.target.clone(){
             let mut tmp_position = PointF{
                 x: self.position.left,
                 y: self.position.top,
@@ -300,10 +300,16 @@ impl Sprite {
                 tmp_position.y += self.velocity.y;
                 let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
                 let distance =  (dx * dx + dy * dy).sqrt();
-                if distance<3.0{
+                if distance.abs()<3.0{
                     self.velocity.x = 0.0;
                     self.velocity.y = 0.0;
-                    return SA_NONE;
+                }else if distance.abs()>100.0{
+                    self.velocity.x = 0.0;
+                    self.velocity.y = 0.0;
+                    self.set_position_point(&PointF{
+                        x: target.x,
+                        y: target.y,
+                    });
                 }
             }
         }
