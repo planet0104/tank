@@ -88,6 +88,7 @@ fn main() {
                             }
 
                             MSG_KEY_EVENT => {
+                                //info!("MSG_KEY_EVENT");
                                 //玩家上传按键事件
                                 let r: Result<(KeyEvent, i32, u32), _> = deserialize(&msg[..]);
                                 if let Ok((event, key, uid)) = r {
