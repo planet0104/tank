@@ -61,16 +61,16 @@ pub const TANK_BITMAP_HEIGHT: i32 = 57;
 pub const SERVER_SYNC_DELAY: u64 = 66; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
 pub const CLIENT_SYNC_DELAY: u64 = 66;
 
-pub const SERVER_IP:&str = "127.0.0.1:8080";
-pub const CLIENT_IP:&str = "127.0.0.1:8080";
+// pub const SERVER_IP:&str = "127.0.0.1:8080";
+// pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-// pub const SERVER_IP: &str = "172.31.33.204:8414";
-// pub const CLIENT_IP: &str = "54.249.68.59:8414";
+pub const SERVER_IP: &str = "172.31.33.204:8414";
+pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -219,7 +219,6 @@ impl UpdateCallback for ClientUpdateCallback {
 
 //服务器端游戏更新
 pub struct ServerUpdateCallback {
-    extras: Rc<RefCell<Vec<(SyncData)>>>,
 }
 impl UpdateCallback for ServerUpdateCallback {
     fn on_sprite_dying(&mut self, engine: &mut GameEngine, idx_sprite_dying: usize) {
@@ -402,7 +401,7 @@ impl TankGame {
             last_timestamp: 0.0,
             leaders: vec![],
             dying_players: vec![],
-            server_update_callback: Rc::new(RefCell::new(ServerUpdateCallback { extras })),
+            server_update_callback: Rc::new(RefCell::new(ServerUpdateCallback {})),
             client_update_callback: Rc::new(RefCell::new(ClientUpdateCallback {})),
             next_nurse_time: 0.0,
             time_elpased_ms: 0.0,
