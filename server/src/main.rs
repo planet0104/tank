@@ -7,7 +7,7 @@ extern crate websocket;
 use bincode::{deserialize, serialize};
 
 use tank::utils::duration_to_milis;
-use tank::{SyncData, KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_PLAYERS, SERVER_MSG_EVENT, SERVER_MSG_ERR,
+use tank::{SyncData, KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_CONNECT, MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_PLAYERS, SERVER_MSG_EVENT, SERVER_MSG_ERR,
            SERVER_MSG_SYNC, Player, SERVER_MSG_IP, SERVER_SYNC_DELAY};
 
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -57,6 +57,13 @@ fn main() {
                     if msg.len()>0 {
                         let msg_id = msg.remove(0);
                         match msg_id {
+                            MSG_CONNECT => {
+                                if let Ok(mut encoded) = serialize(&ip.to_string()) {
+                                    encoded.insert(0, SERVER_MSG_IP);
+                                    send_binary_message(connections_clone.clone(), &ip, encoded);
+                                    info!("下发IP {:?}", ip);
+                                }
+                            }
                             MSG_START => {
                                 //玩家加入游戏
                                 let r: Result<String, _> = deserialize(&msg[..]);
@@ -150,11 +157,6 @@ fn main() {
             info!("创建连接: {}", ip);
 
             let (mut receiver, mut sender) = client.split().unwrap();
-            if let Ok(mut encoded) = serialize(&ip.to_string()) {
-                encoded.insert(0, SERVER_MSG_IP);
-                let result = sender.send_message(&OwnedMessage::Binary(encoded));
-                info!("下发IP {:?}", result);
-            }
             if let Ok(mut map) = ws_connections.write() {
                 map.insert(ip.to_string(), sender);
             }

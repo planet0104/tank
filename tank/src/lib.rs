@@ -25,6 +25,7 @@ pub const MSG_DISCONNECT: u8 = 1;
 pub const MSG_START: u8 = 2;
 pub const MSG_KEY_EVENT: u8 = 3;
 pub const MSG_SYNC_DATA: u8 = 4;
+pub const MSG_CONNECT: u8 = 5;
 
 //server发送给客户端的消息
 pub const SERVER_MSG_ERR: u8 = 0; //错误
@@ -420,6 +421,7 @@ impl TankGame {
 
         context.console_log(&format!("客户端连接成功 玩家姓名:{}", name));
         self.client_player.name = name;
+        context.send_binary_message(&vec![MSG_CONNECT]);
     }
 
     pub fn client_on_resource_load(&self, num: i32, total: i32) {
@@ -1187,6 +1189,7 @@ impl TankGame {
         let c = self.client_context.clone();
         let context = c.as_ref().unwrap();
         for message in &mut messages {
+            context.console_log(&format!("message {:?}", message));
             let msg_id = message.remove(0);
             match msg_id {
                 SERVER_MSG_ERR => {
