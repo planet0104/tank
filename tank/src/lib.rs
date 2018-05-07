@@ -391,7 +391,6 @@ pub struct TankGame {
 
 impl TankGame {
     fn new() -> TankGame {
-        let extras = Rc::new(RefCell::new(vec![]));
         TankGame {
             engine: GameEngine::new(),
             players: HashMap::new(),
