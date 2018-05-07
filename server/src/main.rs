@@ -7,7 +7,7 @@ extern crate websocket;
 use bincode::{deserialize, serialize};
 
 use tank::utils::duration_to_milis;
-use tank::{KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, SERVER_IP, SERVER_MSG_ERR,
+use tank::{SyncData, KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_ERR,
            SERVER_MSG_SYNC, SERVER_MSG_UID, SERVER_SYNC_DELAY};
 
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -89,13 +89,24 @@ fn main() {
                                 }
                             }
 
+                            MSG_SYNC_DATA => {
+                                //玩家同步数据
+                                let r: Result<SyncData, _> = deserialize(&msg[..]);
+                                if let Ok(data) = r {
+                                    //game.server_on_key_event(event, key, uid);
+                                    game.server_update_player(ip, data);
+                                } else {
+                                    println!("MSG_KEY_EVENT 消息解析失败 {:?}", r.err());
+                                }
+                            }
+
                             other => info!("未定义消息: id={}", other),
                         }
                     }
                 }
                 game.server_update(duration_to_milis(&elapsed_ms));
 
-                //5帧的速度广播
+                //同步数据
                 if timestamp >= next_sync_time {
                     if game.players().len() > 0{
                         let sync_data = game.get_sync_data();

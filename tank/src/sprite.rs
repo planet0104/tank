@@ -105,7 +105,11 @@ pub struct PointF {
 }
 
 impl PointF {
-    pub fn new() -> PointF {
+    pub fn new(x:f64, y:f64) -> PointF {
+        PointF { x: x, y: y }
+    }
+
+    pub fn zero() -> PointF {
         PointF { x: 0.0, y: 0.0 }
     }
 }
@@ -131,7 +135,8 @@ pub struct Sprite {
     frame_delay: i32,
     frame_trigger: i32,
     position: Rect,
-    target: Option<Vector2D>,
+    target: Option<(PointF, PointF)>,
+    last_velocity: Option<PointF>,
     bounds: Rect,
     velocity: PointF,
     z_order: i32,
@@ -188,6 +193,7 @@ impl Sprite {
             killer_name: String::new(),
             lives: 0,
             rotation: 0.0,
+            last_velocity: None,
             look_at: Vector2D::new(0.0, 1.0), //默认朝上
         };
         sprite.calc_collision_rect();
@@ -195,7 +201,7 @@ impl Sprite {
     }
 
     pub fn from_bitmap(id: u32, bitmap: BitmapRes, bounds: Rect) -> Sprite {
-        Sprite::new(id, bitmap, PointF::new(), PointF::new(), 0, bounds, BA_STOP)
+        Sprite::new(id, bitmap, PointF::zero(), PointF::zero(), 0, bounds, BA_STOP)
     }
 
     pub fn with_bounds_action(
@@ -209,7 +215,7 @@ impl Sprite {
             id,
             bitmap,
             position,
-            PointF::new(),
+            PointF::zero(),
             0,
             bounds,
             bounds_action,
@@ -277,47 +283,58 @@ impl Sprite {
         // }
 
         //检查是否到达目标位置
-        if let Some(target) = self.target.clone(){
+        if let Some((target, velocity)) = self.target{
             let mut tmp_position = PointF{
                 x: self.position.left,
                 y: self.position.top,
             };
-            let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
-            if dx > 0.0{
-                self.velocity.x = 0.3;
+            self.velocity.x = velocity.x;
+            self.velocity.y = velocity.y;
+            if self.velocity.x != 0.0 && self.velocity.y != 0.0{
+                self.last_velocity  = Some(velocity);
             }
-            if dx<0.0{
-                self.velocity.x = -0.3;   
-            }
-            if dy > 0.0{
-                self.velocity.y = 0.3;
-            }
-            if dy < 0.0{
-                self.velocity.y = -0.3;
-            }
+            //由于每次绘制已经过去几十ms, 精灵有可能越过目标点, 所以这里进一步计算
+            let mut distance = 0.0;
             for _ in 0..elapsed_milis as u32{
                 tmp_position.x += self.velocity.x;
                 tmp_position.y += self.velocity.y;
                 let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
-                let distance =  (dx * dx + dy * dy).sqrt();
-                if distance.abs()<3.0{
+                distance =  (dx * dx + dy * dy).sqrt();
+                //达到目标点(这里的1.0是假设游戏中最快的精灵速度不超过1.0)
+                if distance.abs()<1.0{
                     self.velocity.x = 0.0;
                     self.velocity.y = 0.0;
+                    break;
                 }else if distance.abs()>100.0{
+                    //正常情况下延迟不会导致距离差距到100
+                    //精灵穿越墙的时候，会导致服务器和客户端距离为整个屏幕的宽度或者高度，这时候不进行移动，直接跳过去
                     self.velocity.x = 0.0;
                     self.velocity.y = 0.0;
                     self.set_position_point(&PointF{
                         x: target.x,
                         y: target.y,
                     });
+                    break;
+                }
+            }
+            //如果距离仍然很大，但是速度为零，这时候也直接将精灵移动过去
+            if velocity.x == 0.0 && velocity.y == 0.0 && distance>1.0{
+                if self.last_velocity.is_none(){
+                    self.set_position_point(&PointF{
+                        x: target.x,
+                        y: target.y,
+                    });
+                }else{
+                    //如果存在上次移动的速度，按照最后一次速度移动
+                    self.velocity = self.last_velocity.unwrap();
                 }
             }
         }
 
         //Update the position
-        let mut new_position = PointF::new();
-        let mut sprite_size = PointF::new();
-        let mut bounds_size = PointF::new();
+        let mut new_position = PointF::zero();
+        let mut sprite_size = PointF::zero();
+        let mut bounds_size = PointF::zero();
 
         new_position.x = self.position.left + self.velocity.x * elapsed_milis;
         new_position.y = self.position.top + self.velocity.y * elapsed_milis;
@@ -619,11 +636,11 @@ impl Sprite {
         self.look_at = v;
     }
 
-    pub fn target(&self) -> Option<&Vector2D> {
+    pub fn target(&self) -> Option<&(PointF, PointF)> {
         self.target.as_ref()
     }
 
-    pub fn set_target(&mut self, target: Vector2D) {
+    pub fn set_target(&mut self, target: (PointF, PointF)) {
         self.target = Some(target);
     }
 }
