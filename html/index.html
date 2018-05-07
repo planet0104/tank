@@ -100,8 +100,6 @@
         }, 400);
     }
 
-    //_start();
-
     function ping(ip, callback) {
         var img = new Image();
         img.onload = function() {callback(Date.now()-this.start)};

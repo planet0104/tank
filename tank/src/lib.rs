@@ -62,18 +62,18 @@ pub const PLAYER_LIVES: u32 = 6; //生命值
 pub const TANK_BITMAP_WIDTH: i32 = 57;
 pub const TANK_BITMAP_HEIGHT: i32 = 57;
 pub const SERVER_SYNC_DELAY: u64 = 125; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
-pub const CLIENT_SYNC_DELAY: u64 = 500;
+pub const CLIENT_SYNC_DELAY: u64 = 300;
 
-// pub const SERVER_IP:&str = "127.0.0.1:8080";
-// pub const CLIENT_IP:&str = "127.0.0.1:8080";
+pub const SERVER_IP:&str = "127.0.0.1:8080";
+pub const CLIENT_IP:&str = "127.0.0.1:8080";
 
 //pub const SERVER_IP:&str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-pub const SERVER_IP: &str = "172.31.33.204:8414";
-pub const CLIENT_IP: &str = "54.249.68.59:8414";
+// pub const SERVER_IP: &str = "172.31.33.204:8414";
+// pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 //pub const GMAE_TITLE: &'static str = "Tank";
 
@@ -545,7 +545,16 @@ impl TankGame {
         //self.console_log_1("elapsed_ms=", elapsed_ms);
         //let now = context.current_time_millis();
         //处理消息
-        self.client_handle_message(context.pick_binary_messages());
+        let messages = context.pick_binary_messages();
+        for msgs in messages{
+            //每一条消息都是一个消息集合
+            let r: Result<Vec<Vec<u8>>, _> = deserialize(&msgs[..]);
+            if let Ok(m) = r {
+                self.client_handle_message(m);
+            } else {
+                context.console_log(&format!("消息解析失败 {:?}", r.err()));
+            }
+        }
         
         //键盘事件
         let key_events = context.pick_key_events();
@@ -843,7 +852,8 @@ impl TankGame {
             if let Some(sprite_idx) = sprite_id {
                 let mut sprite = &mut self.engine.sprites()[sprite_idx];
                 if sdata.id != self.client_player.id{
-                    sprite.set_target((PointF::new(sdata.x as f64, sdata.y as f64), PointF::new(sdata.velocity_x as f64, sdata.velocity_y as f64)));
+                    sprite.set_position(sdata.x as f64, sdata.y as f64);
+                    sprite.set_velocity(sdata.velocity_x as f64, sdata.velocity_y as f64);
                     sprite.set_current_frame(sdata.frame as i32); 
                 }
                 //更新精灵

@@ -53,6 +53,7 @@ fn main() {
                 let elapsed_ms = timestamp - last_time;
                 //let now = Instant::now();
                 //处理websocket传来的消息
+                let mut messages = vec![];
                 if let Ok((ip, mut msg)) = game_receiver.try_recv() {
                     if msg.len()>0 {
                         let msg_id = msg.remove(0);
@@ -60,7 +61,8 @@ fn main() {
                             MSG_CONNECT => {
                                 if let Ok(mut encoded) = serialize(&ip.to_string()) {
                                     encoded.insert(0, SERVER_MSG_IP);
-                                    send_binary_message(connections_clone.clone(), &ip, encoded);
+                                    //send_binary_message(connections_clone.clone(), &ip, encoded);
+                                    messages.push(encoded);
                                     info!("下发IP {:?}", ip);
                                 }
                             }
@@ -74,7 +76,8 @@ fn main() {
                                     let players = game.players().iter().map(|(id, player)|{ (*id, player.name.clone()) }).collect::<Vec<(u32, String)>>();
                                     if let Ok(mut encoded) = serialize(&players) {
                                         encoded.insert(0, SERVER_MSG_PLAYERS);
-                                        send_binary_message(connections_clone.clone(), &ip, encoded);
+                                        //send_binary_message(connections_clone.clone(), &ip, encoded);
+                                        messages.push(encoded);
                                     }
                                 } else {
                                     println!("MSG_START 消息解析失败 {:?}", r.err());
@@ -121,7 +124,8 @@ fn main() {
                         let sync_data = game.get_sync_data();
                         if let Ok(mut encoded) = serialize(&sync_data) {
                             encoded.insert(0, SERVER_MSG_SYNC);
-                            broad_cast_binary_message(connections_clone.clone(), encoded);
+                            //broad_cast_binary_message(connections_clone.clone(), encoded);
+                            messages.push(encoded);
                         }
                     }
                     next_sync_time = timestamp + Duration::from_millis(SERVER_SYNC_DELAY);
@@ -132,6 +136,12 @@ fn main() {
                 if events.len()>0{
                     if let Ok(mut encoded) = serialize(&events) {
                         encoded.insert(0, SERVER_MSG_EVENT);
+                        //broad_cast_binary_message(connections_clone.clone(), encoded);
+                        messages.push(encoded);
+                    }
+                }
+                if messages.len() > 0{
+                    if let Ok(encoded) = serialize(&messages) {
                         broad_cast_binary_message(connections_clone.clone(), encoded);
                     }
                 }

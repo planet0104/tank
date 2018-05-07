@@ -135,8 +135,6 @@ pub struct Sprite {
     frame_delay: i32,
     frame_trigger: i32,
     position: Rect,
-    target: Option<(PointF, PointF)>,
-    last_velocity: Option<PointF>,
     bounds: Rect,
     velocity: PointF,
     z_order: i32,
@@ -151,7 +149,6 @@ pub struct Sprite {
     killer_name: String,
     lives: u32,
     rotation: f64,
-    look_at: Vector2D,
 }
 
 impl Sprite {
@@ -173,7 +170,6 @@ impl Sprite {
                 position.x + bitmap.width() as f64,
                 position.y + bitmap.height() as f64,
             ),
-            target: None,
             bitmap: bitmap,
             num_frames: 1,
             cur_frame: 0,
@@ -193,8 +189,6 @@ impl Sprite {
             killer_name: String::new(),
             lives: 0,
             rotation: 0.0,
-            last_velocity: None,
-            look_at: Vector2D::new(0.0, 1.0), //默认朝上
         };
         sprite.calc_collision_rect();
         sprite
@@ -250,8 +244,6 @@ impl Sprite {
     // Sprite General Methods
     //-----------------------------------------------------------------
     pub fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION {
-        //let msg = format!("before update>position={:?}", self.position());
-        //unsafe { log(msg.as_ptr(), msg.len()); }
         // See if the sprite needs to be killed
         if self.dying {
             return SA_KILL;
@@ -259,77 +251,55 @@ impl Sprite {
 
         // Update the frame
         self.update_frame();
-        
+
         //检查是否到达目标位置
-        // if let Some(target) = self.target.clone(){
-        //     let pos = Vector2D::new(self.position.left, self.position.top);
-        //     let to_target = target - pos;
-        //     //计算到目标位置的距离
-        //     let dist = Vector2D::length(&to_target);
-        //     let force = if dist>2.0{
-        //         let desired_velocity = to_target * 0.3 / dist;
-        //         desired_velocity - Vector2D::new(0.0, 0.0)
-        //     }else{
-        //         Vector2D::new(0.0,0.0)
+        // if let Some((target, velocity)) = self.target{
+        //     let mut tmp_position = PointF{
+        //         x: self.position.left,
+        //         y: self.position.top,
         //     };
-
-        //     let mut pos = Vector2D::new(self.position.left, self.position.top);
-        //     pos += force*elapsed_milis;
-            
-        //     self.set_position_point(&PointF{
-        //         x: pos.x,
-        //         y: pos.y
-        //     });
+        //     self.velocity.x = velocity.x;
+        //     self.velocity.y = velocity.y;
+        //     if self.velocity.x != 0.0 && self.velocity.y != 0.0{
+        //         self.last_velocity  = Some(velocity);
+        //     }
+        //     //由于每次绘制已经过去几十ms, 精灵有可能越过目标点, 所以这里进一步计算
+        //     let mut distance = 0.0;
+        //     for _ in 0..elapsed_milis as u32{
+        //         tmp_position.x += self.velocity.x;
+        //         tmp_position.y += self.velocity.y;
+        //         let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
+        //         distance =  (dx * dx + dy * dy).sqrt();
+        //         //达到目标点(这里的1.0是假设游戏中最快的精灵速度不超过1.0)
+        //         if distance.abs()<1.0{
+        //             self.velocity.x = 0.0;
+        //             self.velocity.y = 0.0;
+        //             break;
+        //         }else if distance.abs()>100.0{
+        //             //正常情况下延迟不会导致距离差距到100
+        //             //精灵穿越墙的时候，会导致服务器和客户端距离为整个屏幕的宽度或者高度，这时候不进行移动，直接跳过去
+        //             self.velocity.x = 0.0;
+        //             self.velocity.y = 0.0;
+        //             self.set_position_point(&PointF{
+        //                 x: target.x,
+        //                 y: target.y,
+        //             });
+        //             break;
+        //         }
+        //     }
+        //     //如果距离仍然很大，但是速度为零，这时候也直接将精灵移动过去
+        //     if velocity.x == 0.0 && velocity.y == 0.0 && distance>1.0{
+        //         if self.last_velocity.is_none(){
+        //             self.set_position_point(&PointF{
+        //                 x: target.x,
+        //                 y: target.y,
+        //             });
+        //         }else{
+        //             //如果存在上次移动的速度，按照最后一次速度移动
+        //             self.velocity = self.last_velocity.unwrap();
+        //         }
+        //     }
         // }
-
-        //检查是否到达目标位置
-        if let Some((target, velocity)) = self.target{
-            let mut tmp_position = PointF{
-                x: self.position.left,
-                y: self.position.top,
-            };
-            self.velocity.x = velocity.x;
-            self.velocity.y = velocity.y;
-            if self.velocity.x != 0.0 && self.velocity.y != 0.0{
-                self.last_velocity  = Some(velocity);
-            }
-            //由于每次绘制已经过去几十ms, 精灵有可能越过目标点, 所以这里进一步计算
-            let mut distance = 0.0;
-            for _ in 0..elapsed_milis as u32{
-                tmp_position.x += self.velocity.x;
-                tmp_position.y += self.velocity.y;
-                let (dx, dy) = (target.x - tmp_position.x, target.y - tmp_position.y);
-                distance =  (dx * dx + dy * dy).sqrt();
-                //达到目标点(这里的1.0是假设游戏中最快的精灵速度不超过1.0)
-                if distance.abs()<1.0{
-                    self.velocity.x = 0.0;
-                    self.velocity.y = 0.0;
-                    break;
-                }else if distance.abs()>100.0{
-                    //正常情况下延迟不会导致距离差距到100
-                    //精灵穿越墙的时候，会导致服务器和客户端距离为整个屏幕的宽度或者高度，这时候不进行移动，直接跳过去
-                    self.velocity.x = 0.0;
-                    self.velocity.y = 0.0;
-                    self.set_position_point(&PointF{
-                        x: target.x,
-                        y: target.y,
-                    });
-                    break;
-                }
-            }
-            //如果距离仍然很大，但是速度为零，这时候也直接将精灵移动过去
-            if velocity.x == 0.0 && velocity.y == 0.0 && distance>1.0{
-                if self.last_velocity.is_none(){
-                    self.set_position_point(&PointF{
-                        x: target.x,
-                        y: target.y,
-                    });
-                }else{
-                    //如果存在上次移动的速度，按照最后一次速度移动
-                    self.velocity = self.last_velocity.unwrap();
-                }
-            }
-        }
 
         //Update the position
         let mut new_position = PointF::zero();
@@ -627,20 +597,5 @@ impl Sprite {
 
     pub fn set_rotation(&mut self, rotation: f64) {
         self.rotation = rotation;
-    }
-
-    pub fn look_at(&mut self) -> &mut Vector2D {
-        &mut self.look_at
-    }
-    pub fn set_look_at(&mut self, v: Vector2D) {
-        self.look_at = v;
-    }
-
-    pub fn target(&self) -> Option<&(PointF, PointF)> {
-        self.target.as_ref()
-    }
-
-    pub fn set_target(&mut self, target: (PointF, PointF)) {
-        self.target = Some(target);
     }
 }
