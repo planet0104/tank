@@ -7,8 +7,8 @@ extern crate websocket;
 use bincode::{deserialize, serialize};
 
 use tank::utils::duration_to_milis;
-use tank::{SyncData, KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_ERR,
-           SERVER_MSG_SYNC, SERVER_MSG_UID, SERVER_SYNC_DELAY};
+use tank::{SyncData, KeyEvent, GAME, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_PLAYERS, SERVER_MSG_EVENT, SERVER_MSG_ERR,
+           SERVER_MSG_SYNC, Player, SERVER_MSG_IP, SERVER_SYNC_DELAY};
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::time::{Duration, Instant};
@@ -62,10 +62,11 @@ fn main() {
                                 let r: Result<String, _> = deserialize(&msg[..]);
                                 if let Ok(username) = r {
                                     info!("join_game ip={} username={}", ip, username);
-                                    let uid = game.server_join_game(ip.clone(), username);
-                                    //下发用户ID
-                                    if let Ok(mut encoded) = serialize(&uid) {
-                                        encoded.insert(0, SERVER_MSG_UID);
+                                    game.server_join_game(ip.clone(), username);
+                                    //下发玩家列表
+                                    let players = game.players().iter().map(|(id, player)|{ (*id, player.name.clone()) }).collect::<Vec<(u32, String)>>();
+                                    if let Ok(mut encoded) = serialize(&players) {
+                                        encoded.insert(0, SERVER_MSG_PLAYERS);
                                         send_binary_message(connections_clone.clone(), &ip, encoded);
                                     }
                                 } else {
@@ -118,6 +119,15 @@ fn main() {
                     next_sync_time = timestamp + Duration::from_millis(SERVER_SYNC_DELAY);
                 }
 
+                //广播事件
+                let events = game.get_server_events();
+                if events.len()>0{
+                    if let Ok(mut encoded) = serialize(&events) {
+                        encoded.insert(0, SERVER_MSG_EVENT);
+                        broad_cast_binary_message(connections_clone.clone(), encoded);
+                    }
+                }
+
                 last_time = timestamp;
                 thread::park_timeout(Duration::from_millis(20));
                 //total_frames += 1;
@@ -139,7 +149,11 @@ fn main() {
 
             info!("创建连接: {}", ip);
 
-            let (mut receiver, sender) = client.split().unwrap();
+            let (mut receiver, mut sender) = client.split().unwrap();
+            if let Ok(mut encoded) = serialize(&ip.to_string()) {
+                encoded.insert(0, SERVER_MSG_IP);
+                let _ = sender.send_message(&OwnedMessage::Binary(encoded));
+            }
             if let Ok(mut map) = ws_connections.write() {
                 map.insert(ip.to_string(), sender);
             }
