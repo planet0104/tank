@@ -1253,7 +1253,6 @@ impl TankGame {
                 SERVER_MSG_EVENT => {
                     let r: Result<Vec<ServerEvent>, _> = deserialize(&message[..]);
                     if let Ok(events) = r {
-                        context.console_log(&format!("SERVER_MSG_EVENT {:?}", events));
                         for event in events{
                             match event{
                                 ServerEvent::PlayerDying(uid, name, killer_name) =>{
@@ -1263,14 +1262,12 @@ impl TankGame {
                                     });
                                     //记录并显示死亡的玩家
                                     self.dying_players.push((0, killer_name.clone(), name));
-                                    context.console_log("3>>>>");
 
                                     //检查当前玩家是否死亡
                                     if uid == self.client_player.id {
                                         self.client_player.killer_name = killer_name;
                                         self.client_dying_delay_ms = 5000.0;
                                     }
-                                    context.console_log("4>>>>");
                                 }
 
                                 ServerEvent::PlayerJoin(ip, uid, name) =>{

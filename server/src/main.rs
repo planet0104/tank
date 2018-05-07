@@ -152,7 +152,8 @@ fn main() {
             let (mut receiver, mut sender) = client.split().unwrap();
             if let Ok(mut encoded) = serialize(&ip.to_string()) {
                 encoded.insert(0, SERVER_MSG_IP);
-                let _ = sender.send_message(&OwnedMessage::Binary(encoded));
+                let result = sender.send_message(&OwnedMessage::Binary(encoded));
+                info!("下发IP {:?}", result);
             }
             if let Ok(mut map) = ws_connections.write() {
                 map.insert(ip.to_string(), sender);
