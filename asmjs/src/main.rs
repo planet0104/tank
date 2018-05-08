@@ -167,9 +167,11 @@ pub fn on_message(msg: *mut c_char) {
 #[no_mangle]
 pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
     let msg = Vec::from_raw_parts(msg, length, length);
+    let msg2 = msg.clone();
+    drop(msg);
     //console_log(&format!("wasm:on_binary_message {:?} len={}", msg, msg.len()));
     if let Ok(mut messages) = BINARY_MESSAGES.lock() {
-        messages.push(msg);
+        messages.push(msg2);
     }
 }
 

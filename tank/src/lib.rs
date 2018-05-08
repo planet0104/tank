@@ -648,7 +648,7 @@ impl TankGame {
                 &format!(
                     "第{}名:{}",
                     lead,
-                    self.players.get(&player.0).unwrap().name
+                    self.players.get(&player.0).and_then(|player| Some(player.name.clone())).or_else(||{ Some(String::new()) }).unwrap()
                 ),
                 CLIENT_WIDTH - 260,
                 lead * 40,
