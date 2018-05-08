@@ -568,7 +568,7 @@ impl GameContext for JSGameContext {
         send_message(msg);
     }
 
-    fn send_binary_message(&self, msg: &Vec<u8>){
+    fn send_binary_message(&self, msg: &Vec<u8>) {
         send_binary_message(msg);
     }
 

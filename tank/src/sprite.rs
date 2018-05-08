@@ -105,7 +105,7 @@ pub struct PointF {
 }
 
 impl PointF {
-    pub fn new(x:f64, y:f64) -> PointF {
+    pub fn new(x: f64, y: f64) -> PointF {
         PointF { x: x, y: y }
     }
 
@@ -135,6 +135,7 @@ pub struct Sprite {
     frame_delay: i32,
     frame_trigger: i32,
     position: Rect,
+    target_position: Option<PointF>,
     bounds: Rect,
     velocity: PointF,
     z_order: i32,
@@ -170,6 +171,7 @@ impl Sprite {
                 position.x + bitmap.width() as f64,
                 position.y + bitmap.height() as f64,
             ),
+            target_position: None,
             bitmap: bitmap,
             num_frames: 1,
             cur_frame: 0,
@@ -195,7 +197,15 @@ impl Sprite {
     }
 
     pub fn from_bitmap(id: u32, bitmap: BitmapRes, bounds: Rect) -> Sprite {
-        Sprite::new(id, bitmap, PointF::zero(), PointF::zero(), 0, bounds, BA_STOP)
+        Sprite::new(
+            id,
+            bitmap,
+            PointF::zero(),
+            PointF::zero(),
+            0,
+            bounds,
+            BA_STOP,
+        )
     }
 
     pub fn with_bounds_action(
@@ -253,6 +263,17 @@ impl Sprite {
         self.update_frame();
 
         //检查是否到达目标位置
+        if let Some(target) = self.target_position {
+            if self.velocity.x == 0.0 && self.velocity.y == 0.0 {
+                if target.x != self.position.left || target.y != self.position.top {
+                    self.set_position_point(&PointF {
+                        x: target.x,
+                        y: target.y,
+                    });
+                }
+            }
+        }
+
         // if let Some((target, velocity)) = self.target{
         //     let mut tmp_position = PointF{
         //         x: self.position.left,
@@ -571,7 +592,7 @@ impl Sprite {
         self.dying = true;
     }
 
-    pub fn dying(&self) -> bool{
+    pub fn dying(&self) -> bool {
         self.dying
     }
 
@@ -597,5 +618,9 @@ impl Sprite {
 
     pub fn set_rotation(&mut self, rotation: f64) {
         self.rotation = rotation;
+    }
+
+    pub fn set_target_position(&mut self, target: PointF) {
+        self.target_position = Some(target);
     }
 }
