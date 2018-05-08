@@ -461,7 +461,7 @@ impl GameContext for JSGameContext {
         unsafe { emscripten_set_canvas_height(height) };
     }
 
-    pub fn send_binary_message(msg: &Vec<u8>) {
+    fn send_binary_message(&self, msg: &Vec<u8>) {
         //console_log(&format!("wasm:send_binary_message {:?} len={}", msg, msg.len()));
         unsafe {
             emscripten_send_binary_message(msg.as_ptr(), msg.len());
