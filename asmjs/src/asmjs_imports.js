@@ -221,6 +221,13 @@ function _emscripten_send_message(str){
         }
     }
 }
+function _emscripten_send_binary_message(ptr, len){
+    if(socket){
+        try{socket.send(HEAPU8.buffer.slice(ptr, ptr+len));}catch(e){
+            console.log(e);
+        }
+    }
+}
 function _emscripten_connect(url){
     connect(UTF8ToString(url));
 }
