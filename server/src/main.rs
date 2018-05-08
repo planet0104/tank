@@ -138,7 +138,6 @@ fn main() {
                         let sync_data = game.get_sync_data();
                         if let Ok(mut encoded) = serialize(&sync_data) {
                             encoded.insert(0, SERVER_MSG_SYNC);
-                            //broad_cast_binary_message(connections_clone.clone(), encoded);
                             messages.push(encoded);
                         }
                     }

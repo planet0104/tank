@@ -1,3 +1,4 @@
+function _emscripten_send_binary_message(){Module["printErr"]("missing function: emscripten_send_binary_message");abort(-1)}
 function _emscripten_stroke_rect(){Module["printErr"]("missing function: emscripten_stroke_rect");abort(-1)}
 function _emscripten_line_width(){Module["printErr"]("missing function: emscripten_line_width");abort(-1)}
 function _emscripten_stroke_style(){Module["printErr"]("missing function: emscripten_stroke_style");abort(-1)}

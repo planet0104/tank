@@ -51,6 +51,7 @@ extern "C" {
         dest_height: i32,
     );
     pub fn emscripten_send_message(text: *const c_char);
+    pub fn emscripten_send_binary_message(data: *const u8, len: usize);
     pub fn emscripten_connect(url: *const c_char);
 }
 
@@ -68,6 +69,7 @@ struct JS {
 lazy_static! {
     static ref KEY_EVENTS: Arc<Mutex<Vec<(KeyEvent, i32)>>> = Arc::new(Mutex::new(vec![]));
     static ref MESSAGES: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
+    static ref BINARY_MESSAGES: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(vec![]));
 }
 
 thread_local!{
@@ -160,6 +162,15 @@ pub fn on_message(msg: *mut c_char) {
         }
     }
     //console_log("on_message 222");
+}
+
+#[no_mangle]
+pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
+    let msg = Vec::from_raw_parts(msg, length, length);
+    //console_log(&format!("wasm:on_binary_message {:?} len={}", msg, msg.len()));
+    if let Ok(mut messages) = BINARY_MESSAGES.lock() {
+        messages.push(msg);
+    }
 }
 
 // #[no_mangle]
@@ -336,24 +347,6 @@ impl GameContext for JSGameContext {
             js.borrow_mut().on_resource_load_listener = Some(listener);
         });
     }
-
-    // fn set_on_message_listener(&self, listener: fn(msg: &str)) {
-    //     JS.with(|js|{
-    //         js.borrow_mut().on_message_listener = Some(listener);
-    //     });
-    // }
-
-    // fn set_on_key_up_listener(&self, listener: fn(key: i32)) {
-    //     JS.with(|js|{
-    //         js.borrow_mut().on_key_up_listener = Some(listener);
-    //     });
-    // }
-
-    // fn set_on_key_down_listener(&self, listener: fn(key: i32)) {
-    //     JS.with(|js|{
-    //         js.borrow_mut().on_key_down_listener = Some(listener);
-    //     });
-    // }
     
     fn pick_key_events(&self)->Vec<(KeyEvent, i32)>{
         let mut events = vec![];
@@ -367,6 +360,14 @@ impl GameContext for JSGameContext {
     fn pick_messages(&self)->Vec<String>{
         let mut msgs = vec![];
         if let Ok(mut m) = MESSAGES.lock(){
+            msgs.append(&mut m);
+        }
+        msgs
+    }
+
+    fn pick_binary_messages(&self) -> Vec<Vec<u8>> {
+        let mut msgs = vec![];
+        if let Ok(mut m) = BINARY_MESSAGES.lock() {
             msgs.append(&mut m);
         }
         msgs
@@ -458,6 +459,13 @@ impl GameContext for JSGameContext {
     }
     fn set_canvas_height(&self, height: i32) {
         unsafe { emscripten_set_canvas_height(height) };
+    }
+
+    pub fn send_binary_message(msg: &Vec<u8>) {
+        //console_log(&format!("wasm:send_binary_message {:?} len={}", msg, msg.len()));
+        unsafe {
+            emscripten_send_binary_message(msg.as_ptr(), msg.len());
+        }
     }
 
     fn prompt(&self, title:&str, default_msg:&str)->String{

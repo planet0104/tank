@@ -39,10 +39,9 @@ document.addEventListener("keyup", function(event){
             exports.on_keyup_event(KEY_MAP[event.key]);
         }
     }
-
-    if (event.key == "0"){
-        _start();
-    }
+    // if (event.key == "0"){
+    //     _start();
+    // }
 });
 
 document.addEventListener("keydown", function(event){

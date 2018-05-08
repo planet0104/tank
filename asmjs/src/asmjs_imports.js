@@ -255,8 +255,16 @@ function connect(url){
         
         socket.onmessage = function(event){
             //console.log("onmessage", event.data);
-            //messages.push(event.data);
-            Module._on_message(allocateUTF8OnStack(event.data));
+            if (event.data instanceof String){
+                Module._on_message(allocateUTF8OnStack(event.data));
+            }else if(event.data instanceof Blob){
+                alloc_blob(event.data, function(msg){
+                    Module._on_binary_message(msg.ptr, msg.len);
+                    //exports.on_binary_message(msg.ptr, msg.len);
+                });
+            }else{
+                console.log("未定义消息.");
+            }
         };
 
         socket.onclose = function(event) {
@@ -267,6 +275,19 @@ function connect(url){
     socket.onerror = function(){
         console.log("连接失败，请重试");
     }
+}
+
+function alloc_blob(blob, callback){
+    var offset = stackAlloc(blob.size);
+    const bytes = new Uint8Array(HEAPU8.buffer, offset, blob.size);
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        //console.log("blog读取结果", reader.result, e);
+        //设置数据
+        bytes.set(new Uint8Array(reader.result));
+        callback({ ptr:offset, len:blob.size });
+    }
+    reader.readAsArrayBuffer(blob);
 }
 
 var Module = {
