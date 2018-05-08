@@ -42,17 +42,14 @@
 
     var useasmjs = is_QQInnerBro() && navigator.userAgent.indexOf("iPhone")>-1;
 
-    // if(!support_webassembly() || useasmjs){
-    //     //console.log('不支持Webassembly.');
-    //     //加载asmjs版本 asmjs_client.js asmjs_imports.js
-    //     append_js("asmjs_imports.js");
-    //     append_js("asmjs_client.js");
-    // }else{
-    //     append_js("wasm_client.js");
-    // }
-
-    append_js("asmjs_imports.js");
-    append_js("asmjs_client.js");
+    if(!support_webassembly() || useasmjs){
+        //console.log('不支持Webassembly.');
+        //加载asmjs版本 asmjs_client.js asmjs_imports.js
+        append_js("asmjs_imports.js");
+        append_js("asmjs_client.js");
+    }else{
+        append_js("wasm_client.js");
+    }
 
     /**
     * 产生L到B之间的随机整数
