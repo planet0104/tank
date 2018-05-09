@@ -25,3 +25,14 @@
 25.[OK.]iOS QQ微信内置浏览器无法使用问题
 26.触摸控制板外观优化
 27.坦克可自由角度旋转
+
+asmjs报错统计:
+-----------------------------
+1. 循环错误(应该是aloc_blob无法成功)--- 在aloc_blob时输出长度和指针
+消息解析失败 Some(InvalidTagEncoding(230))
+消息解析失败 Some(Custom("\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}\u{0}14357800792639468`, expected usize"))
+消息解析失败 Some(Custom("invalid value: integer `2913107079922533160`, expected usize"))
+消息解析失败 Some(Io(Custom { kind: UnexpectedEof, error: StringError("failed to fill whole buffer") }))
+uncaught exception: abort(4). Build with -s ASSERTIONS=1 for more info.
+
+2.

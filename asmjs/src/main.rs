@@ -1,6 +1,7 @@
 extern crate tank;
 #[macro_use]
 extern crate lazy_static;
+use std::mem;
 use tank::engine::GameContext;
 use std::ffi::CString;
 use std::os::raw::c_char;
@@ -183,6 +184,14 @@ pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
     if let Ok(mut messages) = BINARY_MESSAGES.lock() {
         messages.push(msg2);
     }
+}
+
+#[no_mangle]
+pub fn alloc(size: usize) -> *const u8 {
+    let mut buf = Vec::with_capacity(size);
+    let ptr = buf.as_mut_ptr();
+    mem::forget(buf);
+    return ptr;
 }
 
 // #[no_mangle]

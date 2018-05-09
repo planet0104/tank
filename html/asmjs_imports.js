@@ -259,14 +259,20 @@ function connect(url){
     socket = new WebSocket(url);
     socket.onopen = function(event) {
         Module._on_connect();
+        if (typeof golobal_on_connect!=="undefined"){
+            golobal_on_connect();
+        }
         
         socket.onmessage = function(event){
             //console.log("onmessage", event.data);
             if (event.data instanceof String){
                 Module._on_message(allocateUTF8OnStack(event.data));
             }else if(event.data instanceof Blob){
+                //console.log('onmessage', event.data);
                 alloc_blob(event.data, function(msg){
-                    Module._on_binary_message(msg.ptr, msg.len);
+                    if (msg != undefined){
+                        Module._on_binary_message(msg.ptr, msg.len);
+                    }
                     //exports.on_binary_message(msg.ptr, msg.len);
                 });
             }else{
@@ -285,16 +291,22 @@ function connect(url){
 }
 
 function alloc_blob(blob, callback){
-    var offset = stackAlloc(blob.size);
-    const bytes = new Uint8Array(HEAPU8.buffer, offset, blob.size);
-    var reader = new FileReader();
-    reader.onload = function(e) {
-        //console.log("blog读取结果", reader.result, e);
-        //设置数据
-        bytes.set(new Uint8Array(reader.result));
-        callback({ ptr:offset, len:blob.size });
+    try{
+        var offset = Module._alloc(blob.size);
+        console.log("asmjs_imports:alloc_blob ptr=", offset, " size=", blob.size);
+        const bytes = new Uint8Array(HEAPU8.buffer, offset, blob.size);
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            //console.log("blog读取结果", reader.result, e);
+            //设置数据
+            bytes.set(new Uint8Array(reader.result));
+            callback({ ptr:offset, len:blob.size });
+        }
+        reader.readAsArrayBuffer(blob);
+    }catch(e){
+        console.log("asmjs_imports: alloc_blob失败", e);
+        callback();
     }
-    reader.readAsArrayBuffer(blob);
 }
 
 var Module = {
