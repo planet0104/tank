@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 //导入的JS帮助函数
-#[link("-s"= "ASSERTIONS=1")]
+
 extern "C" {
     pub fn emscripten_prompt(title: *const c_char, default_msg: *const c_char)->*mut c_char;
     pub fn emscripten_current_time_millis()->f64;
@@ -89,7 +89,7 @@ thread_local!{
     static CONTEXT: JSGameContext = JSGameContext{};
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn request_animation_frame_callback(timestamp: f64) {
     JS.with(|js|{
@@ -99,7 +99,7 @@ pub fn request_animation_frame_callback(timestamp: f64) {
     });
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_window_resize() {
     JS.with(|js|{
@@ -109,7 +109,7 @@ pub fn on_window_resize() {
     });
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_resource_load(num: i32, total: i32) {
     JS.with(|js|{
@@ -119,7 +119,7 @@ pub fn on_resource_load(num: i32, total: i32) {
     });
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_connect() {
     JS.with(|js|{
@@ -129,7 +129,7 @@ pub fn on_connect() {
     });
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_close() {
     JS.with(|js|{
@@ -139,7 +139,7 @@ pub fn on_close() {
     });
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_keyup_event(key: i32) {
     //console_log("on_keydown_up");
@@ -148,7 +148,7 @@ pub fn on_keyup_event(key: i32) {
     }
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_keydown_event(key: i32) {
     //console_log("on_keydown");
@@ -157,7 +157,7 @@ pub fn on_keydown_event(key: i32) {
     }
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn on_message(msg: *mut c_char) {
     let c_string = unsafe{ CString::from_raw(msg) };
@@ -173,7 +173,7 @@ pub fn on_message(msg: *mut c_char) {
     //console_log("on_message 222");
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub unsafe fn on_binary_message(msg: *mut u8, length: usize) {
     let msg = Vec::from_raw_parts(msg, length, length);
@@ -234,7 +234,7 @@ fn console_log( msg: &str) {
     }
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 #[no_mangle]
 pub fn start() {
     GAME.with(|game|{
@@ -493,7 +493,7 @@ impl GameContext for JSGameContext {
     }
 }
 
-#[link("-s"= "ASSERTIONS=1")]
+
 fn main(){
     println!("main.");
     // let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
