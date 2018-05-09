@@ -6,7 +6,7 @@
     </head>
 <body style="padding:0px;margin:0;background: #2e6da3; overflow: hidden;">
 <canvas id="canvas" style="background:#ccc;"></canvas>
-<div id="game_pad" style="position: absolute; width: 100%; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(255, 255, 255, 0.1);">
+<div id="game_pad" style="display: none; position: absolute; width: 100%; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(255, 255, 255, 0.1);">
     <div id="game_pad_direction" style="background: url(control.png); width:128px; height:128px; display: block; position: absolute; left: 5px; top: 2px;"></div>
     <div id="game_pad_button_a" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 5px; top: 5px;"></div>
     <div id="game_pad_button_b" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 60px; bottom: 5px;"></div>
@@ -107,6 +107,13 @@
         img.start = Date.now();
         img.src = "http://"+ip;
     }
+
+    //电脑版不显示游戏手柄
+    try{
+        if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
+            document.getElementById("game_pad").style.display = 'block';   
+        }
+    }catch(e){}
 
     ping("54.249.68.59", function(time){
             console.log("ping:"+time+"ms");
