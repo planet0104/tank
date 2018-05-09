@@ -412,6 +412,9 @@ function connect(url){
 
     socket.onopen = function(event) {
         exports.on_connect();
+        if (typeof golobal_on_connect!=="undefined"){
+            golobal_on_connect();
+        }
 
         socket.onmessage = function(event){
             //console.log("js socket.onmessage", event.data);

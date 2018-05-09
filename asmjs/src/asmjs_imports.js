@@ -293,7 +293,7 @@ function connect(url){
 function alloc_blob(blob, callback){
     try{
         var offset = Module._alloc(blob.size);
-        console.log("asmjs_imports:alloc_blob ptr=", offset, " size=", blob.size);
+        //console.log("asmjs_imports:alloc_blob ptr=", offset, " size=", blob.size);
         const bytes = new Uint8Array(HEAPU8.buffer, offset, blob.size);
         var reader = new FileReader();
         reader.onload = function(e) {

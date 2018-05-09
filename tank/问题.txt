@@ -35,4 +35,6 @@ asmjs报错统计:
 消息解析失败 Some(Io(Custom { kind: UnexpectedEof, error: StringError("failed to fill whole buffer") }))
 uncaught exception: abort(4). Build with -s ASSERTIONS=1 for more info.
 
-2.
+2.already mutably borrowed 错误(刚加载时出现)
+thread 'main' panicked at 'already mutably borrowed: BorrowError', libcore/result.rs:945:5 asmjs_client.js:1:61195
+note: Run with `RUST_BACKTRACE=1` for a backtrace.
