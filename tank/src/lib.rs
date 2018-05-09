@@ -732,6 +732,34 @@ impl TankGame {
             RES_TANK_BITMAP,
             PointF { x: x, y: y },
         );
+        //检查新生玩家和其他玩家的距离，距离太近重新生成位置
+        let mut check_count = 0;
+        let mut born_position = PointF::new(self.engine.sprites()[sprite_index].position().left, self.engine.sprites()[sprite_index].position().top);
+        loop{
+            //最多检查5次重叠位置
+            if check_count >= 5{
+                break;
+            }
+            let mut overlap = false;
+            for player in self.engine.sprites(){
+                if player.bitmap().id() == RES_TANK_BITMAP{
+                    let (dx, dy) = (born_position.x - player.position().left, born_position.y - player.position().top);
+                    let distance =  (dx * dx + dy * dy).sqrt();
+                    if distance < player.bitmap().width() as f64{
+                        overlap = true;
+                        break;
+                    }
+                }
+            }
+            if !overlap{
+                break;
+            }
+            born_position.x = rand_int(0, CLIENT_WIDTH) as f64;
+            born_position.y = rand_int(0, CLIENT_HEIGHT) as f64;
+            check_count += 1;
+        }
+        self.engine.sprites()[sprite_index].set_position(born_position.x, born_position.y);
+
         //添加玩家信息
         self.engine.sprites()[sprite_index].set_name(name.clone());
         self.players.insert(
