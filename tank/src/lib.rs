@@ -161,6 +161,26 @@ TankGame提供所有游戏更新方法
 
 thread_local!{
     pub static GAME: RefCell<TankGame> = RefCell::new(TankGame::new());
+    pub static KEY_MAP: HashMap<String, i32> = {
+            [
+                ("Left".to_string(), VK_LEFT),
+                ("a".to_string(),VK_LEFT),
+                ("ArrowLeft".to_string(), VK_LEFT),
+                ("Right".to_string(), VK_RIGHT),
+                ("d".to_string(), VK_RIGHT),
+                ("ArrowRight".to_string(), VK_RIGHT),
+                ("Up".to_string(), VK_UP),
+                ("w".to_string(), VK_UP),
+                ("ArrowUp".to_string(), VK_UP),
+                ("Down".to_string(), VK_DOWN),
+                ("s".to_string(), VK_DOWN),
+                ("ArrowDown".to_string(), VK_DOWN),
+                (" ".to_string(), VK_SPACE),
+                ("j".to_string(), VK_SPACE),
+                ("k".to_string(), VK_SPACE),
+                ("l".to_string(), VK_SPACE)]
+            .iter().cloned().collect()
+    };
 }
 //客户端游戏更新(不做任何处理)
 pub struct ClientUpdateCallback {
