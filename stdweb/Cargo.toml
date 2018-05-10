@@ -1,0 +1,9 @@
+[package]
+name = "client"
+version = "0.1.0"
+authors = ["Jia Ye <planet0104@gmail.com>"]
+
+[dependencies]
+tank = { path = "../tank" }
+stdweb = "0.4.5"
+lazy_static = "1.0"
