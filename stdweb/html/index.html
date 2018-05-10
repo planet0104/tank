@@ -14,6 +14,7 @@
 </div>
 <script src="game.js"></script>
 <script>
+    //webassembly使用
     var Module = {};
     var __cargo_web = {};
     Object.defineProperty( Module, 'canvas', {
@@ -29,7 +30,43 @@
             return canvas;
         }
     });
+
+    function support_webassembly(){
+        try {
+            if (typeof WebAssembly === "object"
+                && typeof WebAssembly.instantiate === "function") {
+                const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+                if (module instanceof WebAssembly.Module)
+                    return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+            }
+        } catch (e) {
+        }
+        return false;
+    }
+
+    function append_js(filename){
+        var js = document.createElement("script");
+        js.type = "text/javascript";
+        js.src = filename;
+        document.body.appendChild(js);
+    }
+
+    var is_QQInnerBro = function(){
+        if (navigator.userAgent.match(/QQ\//i) == "QQ/") {
+            return true;
+        } else {
+            return false;
+        }
+    };
+
+    var useasmjs = is_QQInnerBro() && navigator.userAgent.indexOf("iPhone")>-1;
+
+    if(!support_webassembly() || useasmjs){
+        //不支持Webassembly
+        append_js("client-asm.js");
+    }else{
+        append_js("client.js");
+    }
 </script>
-<script src="client.js"></script>
 </body>
 </html>
