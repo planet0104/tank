@@ -79,16 +79,12 @@ fn connect(url: &str){
         let ws = WebSocket::new(url).unwrap();
 
         ws.add_event_listener(move |_: SocketOpenEvent| {
-            console!(log, "step 0");
             JS.with(|e| {
-                console!(log, "step 01");
                 if let Some(callback) = e.borrow().on_connect_listener {
-                    console!(log, "step 02");
                     callback();
                 }
             });
-            console!(log, "step 1");
-
+            
             //加入游戏
             join_game();
         });
@@ -391,37 +387,47 @@ fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
     let (cx, cy) = (event.client_x(), event.client_y());
     match event{
         _ => {
+            console!(log, "0");
             let game_pad:HtmlElement = document().query_selector("#game_pad").unwrap().unwrap().try_into().unwrap();
+            console!(log, "1");
             let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
+            console!(log, "2");
             //方向按钮按下 判断按钮方向
             let x = cx - game_pad.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap();
+            console!(log, "3");
             let y = cy - game_pad.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap();
+            console!(log, "4");
             let btn_width = game_pad_direction.offset_width()/3;
             let direction_status = game_pad_direction.get_attribute("status").unwrap().parse::<i32>().unwrap();
+            console!(log, "5");
             if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
                 game_pad_direction.set_attribute("status", "1");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_UP));
                 }
             }
+            console!(log, "6");
             if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
                 game_pad_direction.set_attribute("status", "2");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_DOWN));
                 }
             }
+            console!(log, "7");
             if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
                 game_pad_direction.set_attribute("status", "3");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_LEFT));
                 }
             }
+            console!(log, "8");
             if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
                 game_pad_direction.set_attribute("status", "4");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_RIGHT));
                 }
             }
+            console!(log, "9");
         }
         PointerUpEvent => {
             if let Ok(mut events) = KEY_EVENTS.lock() {
@@ -433,26 +439,16 @@ fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
 
 fn join_game(){
     //------------- 输入名字对话框 --------------
-    console!(log, "step 2");
-    let btn_start =  document().query_selector( "#btn_start" ).unwrap().unwrap();
-    console!(log, "step 3");
+    let btn_start =  document().query_selector("#btn_start").unwrap().unwrap();
     js!(document.getElementById("input_name_dialog").style.display = "block"; );
-    console!(log, "step 4");
     btn_start.add_event_listener(move |_: ClickEvent| {
-        console!(log, "step 41");
         GAME.with(move |game| {
-            console!(log, "step 42");
             let mut game = game.borrow_mut();
-            console!(log, "step 43");
             let txt_user_name:InputElement = document().query_selector( "#txt_user_name" ).unwrap().unwrap().try_into().unwrap();
-            console!(log, "step 44");
             game.player_join_game(&txt_user_name.raw_value());
-            console!(log, "step 45");
             js!(document.getElementById("input_name_dialog").style.display = "none"; );
-            console!(log, "step 46");
         });
     });
-    console!(log, "step 5");
 }
 
 fn main() {
@@ -518,7 +514,7 @@ fn main() {
     });
 
     //------------- 控制板事件 -----------------------------------
-    let game_pad = document().query_selector( "#game_pad" ).unwrap().unwrap();
+    let game_pad = document().query_selector("#game_pad").unwrap().unwrap();
     let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
     let game_pad_button_a = document().query_selector("#game_pad_button_a").unwrap().unwrap();
     let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();

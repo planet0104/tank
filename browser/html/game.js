@@ -72,11 +72,11 @@ function ping(ip, callback) {
 }
 
 //电脑版不显示游戏手柄
-try{
-    if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
-        document.getElementById("game_pad").style.display = 'block';   
-    }
-}catch(e){}
+// try{
+//     if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
+//         document.getElementById("game_pad").style.display = 'block';   
+//     }
+// }catch(e){}
 
 ping("54.249.68.59", function(time){
         console.log("ping:"+time+"ms");
