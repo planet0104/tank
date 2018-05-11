@@ -14,16 +14,21 @@ use stdweb::web::FileReaderResult;
 use std::collections::HashMap;
 use stdweb::web::event::IKeyboardEvent;
 use stdweb::web::event::IEvent;
+use stdweb::web::IElement;
+use stdweb::web::IParentNode;
+use stdweb::web::IHtmlElement;
+use stdweb::InstanceOf;
 use stdweb::web::{
     document,
     window,
+    HtmlElement
 };
 use stdweb::console;
 use stdweb::web::Blob;
 //use stdweb::js_export;
 use tank::engine::GameContext;
 use std::cell::RefCell;
-use tank::{ GAME, KEY_MAP, KeyEvent };
+use tank::{ GAME, KEY_MAP, KeyEvent, VK_SPACE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN};
 use std::sync::{Arc, Mutex};
 use stdweb::web::event::{
     KeyDownEvent,
@@ -33,7 +38,11 @@ use stdweb::web::event::{
     SocketErrorEvent,
     SocketMessageEvent,
     ResizeEvent,
-    LoadEndEvent
+    LoadEndEvent,
+    PointerMoveEvent,
+    PointerDownEvent,
+    PointerUpEvent,
+    IMouseEvent
 };
 
 lazy_static! {
@@ -373,14 +382,56 @@ impl GameContext for JSGameContext {
     }
 }
 
+//触摸板操作
+fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
+    event.prevent_default();
+    let (cx, cy) = (event.client_x(), event.client_y());
+    match event{
+        _ => {
+            let game_pad:HtmlElement = document().query_selector("#game_pad").unwrap().unwrap().try_into().unwrap();
+            let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
+            //方向按钮按下 判断按钮方向
+            let x = cx - game_pad.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap();
+            let y = cy - game_pad.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap();
+            let btn_width = game_pad_direction.offset_width()/3;
+            let direction_status = game_pad_direction.get_attribute("status").unwrap().parse::<i32>().unwrap();
+            if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
+                game_pad_direction.set_attribute("status", "1");
+                if let Ok(mut events) = KEY_EVENTS.lock() {
+                    events.push((KeyEvent::KeyDown, VK_UP));
+                }
+            }
+            if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
+                game_pad_direction.set_attribute("status", "2");
+                if let Ok(mut events) = KEY_EVENTS.lock() {
+                    events.push((KeyEvent::KeyDown, VK_DOWN));
+                }
+            }
+            if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
+                game_pad_direction.set_attribute("status", "3");
+                if let Ok(mut events) = KEY_EVENTS.lock() {
+                    events.push((KeyEvent::KeyDown, VK_LEFT));
+                }
+            }
+            if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
+                game_pad_direction.set_attribute("status", "4");
+                if let Ok(mut events) = KEY_EVENTS.lock() {
+                    events.push((KeyEvent::KeyDown, VK_RIGHT));
+                }
+            }
+        }
+        PointerUpEvent => {
+            if let Ok(mut events) = KEY_EVENTS.lock() {
+                events.push((KeyEvent::KeyUp, VK_LEFT));
+            }
+        }
+    }
+}
+
 fn main() {
     stdweb::initialize();
 
-    // let v:f64 = js! (return Date.now()).try_into().unwrap();
-    // let ss = format!("{:?}", v);
-    // js!{
-    //     console.log("hehe", @{ss});
-    // }
+    //------------- 键盘事件 -----------------------------------
 
     window().add_event_listener(|_: ResizeEvent| {
         JS.with(|e| {
@@ -438,6 +489,36 @@ fn main() {
             }
         });
     });
+
+    //------------- 控制板事件 -----------------------------------
+    let game_pad = document().query_selector( "#game_pad" ).unwrap().unwrap();
+    let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
+    let game_pad_button_a = document().query_selector("#game_pad_button_a").unwrap().unwrap();
+    let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
+    game_pad_direction.set_attribute("status", "0"); // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
+
+    game_pad.add_event_listener( move |event: PointerMoveEvent| {
+        handle_game_pad_direction_action(event);
+    });
+    game_pad.add_event_listener( move |event: PointerDownEvent| {
+        handle_game_pad_direction_action(event);
+    });
+    game_pad.add_event_listener( move |event: PointerUpEvent| {
+        handle_game_pad_direction_action(event);
+    });
+
+    game_pad_button_a.add_event_listener( move |event: PointerDownEvent| {
+        if let Ok(mut events) = KEY_EVENTS.lock() {
+            events.push((KeyEvent::KeyDown, VK_SPACE));
+        }
+    });
+    game_pad_button_b.add_event_listener( move |event: PointerDownEvent| {
+        if let Ok(mut events) = KEY_EVENTS.lock() {
+            events.push((KeyEvent::KeyDown, VK_SPACE));
+        }
+    });
+
+    //------------- 启动游戏 -----------------------------------
 
     GAME.with(|game| {
         let mut game = game.borrow_mut();
