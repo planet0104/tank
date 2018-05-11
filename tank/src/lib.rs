@@ -434,24 +434,21 @@ impl TankGame {
         self.client_context = Some(Rc::new(context));
     }
 
-    pub fn client_on_connect(&mut self) {
+    pub fn player_join_game(&mut self, name:&str){
         let context = self.client_context.as_ref().unwrap();
-        context.console_log("websocket 链接成功");
+        context.console_log(&format!("{}你好， 正在加入...", name));
         //加入游戏
         let rand_name = {
             let t = format!("{}", context.current_time_millis() as u64 / 100);
             format!("{}", t[t.len() - 4..t.len()].to_string())
         };
-        context.console_log(">>>>122");
 
-        let name = context.prompt("输入4个字的大名", &rand_name);
         let name = if name.len() == 0 {
             rand_name
         } else {
             name.chars().take(4).collect::<String>()
         };
 
-        context.console_log(&format!("客户端连接成功 玩家姓名:{}", name));
         self.client_player.name = name;
         self.client_binary_messages.push(vec![MSG_CONNECT]);
     }
@@ -499,11 +496,11 @@ impl TankGame {
             });
         });
 
-        context.set_on_connect_listener(|| {
-            GAME.with(|game| {
-                game.borrow_mut().client_on_connect();
-            });
-        });
+        // context.set_on_connect_listener(|| {
+        //     GAME.with(|game| {
+        //         game.borrow_mut().client_on_connect();
+        //     });
+        // });
         context.set_on_close_listener(|| {
             GAME.with(|game| {
                 game.borrow()

@@ -45,7 +45,6 @@ pub trait GameContext {
     //fn set_on_key_down_listener(&self, listener: fn(key: i32));
     fn send_message(&self, msg: &str);
     fn send_binary_message(&self, msg: &Vec<u8>);
-    fn prompt(&self, title: &str, default_msg: &str) -> String;
     fn set_on_close_listener(&self, listener: fn());
     fn request_animation_frame(&self);
     fn connect(&self, url: &str);

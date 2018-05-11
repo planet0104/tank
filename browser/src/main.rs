@@ -18,6 +18,7 @@ use stdweb::web::IElement;
 use stdweb::web::IParentNode;
 use stdweb::web::IHtmlElement;
 use stdweb::InstanceOf;
+use stdweb::web::html_element::InputElement;
 use stdweb::web::{
     document,
     window,
@@ -43,7 +44,8 @@ use stdweb::web::event::{
     PointerMoveEvent,
     PointerDownEvent,
     PointerUpEvent,
-    IMouseEvent
+    IMouseEvent,
+    ClickEvent
 };
 
 lazy_static! {
@@ -82,6 +84,9 @@ fn connect(url: &str){
                     callback();
                 }
             });
+
+            //加入游戏
+            join_game();
         });
 
         ws.add_event_listener(move |_: SocketErrorEvent| {
@@ -374,13 +379,6 @@ impl GameContext for JSGameContext {
             canvas.height = @{height};
         }
     }
-
-    fn prompt(&self, title: &str, default_msg: &str) -> String {
-        js!(
-            var val = prompt(@{title}, @{default_msg});
-            return val;
-        ).try_into().unwrap()
-    }
 }
 
 //触摸板操作
@@ -427,6 +425,20 @@ fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
             }
         }
     }
+}
+
+fn join_game(){
+    //------------- 输入名字对话框 --------------
+    let btn_start =  document().query_selector( "#btn_start" ).unwrap().unwrap();
+    js!(document.getElementById("input_name_dialog").style.display = "block"; );
+    btn_start.add_event_listener(move |_: ClickEvent| {
+        GAME.with(move |game| {
+            let mut game = game.borrow_mut();
+            let txt_user_name:InputElement = document().query_selector( "#txt_user_name" ).unwrap().unwrap().try_into().unwrap();
+            game.player_join_game(&txt_user_name.raw_value());
+            js!(document.getElementById("input_name_dialog").style.display = "none"; );
+        });
+    });
 }
 
 fn main() {
