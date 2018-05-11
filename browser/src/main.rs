@@ -44,6 +44,7 @@ use stdweb::web::event::{
     PointerMoveEvent,
     PointerDownEvent,
     PointerUpEvent,
+    PointerOutEvent,
     IMouseEvent,
     ClickEvent
 };
@@ -385,55 +386,53 @@ impl GameContext for JSGameContext {
 fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
     event.prevent_default();
     let (cx, cy) = (event.client_x(), event.client_y());
-    match event{
-        _ => {
-            console!(log, "0");
+    match event.event_type().as_str(){
+        "pointerup" => {
+            if let Ok(mut events) = KEY_EVENTS.lock() {
+                let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
+                game_pad_direction.set_attribute("status", "0");
+                events.push((KeyEvent::KeyUp, VK_LEFT));
+            }
+        }
+        "pointerdown" | "pointermove" => {
             let game_pad:HtmlElement = document().query_selector("#game_pad").unwrap().unwrap().try_into().unwrap();
-            console!(log, "1");
             let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
-            console!(log, "2");
             //方向按钮按下 判断按钮方向
-            let x = cx - game_pad.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetLeft").unwrap().parse::<i32>().unwrap();
-            console!(log, "3");
-            let y = cy - game_pad.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap() - game_pad_direction.get_attribute("offsetTop").unwrap().parse::<i32>().unwrap();
-            console!(log, "4");
+            let game_pad_direction_rect = game_pad_direction.get_bounding_client_rect();
+            let x = cx - game_pad_direction_rect.get_left() as i32;
+            let y = cy - game_pad_direction_rect.get_top() as i32;
             let btn_width = game_pad_direction.offset_width()/3;
             let direction_status = game_pad_direction.get_attribute("status").unwrap().parse::<i32>().unwrap();
-            console!(log, "5");
+
             if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
                 game_pad_direction.set_attribute("status", "1");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_UP));
                 }
             }
-            console!(log, "6");
+
             if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
                 game_pad_direction.set_attribute("status", "2");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_DOWN));
                 }
             }
-            console!(log, "7");
+
             if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
                 game_pad_direction.set_attribute("status", "3");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_LEFT));
                 }
             }
-            console!(log, "8");
+
             if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
                 game_pad_direction.set_attribute("status", "4");
                 if let Ok(mut events) = KEY_EVENTS.lock() {
                     events.push((KeyEvent::KeyDown, VK_RIGHT));
                 }
             }
-            console!(log, "9");
         }
-        PointerUpEvent => {
-            if let Ok(mut events) = KEY_EVENTS.lock() {
-                events.push((KeyEvent::KeyUp, VK_LEFT));
-            }
-        }
+        _  => {}
     }
 }
 
@@ -520,13 +519,13 @@ fn main() {
     let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
     game_pad_direction.set_attribute("status", "0"); // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
 
-    game_pad.add_event_listener( move |event: PointerMoveEvent| {
+    game_pad_direction.add_event_listener( move |event: PointerMoveEvent| {
         handle_game_pad_direction_action(event);
     });
-    game_pad.add_event_listener( move |event: PointerDownEvent| {
+    game_pad_direction.add_event_listener( move |event: PointerDownEvent| {
         handle_game_pad_direction_action(event);
     });
-    game_pad.add_event_listener( move |event: PointerUpEvent| {
+    game_pad_direction.add_event_listener( move |event: PointerUpEvent| {
         handle_game_pad_direction_action(event);
     });
 
