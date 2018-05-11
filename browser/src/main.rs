@@ -21,7 +21,8 @@ use stdweb::InstanceOf;
 use stdweb::web::{
     document,
     window,
-    HtmlElement
+    HtmlElement,
+    Date
 };
 use stdweb::console;
 use stdweb::web::Blob;
@@ -134,8 +135,8 @@ fn connect(url: &str){
 pub struct JSGameContext {}
 
 impl GameContext for JSGameContext {
-    fn current_time_millis(&self) -> u64 {
-        js! (return Date.now()).try_into().unwrap()
+    fn current_time_millis(&self) -> f64 {
+        Date::now()
     }
     fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
         js!{

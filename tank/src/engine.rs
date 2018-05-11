@@ -54,7 +54,7 @@ pub trait GameContext {
     fn pick_key_events(&self) -> Vec<(KeyEvent, i32)>;
     fn pick_messages(&self) -> Vec<String>;
     fn pick_binary_messages(&self) -> Vec<Vec<u8>>;
-    fn current_time_millis(&self) -> u64;
+    fn current_time_millis(&self) -> f64;
 }
 
 pub trait UpdateCallback {

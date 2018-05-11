@@ -442,6 +442,7 @@ impl TankGame {
             let t = format!("{}", context.current_time_millis() as u64 / 100);
             format!("{}", t[t.len() - 4..t.len()].to_string())
         };
+        context.console_log(">>>>122");
 
         let name = context.prompt("输入4个字的大名", &rand_name);
         let name = if name.len() == 0 {
