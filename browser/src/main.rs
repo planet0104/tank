@@ -386,15 +386,16 @@ impl GameContext for JSGameContext {
 fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
     event.prevent_default();
     let (cx, cy) = (event.client_x(), event.client_y());
+
     match event.event_type().as_str(){
-        "pointerup" => {
+        "pointerup" | "touchcancel" | "touchend" | "touchleave" => {
             if let Ok(mut events) = KEY_EVENTS.lock() {
                 let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
                 game_pad_direction.set_attribute("status", "0");
                 events.push((KeyEvent::KeyUp, VK_LEFT));
             }
         }
-        "pointerdown" | "pointermove" => {
+        "pointerdown" | "pointermove" | "touchenter" | "touchmove" | "touchstart" => {
             let game_pad:HtmlElement = document().query_selector("#game_pad").unwrap().unwrap().try_into().unwrap();
             let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
             //方向按钮按下 判断按钮方向

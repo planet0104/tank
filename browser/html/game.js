@@ -78,8 +78,6 @@ try{
     }
 }catch(e){}
 
-document.getElementById("game_pad").style.display = 'block'; 
-
 ping("54.249.68.59", function(time){
         console.log("ping:"+time+"ms");
     });
