@@ -1,4 +1,5 @@
 #![feature(proc_macro)]
+#![recursion_limit="256"]
 
 #[macro_use]
 extern crate stdweb;
@@ -383,11 +384,8 @@ impl GameContext for JSGameContext {
 }
 
 //触摸板操作
-fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
-    event.prevent_default();
-    let (cx, cy) = (event.client_x(), event.client_y());
-
-    match event.event_type().as_str(){
+fn handle_game_pad_direction_action(event: String, cx:i32, cy:i32){
+    match event.as_str(){
         "pointerup" | "touchcancel" | "touchend" | "touchleave" => {
             if let Ok(mut events) = KEY_EVENTS.lock() {
                 let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
@@ -520,44 +518,21 @@ fn main() {
     let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
     game_pad_direction.set_attribute("status", "0"); // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
 
-    // game_pad_direction.add_event_listener( move |event: PointerMoveEvent| {
-    //     handle_game_pad_direction_action(event);
-    // });
-
     let handle_touch_event = |event:String, x:i32, y:i32|{
-        console!(log, event, x, y);
+        handle_game_pad_direction_action(event, x, y);
     };
     
     js!{
-        /*
-        game_pad_direction.addEventListener("touchmove", game_pad_direction_active);
-        //game_pad_direction.addEventListener("click", game_pad_direction_active);
-        game_pad_direction.addEventListener("touchstart", game_pad_direction_active);
-        game_pad_direction.addEventListener("touchend", function(event){
-            event.preventDefault();
-            //方向按钮弹起
-            Module._on_keyup_event(VK_LEFT);
-            game_pad_direction.status = 0;
-        });
-         */
-        var handle_touch_event = @{handle_touch_event};
-        
-        document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
-            event.preventDefault();
-            let x = event.touches[0].clientX;
-            let y = event.touches[0].clientY;
-            handle_touch_event("touchmove", x, y);
-        });
-    }
-
-    /*
-        js!{
         var handle_touch_event = @{handle_touch_event};
         function handle_event(event){
             event.preventDefault();
-            let x = event.touches[0].clientX;
-            let y = event.touches[0].clientY;
-            handle_touch_event(event,type, x, y);
+            if(event.type == "touchend"){
+                handle_touch_event("touchend", 0, 0);
+            }else{
+                let x = event.touches[0].clientX;
+                let y = event.touches[0].clientY;
+                handle_touch_event(event.type, x, y);
+            }
         }
         document.getElementById("game_pad_direction").addEventListener("touchmove", handle_event);
         document.getElementById("game_pad_direction").addEventListener("touchend", handle_event);
@@ -566,8 +541,10 @@ fn main() {
         document.getElementById("game_pad_direction").addEventListener("touchenter", handle_event);
         document.getElementById("game_pad_direction").addEventListener("touchleave", handle_event);
     }
-    */
 
+    // game_pad_direction.add_event_listener( move |event: PointerMoveEvent| {
+    //     handle_game_pad_direction_action(event);
+    // });
     // game_pad_direction.add_event_listener( move |event: PointerDownEvent| {
     //     handle_game_pad_direction_action(event);
     // });
@@ -575,16 +552,32 @@ fn main() {
     //     handle_game_pad_direction_action(event);
     // });
 
-    game_pad_button_a.add_event_listener( move |event: PointerDownEvent| {
+    let handle_button_click_event = ||{
         if let Ok(mut events) = KEY_EVENTS.lock() {
             events.push((KeyEvent::KeyDown, VK_SPACE));
         }
-    });
-    game_pad_button_b.add_event_listener( move |event: PointerDownEvent| {
-        if let Ok(mut events) = KEY_EVENTS.lock() {
-            events.push((KeyEvent::KeyDown, VK_SPACE));
+    };
+
+    js!{
+        var handle_button_click_event = @{handle_button_click_event};
+        function handle(event){
+            event.preventDefault();
+            handle_button_click_event();
         }
-    });
+        document.getElementById("game_pad_button_a").addEventListener("touchstart", handle);
+        document.getElementById("game_pad_button_b").addEventListener("touchstart", handle);
+    }
+
+    // game_pad_button_a.add_event_listener( move |event: PointerDownEvent| {
+    //     if let Ok(mut events) = KEY_EVENTS.lock() {
+    //         events.push((KeyEvent::KeyDown, VK_SPACE));
+    //     }
+    // });
+    // game_pad_button_b.add_event_listener( move |event: PointerDownEvent| {
+    //     if let Ok(mut events) = KEY_EVENTS.lock() {
+    //         events.push((KeyEvent::KeyDown, VK_SPACE));
+    //     }
+    // });
 
     //------------- 启动游戏 -----------------------------------
 
