@@ -79,11 +79,15 @@ fn connect(url: &str){
         let ws = WebSocket::new(url).unwrap();
 
         ws.add_event_listener(move |_: SocketOpenEvent| {
+            console!(log, "step 0");
             JS.with(|e| {
+                console!(log, "step 01");
                 if let Some(callback) = e.borrow().on_connect_listener {
+                    console!(log, "step 02");
                     callback();
                 }
             });
+            console!(log, "step 1");
 
             //加入游戏
             join_game();
@@ -429,16 +433,26 @@ fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
 
 fn join_game(){
     //------------- 输入名字对话框 --------------
+    console!(log, "step 2");
     let btn_start =  document().query_selector( "#btn_start" ).unwrap().unwrap();
+    console!(log, "step 3");
     js!(document.getElementById("input_name_dialog").style.display = "block"; );
+    console!(log, "step 4");
     btn_start.add_event_listener(move |_: ClickEvent| {
+        console!(log, "step 41");
         GAME.with(move |game| {
+            console!(log, "step 42");
             let mut game = game.borrow_mut();
+            console!(log, "step 43");
             let txt_user_name:InputElement = document().query_selector( "#txt_user_name" ).unwrap().unwrap().try_into().unwrap();
+            console!(log, "step 44");
             game.player_join_game(&txt_user_name.raw_value());
+            console!(log, "step 45");
             js!(document.getElementById("input_name_dialog").style.display = "none"; );
+            console!(log, "step 46");
         });
     });
+    console!(log, "step 5");
 }
 
 fn main() {
