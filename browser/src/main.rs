@@ -77,6 +77,13 @@ thread_local!{
     });
 }
 
+const id_game_pad_button_a:i32 = 0;
+const id_game_pad_button_b:i32 = 1;
+const id_game_pad_direction:i32 = 3;
+const id_touchstart:i32 = 0;
+const id_touchend:i32 = 1;
+const id_touchmove:i32 = 2;
+
 fn connect(url: &str){
     if let Ok(mut socket) = SOCKET.lock() {
         let ws = WebSocket::new(url).unwrap();
@@ -390,11 +397,11 @@ fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
     //console!(log, "handle_game_pad_direction_action", event.event_type(), cx, cy);
     match event.event_type().as_str(){
         "pointerup" | "mouseup" | "touchcancel" | "touchend" | "touchleave" => {
-            if let Ok(mut events) = KEY_EVENTS.lock() {
-                let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
-                let _ = game_pad_direction.set_attribute("status", "0");
-                events.push((KeyEvent::KeyUp, VK_LEFT));
-            }
+            // if let Ok(mut events) = KEY_EVENTS.lock() {
+            //     let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
+            //     let _ = game_pad_direction.set_attribute("status", "0");
+            //     events.push((KeyEvent::KeyUp, VK_LEFT));
+            // }
         }
         "pointerdown" | "mousemove" | "mousedown" | "pointermove" | "touchenter" | "touchmove" | "touchstart" => {
             let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
@@ -453,14 +460,68 @@ fn join_game(){
 
 #[cfg(all(target_arch = "asmjs", target_os = "emscripten"))]
 #[no_mangle]
-pub fn on_touch_event(key: i32){
-    console!(log, "on_touch_event:", key);
+pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
+    handle_touch_event(target, event_type, client_x, client_y);
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[js_export]
-pub fn on_touch_event(key: i32){
-    console!(log, "on_touch_event:", key);
+pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
+    handle_touch_event(target, event_type, client_x, client_y);
+}
+
+fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
+    if let Ok(mut events) = KEY_EVENTS.lock() {
+        match target{
+            id_game_pad_button_a | id_game_pad_button_b => {
+                match event_type{
+                    id_touchstart => events.push((KeyEvent::KeyDown, VK_SPACE)),
+                    id_touchend => (),
+                    id_touchmove => (),
+                    _ => ()
+                }
+            },
+            id_game_pad_direction => {
+                let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
+                match event_type{
+                    id_touchend => {
+                        let _ = game_pad_direction.set_attribute("status", "0");
+                        events.push((KeyEvent::KeyUp, VK_LEFT));
+                    },
+                    id_touchmove | id_touchstart => {
+                        //方向按钮按下 判断按钮方向
+                        let game_pad_direction_rect = game_pad_direction.get_bounding_client_rect();
+                        let x = client_x - game_pad_direction_rect.get_left() as i32;
+                        let y = client_y - game_pad_direction_rect.get_top() as i32;
+                        let btn_width = game_pad_direction.offset_width()/3;
+                        let direction_status = game_pad_direction.get_attribute("status").unwrap_or("0".to_string()).parse::<i32>().unwrap();
+
+                        if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
+                            let _ = game_pad_direction.set_attribute("status", "1");
+                            events.push((KeyEvent::KeyDown, VK_UP));
+                        }
+
+                        if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
+                            let _ = game_pad_direction.set_attribute("status", "2");
+                            events.push((KeyEvent::KeyDown, VK_DOWN));
+                        }
+
+                        if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
+                            let _ = game_pad_direction.set_attribute("status", "3");
+                            events.push((KeyEvent::KeyDown, VK_LEFT));
+                        }
+
+                        if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
+                            let _ = game_pad_direction.set_attribute("status", "4");
+                            events.push((KeyEvent::KeyDown, VK_RIGHT));
+                        }
+                    },
+                    _ => ()
+                }
+            }
+            _ => ()
+        }   
+    }
 }
 
 fn main() {
@@ -525,27 +586,14 @@ fn main() {
         });
     });
 
-    //------------- 控制板事件 -----------------------------------
-    //let game_pad = document().query_selector("#game_pad").unwrap().unwrap();
-    let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
-    //let game_pad_button_a = document().query_selector("#game_pad_button_a").unwrap().unwrap();
-    //let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
-    let _ = game_pad_direction.set_attribute("status", "0"); // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
-
-    game_pad_direction.add_event_listener( move |event: MouseMoveEvent| {
-        event.prevent_default();
-        handle_game_pad_direction_action(event);
-    });
-
-    game_pad_direction.add_event_listener( move |event: MouseDownEvent| {
-        event.prevent_default();
-        handle_game_pad_direction_action(event);
-    });
-
-    game_pad_direction.add_event_listener( move |event: MouseUpEvent| {
-        event.prevent_default();
-        handle_game_pad_direction_action(event);
-    });
+    js!{
+        window.id_game_pad_button_a = @{id_game_pad_button_a};
+        window.id_game_pad_button_b = @{id_game_pad_button_b};
+        window.id_game_pad_direction = @{id_game_pad_direction};
+        window.id_touchstart = @{id_touchstart};
+        window.id_touchend = @{id_touchend};
+        window.id_touchmove = @{id_touchmove};
+    }
 
     //------------- 启动游戏 -----------------------------------
 

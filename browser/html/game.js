@@ -85,51 +85,93 @@ ping("54.249.68.59", function(time){
 
 //------- stdweb不支持 touch事件，将touch事件转换为mouse事件 ---------
 
+// document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
+//     event.preventDefault();
+//     var e = new MouseEvent("mousemove", {
+//         clientX: event.touches[0].clientX,
+//         clientY: event.touches[0].clientY
+//     });
+//     this.dispatchEvent(e);
+// });
+
+// document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
+//     event.preventDefault();
+//     var e = new MouseEvent("mousedown", {
+//         clientX: event.touches[0].clientX,
+//         clientY: event.touches[0].clientY
+//     });
+//     this.dispatchEvent(e);
+// });
+
+// document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
+//     event.preventDefault();
+//     var e = new MouseEvent("mouseup");
+//     this.dispatchEvent(e);
+// });
+
+// document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
+//     event.preventDefault();
+//     var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+//     window.dispatchEvent(e);
+// });
+// document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
+//     event.preventDefault();
+//     var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+//     window.dispatchEvent(e);
+// });
+// console.log("start.");
+// document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
+//     console.log("aaa");
+//     event.preventDefault();
+//     var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+//     window.dispatchEvent(e);
+
+//     Module._on_touch_event(22);
+// });
+// document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
+//     event.preventDefault();
+//     var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+//     window.dispatchEvent(e);
+// });
+
+function game_on_touch_event(target, eventType, clientX, clientY){
+    if (Rust != undefined){
+        Rust.client.then(function(client){
+            client.on_touch_event(target, eventType, clientX, clientY);
+        });
+    }else{
+        Module._on_touch_event(target, eventType, clientX, clientY);
+    }
+}
+//-------- 按钮控制 ------------------
+document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
+    event.preventDefault();
+    game_on_touch_event(id_game_pad_button_a, id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
+});
+document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
+    event.preventDefault();
+    game_on_touch_event(id_game_pad_button_a, id_touchend, 0, 0);
+});
+document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
+    event.preventDefault();
+    game_on_touch_event(id_game_pad_button_b, id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
+});
+document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
+    event.preventDefault();
+    game_on_touch_event(id_game_pad_button_b, id_touchend, 0, 0);
+});
+//------- 触摸控制 -------------------
 document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
     event.preventDefault();
-    var e = new MouseEvent("mousemove", {
-        clientX: event.touches[0].clientX,
-        clientY: event.touches[0].clientY
-    });
-    this.dispatchEvent(e);
+    game_on_touch_event(id_game_pad_direction, id_touchmove, event.touches[0].clientX, event.touches[0].clientY);
 });
 
 document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
     event.preventDefault();
-    var e = new MouseEvent("mousedown", {
-        clientX: event.touches[0].clientX,
-        clientY: event.touches[0].clientY
-    });
-    this.dispatchEvent(e);
+    game_on_touch_event(id_game_pad_direction, id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
 });
 
 document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
     event.preventDefault();
-    var e = new MouseEvent("mouseup");
-    this.dispatchEvent(e);
-});
-
-document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
-    event.preventDefault();
-    var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
-    window.dispatchEvent(e);
-});
-document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
-    event.preventDefault();
-    var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
-    window.dispatchEvent(e);
-});
-console.log("start.");
-document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
-    console.log("aaa");
-    event.preventDefault();
-    var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
-    window.dispatchEvent(e);
-
-    Module._on_touch_event(22);
-});
-document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
-    event.preventDefault();
-    var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
-    window.dispatchEvent(e);
+    game_on_touch_event(id_game_pad_direction, id_touchend, 0, 0);
 });
