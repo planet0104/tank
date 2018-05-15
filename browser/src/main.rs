@@ -451,9 +451,9 @@ fn join_game(){
     });
 }
 
-#[js_export]
-fn on_touch_event(event_type:&str, x:i32, y:i32){
-    console!(log, "js_export on_touch_event:", event_type, x, y);
+#[no_mangle]
+pub fn on_touch_event(ptr: String){
+    console!(log, "on_touch_event:", ptr);
 }
 
 fn main() {
