@@ -87,34 +87,45 @@ ping("54.249.68.59", function(time){
 
 document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
     event.preventDefault();
-    var e = document.createEvent("MouseEvents");
-    e.initMouseEvent("mousemove", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    var e = new MouseEvent("mousemove", {
+        clientX: event.touches[0].clientX,
+        clientY: event.touches[0].clientY
+    });
     this.dispatchEvent(e);
 });
 
 document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
     event.preventDefault();
-    var e = document.createEvent("MouseEvents");
-    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    var e = new MouseEvent("mousedown", {
+        clientX: event.touches[0].clientX,
+        clientY: event.touches[0].clientY
+    });
     this.dispatchEvent(e);
 });
 
 document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
     event.preventDefault();
-    var e = document.createEvent("MouseEvents");
-    e.initMouseEvent("mouseup", true, true, window, 0, 0, 0, 0, 0);
+    var e = new MouseEvent("mouseup");
     this.dispatchEvent(e);
 });
 
 document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
     event.preventDefault();
-    var e = document.createEvent("MouseEvents");
-    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
-    this.dispatchEvent(e);
+    var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+    window.dispatchEvent(e);
+});
+document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
+    event.preventDefault();
+    var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+    window.dispatchEvent(e);
 });
 document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
     event.preventDefault();
-    var e = document.createEvent("MouseEvents");
-    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
-    this.dispatchEvent(e);
+    var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+    window.dispatchEvent(e);
+});
+document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
+    event.preventDefault();
+    var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
+    window.dispatchEvent(e);
 });

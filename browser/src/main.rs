@@ -5,7 +5,9 @@ extern crate stdweb;
 extern crate tank;
 #[macro_use]
 extern crate lazy_static;
-
+use stdweb::js_export;
+use stdweb::web::TypedArray;
+use stdweb::serde::Serde;
 use stdweb::unstable::TryInto;
 use stdweb::console;
 use stdweb::web::html_element::InputElement;
@@ -31,10 +33,10 @@ use stdweb::web::event::{
     SocketMessageEvent,
     ResizeEvent,
     LoadEndEvent,
-    //PointerMoveEvent,
-    //PointerDownEvent,
-    //PointerUpEvent,
-    //PointerOutEvent,
+    PointerMoveEvent,
+    PointerDownEvent,
+    PointerUpEvent,
+    PointerOutEvent,
     IMouseEvent,
     ClickEvent,
     MouseMoveEvent,
@@ -449,6 +451,11 @@ fn join_game(){
     });
 }
 
+#[js_export]
+fn on_touch_event(event_type:&str, x:i32, y:i32){
+    console!(log, "js_export on_touch_event:", event_type, x, y);
+}
+
 fn main() {
     stdweb::initialize();
 
@@ -514,33 +521,23 @@ fn main() {
     //------------- 控制板事件 -----------------------------------
     //let game_pad = document().query_selector("#game_pad").unwrap().unwrap();
     let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
-    let game_pad_button_a = document().query_selector("#game_pad_button_a").unwrap().unwrap();
-    let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
+    //let game_pad_button_a = document().query_selector("#game_pad_button_a").unwrap().unwrap();
+    //let game_pad_button_b = document().query_selector("#game_pad_button_b").unwrap().unwrap();
     let _ = game_pad_direction.set_attribute("status", "0"); // 0:未按, 1: Up, 2:Down, 3:Left, 4:Right
 
     game_pad_direction.add_event_listener( move |event: MouseMoveEvent| {
+        event.prevent_default();
         handle_game_pad_direction_action(event);
     });
 
     game_pad_direction.add_event_listener( move |event: MouseDownEvent| {
+        event.prevent_default();
         handle_game_pad_direction_action(event);
     });
 
     game_pad_direction.add_event_listener( move |event: MouseUpEvent| {
+        event.prevent_default();
         handle_game_pad_direction_action(event);
-    });
-
-    //发射炮弹按钮
-    game_pad_button_a.add_event_listener( move |_event: MouseDownEvent| {
-        if let Ok(mut events) = KEY_EVENTS.lock() {
-            events.push((KeyEvent::KeyDown, VK_SPACE));
-        }
-    });
-
-    game_pad_button_b.add_event_listener( move |_event: MouseDownEvent| {
-        if let Ok(mut events) = KEY_EVENTS.lock() {
-            events.push((KeyEvent::KeyDown, VK_SPACE));
-        }
     });
 
     //------------- 启动游戏 -----------------------------------
