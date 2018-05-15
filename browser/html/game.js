@@ -123,6 +123,10 @@ document.getElementById("game_pad_button_b").addEventListener("touchstart", func
     event.preventDefault();
     var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
     window.dispatchEvent(e);
+
+    Rust.client.then(function(client){
+        client.on_touch_event("哈哈");
+    });
 });
 document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
     event.preventDefault();

@@ -5,6 +5,8 @@ extern crate stdweb;
 extern crate tank;
 #[macro_use]
 extern crate lazy_static;
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+use stdweb::js_export;
 use stdweb::web::TypedArray;
 use stdweb::serde::Serde;
 use stdweb::unstable::TryInto;
@@ -44,7 +46,6 @@ use stdweb::web::event::{
     IMessageEvent, IKeyboardEvent, IEvent
 };
 
-//use stdweb::js_export;
 use tank::engine::GameContext;
 use std::cell::RefCell;
 use tank::{ GAME, KEY_MAP, KeyEvent, VK_SPACE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN};
@@ -450,7 +451,14 @@ fn join_game(){
     });
 }
 
+#[cfg(all(target_arch = "asmjs", target_os = "emscripten"))]
 #[no_mangle]
+pub fn on_touch_event(ptr: String){
+    console!(log, "on_touch_event:", ptr);
+}
+
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+#[js_export]
 pub fn on_touch_event(ptr: String){
     console!(log, "on_touch_event:", ptr);
 }
