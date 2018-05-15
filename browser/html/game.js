@@ -119,14 +119,14 @@ document.getElementById("game_pad_button_a").addEventListener("touchend", functi
     var e = new KeyboardEvent("keyup", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
     window.dispatchEvent(e);
 });
+console.log("start.");
 document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
+    console.log("aaa");
     event.preventDefault();
     var e = new KeyboardEvent("keydown", {bubbles : true, cancelable : true, key : " ", char : " ", shiftKey : false});
     window.dispatchEvent(e);
 
-    Rust.client.then(function(client){
-        client.on_touch_event("哈哈");
-    });
+    Module._on_touch_event(22);
 });
 document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
     event.preventDefault();

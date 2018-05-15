@@ -453,14 +453,14 @@ fn join_game(){
 
 #[cfg(all(target_arch = "asmjs", target_os = "emscripten"))]
 #[no_mangle]
-pub fn on_touch_event(ptr: String){
-    console!(log, "on_touch_event:", ptr);
+pub fn on_touch_event(key: i32){
+    console!(log, "on_touch_event:", key);
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[js_export]
-pub fn on_touch_event(ptr: String){
-    console!(log, "on_touch_event:", ptr);
+pub fn on_touch_event(key: i32){
+    console!(log, "on_touch_event:", key);
 }
 
 fn main() {
