@@ -5,7 +5,6 @@ extern crate stdweb;
 extern crate tank;
 #[macro_use]
 extern crate lazy_static;
-use stdweb::js_export;
 use stdweb::web::TypedArray;
 use stdweb::serde::Serde;
 use stdweb::unstable::TryInto;
