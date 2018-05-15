@@ -82,3 +82,39 @@ document.getElementById("game_pad").style.display = 'block';
 ping("54.249.68.59", function(time){
         console.log("ping:"+time+"ms");
     });
+
+//------- stdweb不支持 touch事件，将touch事件转换为mouse事件 ---------
+
+document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
+    event.preventDefault();
+    var e = document.createEvent("MouseEvents");
+    e.initMouseEvent("mousemove", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    this.dispatchEvent(e);
+});
+
+document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
+    event.preventDefault();
+    var e = document.createEvent("MouseEvents");
+    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    this.dispatchEvent(e);
+});
+
+document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
+    event.preventDefault();
+    var e = document.createEvent("MouseEvents");
+    e.initMouseEvent("mouseup", true, true, window, 0, 0, 0, 0, 0);
+    this.dispatchEvent(e);
+});
+
+document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
+    event.preventDefault();
+    var e = document.createEvent("MouseEvents");
+    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    this.dispatchEvent(e);
+});
+document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
+    event.preventDefault();
+    var e = document.createEvent("MouseEvents");
+    e.initMouseEvent("mousedown", true, true, window, 0, event.touches[0].clientX, event.touches[0].clientY, event.touches[0].clientX, event.touches[0].clientY);
+    this.dispatchEvent(e);
+});
