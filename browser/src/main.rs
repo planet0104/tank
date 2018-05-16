@@ -541,7 +541,7 @@ fn main() {
         let key = event.key();
         KEY_MAP.with(|key_map|{
             if key_map.contains_key(&key){
-                event.prevent_default();
+                //event.prevent_default();
                 if let Ok(mut status) = KEY_BOARD_STATUS.lock(){
                     //按键弹起删除状态
                     let ke:&str = key.as_ref();
@@ -567,7 +567,7 @@ fn main() {
         let key = event.key();
         KEY_MAP.with(|key_map|{
             if key_map.contains_key(&key){
-                event.prevent_default();
+                //event.prevent_default();
                 if let Ok(mut status) = KEY_BOARD_STATUS.lock(){
                     if !status.contains(&key){
                         status.push(event.key());
