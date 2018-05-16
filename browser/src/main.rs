@@ -467,10 +467,12 @@ pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[js_export]
 pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
+    console!(log, "on_touch_event>>>");
     handle_touch_event(target, event_type, client_x, client_y);
 }
 
 fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
+    console!(log, "handle_touch_event", target, event_type, client_x, client_y);
     if let Ok(mut events) = KEY_EVENTS.lock() {
         match target{
             id_game_pad_button_a | id_game_pad_button_b => {

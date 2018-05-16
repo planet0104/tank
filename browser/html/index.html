@@ -32,6 +32,7 @@
     </div>
 </div>
 <script>
+    var url_asmjs = window.location.href.endsWith("asmjs=1");
     //绘图画布
     var canvas = document.getElementById('canvas');
     var ctx = canvas.getContext("2d");
@@ -118,10 +119,14 @@
     //     });
 
     function game_on_touch_event(target, eventType, clientX, clientY){
+        console.log("game_on_touch_event>>enter1");
         if (typeof(Rust) !== 'undefined'){
+            console.log("game_on_touch_event>>enter2");
             Rust.client.then(function(client){
                 try{
+                    console.log("game_on_touch_event>>enter3");
                     client.on_touch_event(target, eventType, clientX, clientY);
+                    console.log("game_on_touch_event>>enter4");
                 }catch(e){}
             });
         }else{
@@ -130,11 +135,13 @@
     }
     //-------- 按钮控制 ------------------
     document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
+        console.log("game_pad_button_a touchstart");
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_button_a, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
     });
     document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
         event.preventDefault();
+        console.log("game_pad_button_a touchend");
         game_on_touch_event(window.id_game_pad_button_a, window.id_touchend, 0, 0);
     });
     document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
@@ -147,17 +154,20 @@
     });
     //------- 触摸控制 -------------------
     document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
+        console.log("game_pad_direction touchmove");
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_direction, window.id_touchmove, event.touches[0].clientX, event.touches[0].clientY);
     });
 
     document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
+        console.log("game_pad_direction touchstart");
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_direction, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
     });
 
     document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
         event.preventDefault();
+        console.log("game_pad_direction touchend");
         game_on_touch_event(window.id_game_pad_direction, window.id_touchend, 0, 0);
     });
 </script>
@@ -209,7 +219,7 @@
 
     var useasmjs = is_QQInnerBro() && navigator.userAgent.indexOf("iPhone")>-1;
 
-    if(!support_webassembly() || useasmjs){
+    if(!support_webassembly() || useasmjs || url_asmjs){
         //不支持Webassembly
         append_js("client-asm.js");
     }else{
