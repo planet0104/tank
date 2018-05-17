@@ -271,11 +271,9 @@ impl GameContext for JSGameContext {
     }
 
     fn pick_messages(&self) -> Vec<String> {
-        console!(log, "pick_messages");
         let mut msgs = vec![];
         if let Ok(mut m) = MESSAGES.lock() {
             msgs.append(&mut m);
-            console!(log, format!("pick_messages={:?}", msgs));
         }
         msgs
     }
@@ -345,7 +343,6 @@ impl GameContext for JSGameContext {
     }
 
     fn send_message(&self, msg: &str) {
-        console!(log, "send_message>>", msg);
         if let Ok(mut socket) = SOCKET.lock() {
             let _ = socket.as_ref().unwrap().send_text(msg);
         }
@@ -391,59 +388,6 @@ impl GameContext for JSGameContext {
     }
 }
 
-//触摸板操作
-fn handle_game_pad_direction_action<E: IEvent+IMouseEvent>(event: E){
-    let (cx, cy) = (event.client_x(), event.client_y());
-    //console!(log, "handle_game_pad_direction_action", event.event_type(), cx, cy);
-    match event.event_type().as_str(){
-        "pointerup" | "mouseup" | "touchcancel" | "touchend" | "touchleave" => {
-            // if let Ok(mut events) = KEY_EVENTS.lock() {
-            //     let game_pad_direction = document().query_selector("#game_pad_direction").unwrap().unwrap();
-            //     let _ = game_pad_direction.set_attribute("status", "0");
-            //     events.push((KeyEvent::KeyUp, VK_LEFT));
-            // }
-        }
-        "pointerdown" | "mousemove" | "mousedown" | "pointermove" | "touchenter" | "touchmove" | "touchstart" => {
-            let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
-            //方向按钮按下 判断按钮方向
-            let game_pad_direction_rect = game_pad_direction.get_bounding_client_rect();
-            let x = cx - game_pad_direction_rect.get_left() as i32;
-            let y = cy - game_pad_direction_rect.get_top() as i32;
-            let btn_width = game_pad_direction.offset_width()/3;
-            let direction_status = game_pad_direction.get_attribute("status").unwrap().parse::<i32>().unwrap();
-
-            if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
-                let _ = game_pad_direction.set_attribute("status", "1");
-                if let Ok(mut events) = KEY_EVENTS.lock() {
-                    events.push((KeyEvent::KeyDown, VK_UP));
-                }
-            }
-
-            if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
-                let _ = game_pad_direction.set_attribute("status", "2");
-                if let Ok(mut events) = KEY_EVENTS.lock() {
-                    events.push((KeyEvent::KeyDown, VK_DOWN));
-                }
-            }
-
-            if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
-                let _ = game_pad_direction.set_attribute("status", "3");
-                if let Ok(mut events) = KEY_EVENTS.lock() {
-                    events.push((KeyEvent::KeyDown, VK_LEFT));
-                }
-            }
-
-            if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
-                let _ = game_pad_direction.set_attribute("status", "4");
-                if let Ok(mut events) = KEY_EVENTS.lock() {
-                    events.push((KeyEvent::KeyDown, VK_RIGHT));
-                }
-            }
-        }
-        _  => {}
-    }
-}
-
 fn join_game(){
     //------------- 输入名字对话框 --------------
     let btn_start =  document().query_selector("#btn_start").unwrap().unwrap();
@@ -467,12 +411,10 @@ pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 #[js_export]
 pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
-    console!(log, "on_touch_event>>>");
     handle_touch_event(target, event_type, client_x, client_y);
 }
 
 fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
-    console!(log, "handle_touch_event", target, event_type, client_x, client_y);
     if let Ok(mut events) = KEY_EVENTS.lock() {
         match target{
             id_game_pad_button_a | id_game_pad_button_b => {
@@ -492,10 +434,13 @@ fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
                     },
                     id_touchmove | id_touchstart => {
                         //方向按钮按下 判断按钮方向
-                        let game_pad_direction_rect = game_pad_direction.get_bounding_client_rect();
-                        let x = client_x - game_pad_direction_rect.get_left() as i32;
-                        let y = client_y - game_pad_direction_rect.get_top() as i32;
-                        let btn_width = game_pad_direction.offset_width()/3;
+                        let offset_left:i32 =  js!(return game_pad.offsetLeft + game_pad_direction.offsetLeft).try_into().unwrap();
+                        let offset_top:i32 =  js!(return game_pad.offsetTop + game_pad_direction.offsetTop).try_into().unwrap();
+                        //方向按钮按下 判断按钮方向
+                        let x = client_x - offset_left;
+                        let y = client_y - offset_top;
+                        let offset_width:i32 = js!(return game_pad_direction.offsetWidth).try_into().unwrap();
+                        let btn_width = offset_width/3;
                         let direction_status = game_pad_direction.get_attribute("status").unwrap_or("0".to_string()).parse::<i32>().unwrap();
 
                         if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {

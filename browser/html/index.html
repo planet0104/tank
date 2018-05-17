@@ -119,55 +119,51 @@
     //     });
 
     function game_on_touch_event(target, eventType, clientX, clientY){
-        console.log("game_on_touch_event>>enter1");
         if (typeof(Rust) !== 'undefined'){
-            console.log("game_on_touch_event>>enter2");
             Rust.client.then(function(client){
                 try{
-                    console.log("game_on_touch_event>>enter3");
                     client.on_touch_event(target, eventType, clientX, clientY);
-                    console.log("game_on_touch_event>>enter4");
                 }catch(e){}
             });
         }else{
             Module._on_touch_event(target, eventType, clientX, clientY);
         }
     }
+var game_pad = document.getElementById("game_pad");
+var game_pad_direction = document.getElementById("game_pad_direction");
+var game_pad_button_a = document.getElementById("game_pad_button_a");
+var game_pad_button_b = document.getElementById("game_pad_button_b");
+
     //-------- 按钮控制 ------------------
-    document.getElementById("game_pad_button_a").addEventListener("touchstart", function(event){
-        console.log("game_pad_button_a touchstart");
+    game_pad_button_a.addEventListener("touchstart", function(event){
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_button_a, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
     });
-    document.getElementById("game_pad_button_a").addEventListener("touchend", function(event){
+    game_pad_button_a.addEventListener("touchend", function(event){
         event.preventDefault();
-        console.log("game_pad_button_a touchend");
         game_on_touch_event(window.id_game_pad_button_a, window.id_touchend, 0, 0);
     });
-    document.getElementById("game_pad_button_b").addEventListener("touchstart", function(event){
+    game_pad_button_b.addEventListener("touchstart", function(event){
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_button_b, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
     });
-    document.getElementById("game_pad_button_b").addEventListener("touchend", function(event){
+    game_pad_button_b.addEventListener("touchend", function(event){
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_button_b, window.id_touchend, 0, 0);
     });
     //------- 触摸控制 -------------------
-    document.getElementById("game_pad_direction").addEventListener("touchmove", function(event){
-        console.log("game_pad_direction touchmove");
+    game_pad_direction.addEventListener("touchmove", function(event){
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_direction, window.id_touchmove, event.touches[0].clientX, event.touches[0].clientY);
     });
 
-    document.getElementById("game_pad_direction").addEventListener("touchstart", function(event){
-        console.log("game_pad_direction touchstart");
+    game_pad_direction.addEventListener("touchstart", function(event){
         event.preventDefault();
         game_on_touch_event(window.id_game_pad_direction, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
     });
 
-    document.getElementById("game_pad_direction").addEventListener("touchend", function(event){
+    game_pad_direction.addEventListener("touchend", function(event){
         event.preventDefault();
-        console.log("game_pad_direction touchend");
         game_on_touch_event(window.id_game_pad_direction, window.id_touchend, 0, 0);
     });
 </script>
