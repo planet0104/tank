@@ -27,7 +27,7 @@
 </div>
 <div id="input_name_dialog" style="display: none; position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5)">
     <div class="centerme">
-        <input id="txt_user_name" type="text" style="width: 100pt; height: 30pt; text-align: center;" alt="请输入4个字大名" placeholder="请输入4个字大名" maxlength="4" />
+        <input id="txt_user_name" type="text" style="width: 100pt; height: 30pt; text-align: center;" placeholder="请输入4个字大名" maxlength="4" />
         <div><input id="btn_start" type="button" style="width: 104.5pt; height: 40pt; margin-top: 6pt;" value="进入游戏" /></div>
     </div>
 </div>
@@ -137,34 +137,34 @@ var game_pad_button_b = document.getElementById("game_pad_button_b");
     //-------- 按钮控制 ------------------
     game_pad_button_a.addEventListener("touchstart", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_button_a, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
+        game_on_touch_event(window.ID_GAME_PAD_BUTTON_A, window.ID_TOUCHSTART, event.touches[0].clientX, event.touches[0].clientY);
     });
     game_pad_button_a.addEventListener("touchend", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_button_a, window.id_touchend, 0, 0);
+        game_on_touch_event(window.ID_GAME_PAD_BUTTON_A, window.ID_TOUCHEND, 0, 0);
     });
     game_pad_button_b.addEventListener("touchstart", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_button_b, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
+        game_on_touch_event(window.ID_GAME_PAD_BUTTON_B, window.ID_TOUCHSTART, event.touches[0].clientX, event.touches[0].clientY);
     });
     game_pad_button_b.addEventListener("touchend", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_button_b, window.id_touchend, 0, 0);
+        game_on_touch_event(window.ID_GAME_PAD_BUTTON_B, window.ID_TOUCHEND, 0, 0);
     });
     //------- 触摸控制 -------------------
     game_pad_direction.addEventListener("touchmove", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_direction, window.id_touchmove, event.touches[0].clientX, event.touches[0].clientY);
+        game_on_touch_event(window.ID_GAME_PAD_DIRECTION, window.ID_TOUCHMOVE, event.touches[0].clientX, event.touches[0].clientY);
     });
 
     game_pad_direction.addEventListener("touchstart", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_direction, window.id_touchstart, event.touches[0].clientX, event.touches[0].clientY);
+        game_on_touch_event(window.ID_GAME_PAD_DIRECTION, window.ID_TOUCHSTART, event.touches[0].clientX, event.touches[0].clientY);
     });
 
     game_pad_direction.addEventListener("touchend", function(event){
         event.preventDefault();
-        game_on_touch_event(window.id_game_pad_direction, window.id_touchend, 0, 0);
+        game_on_touch_event(window.ID_GAME_PAD_DIRECTION, window.ID_TOUCHEND, 0, 0);
     });
 </script>
 <script>

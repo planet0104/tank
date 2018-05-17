@@ -7,8 +7,6 @@ extern crate tank;
 extern crate lazy_static;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 use stdweb::js_export;
-use stdweb::web::TypedArray;
-use stdweb::serde::Serde;
 use stdweb::unstable::TryInto;
 use stdweb::console;
 use stdweb::web::html_element::InputElement;
@@ -23,7 +21,7 @@ use stdweb::web::{
     FileReaderResult,
     IElement,
     IParentNode,
-    IHtmlElement,
+    //IHtmlElement,
 };
 use stdweb::web::event::{
     KeyDownEvent,
@@ -34,16 +32,16 @@ use stdweb::web::event::{
     SocketMessageEvent,
     ResizeEvent,
     LoadEndEvent,
-    PointerMoveEvent,
-    PointerDownEvent,
-    PointerUpEvent,
-    PointerOutEvent,
-    IMouseEvent,
+    //PointerMoveEvent,
+    //PointerDownEvent,
+    //PointerUpEvent,
+    //PointerOutEvent,
+    //IMouseEvent,
     ClickEvent,
-    MouseMoveEvent,
-    MouseDownEvent,
-    MouseUpEvent,
-    IMessageEvent, IKeyboardEvent, IEvent
+    //MouseMoveEvent,
+    //MouseDownEvent,
+    //MouseUpEvent,
+    IMessageEvent, IKeyboardEvent, //IEvent
 };
 
 use tank::engine::GameContext;
@@ -77,12 +75,12 @@ thread_local!{
     });
 }
 
-const id_game_pad_button_a:i32 = 0;
-const id_game_pad_button_b:i32 = 1;
-const id_game_pad_direction:i32 = 3;
-const id_touchstart:i32 = 0;
-const id_touchend:i32 = 1;
-const id_touchmove:i32 = 2;
+const ID_GAME_PAD_BUTTON_A:i32 = 0;
+const ID_GAME_PAD_BUTTON_B:i32 = 1;
+const ID_GAME_PAD_DIRECTION:i32 = 3;
+const ID_TOUCHSTART:i32 = 0;
+const ID_TOUCHEND:i32 = 1;
+const ID_TOUCHMOVE:i32 = 2;
 
 fn connect(url: &str){
     if let Ok(mut socket) = SOCKET.lock() {
@@ -343,13 +341,13 @@ impl GameContext for JSGameContext {
     }
 
     fn send_message(&self, msg: &str) {
-        if let Ok(mut socket) = SOCKET.lock() {
+        if let Ok(socket) = SOCKET.lock() {
             let _ = socket.as_ref().unwrap().send_text(msg);
         }
     }
 
     fn send_binary_message(&self, msg: &Vec<u8>) {
-        if let Ok(mut socket) = SOCKET.lock() {
+        if let Ok(socket) = SOCKET.lock() {
             let _ = socket.as_ref().unwrap().send_bytes(msg.as_slice());
         }
     }
@@ -417,22 +415,22 @@ pub fn on_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
 fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
     if let Ok(mut events) = KEY_EVENTS.lock() {
         match target{
-            id_game_pad_button_a | id_game_pad_button_b => {
+            ID_GAME_PAD_BUTTON_A | ID_GAME_PAD_BUTTON_B => {
                 match event_type{
-                    id_touchstart => events.push((KeyEvent::KeyDown, VK_SPACE)),
-                    id_touchend => (),
-                    id_touchmove => (),
+                    ID_TOUCHSTART => events.push((KeyEvent::KeyDown, VK_SPACE)),
+                    ID_TOUCHEND => (),
+                    ID_TOUCHMOVE => (),
                     _ => ()
                 }
             },
-            id_game_pad_direction => {
+            ID_GAME_PAD_DIRECTION => {
                 let game_pad_direction:HtmlElement = document().query_selector("#game_pad_direction").unwrap().unwrap().try_into().unwrap();
                 match event_type{
-                    id_touchend => {
+                    ID_TOUCHEND => {
                         let _ = game_pad_direction.set_attribute("status", "0");
                         events.push((KeyEvent::KeyUp, VK_LEFT));
                     },
-                    id_touchmove | id_touchstart => {
+                    ID_TOUCHMOVE | ID_TOUCHSTART => {
                         //方向按钮按下 判断按钮方向
                         let offset_left:i32 =  js!(return game_pad.offsetLeft + game_pad_direction.offsetLeft).try_into().unwrap();
                         let offset_top:i32 =  js!(return game_pad.offsetTop + game_pad_direction.offsetTop).try_into().unwrap();
@@ -488,7 +486,6 @@ fn main() {
         let key = event.key();
         KEY_MAP.with(|key_map|{
             if key_map.contains_key(&key){
-                //event.prevent_default();
                 if let Ok(mut status) = KEY_BOARD_STATUS.lock(){
                     //按键弹起删除状态
                     let ke:&str = key.as_ref();
@@ -514,7 +511,6 @@ fn main() {
         let key = event.key();
         KEY_MAP.with(|key_map|{
             if key_map.contains_key(&key){
-                //event.prevent_default();
                 if let Ok(mut status) = KEY_BOARD_STATUS.lock(){
                     if !status.contains(&key){
                         status.push(event.key());
@@ -534,12 +530,12 @@ fn main() {
     });
 
     js!{
-        window.id_game_pad_button_a = @{id_game_pad_button_a};
-        window.id_game_pad_button_b = @{id_game_pad_button_b};
-        window.id_game_pad_direction = @{id_game_pad_direction};
-        window.id_touchstart = @{id_touchstart};
-        window.id_touchend = @{id_touchend};
-        window.id_touchmove = @{id_touchmove};
+        window.ID_GAME_PAD_BUTTON_A = @{ID_GAME_PAD_BUTTON_A};
+        window.ID_GAME_PAD_BUTTON_B = @{ID_GAME_PAD_BUTTON_B};
+        window.ID_GAME_PAD_DIRECTION = @{ID_GAME_PAD_DIRECTION};
+        window.ID_TOUCHSTART = @{ID_TOUCHSTART};
+        window.ID_TOUCHEND = @{ID_TOUCHEND};
+        window.ID_TOUCHMOVE = @{ID_TOUCHMOVE};
     }
 
     //------------- 启动游戏 -----------------------------------
