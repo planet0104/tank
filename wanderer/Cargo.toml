@@ -1,0 +1,9 @@
+[package]
+name = "wanderer"
+version = "0.1.0"
+authors = ["Jia Ye <planet0104@gmail.com>"]
+
+[dependencies]
+engine = { path = "../engine" }
+stdweb = "0.4.5"
+lazy_static = "1.0"

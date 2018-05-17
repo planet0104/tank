@@ -4,6 +4,7 @@ pub mod utils;
 pub mod engine;
 pub mod sprite;
 pub mod vector_2d;
+pub mod background;
 
 pub use engine::GameEngine as GameEngine;
 pub use engine::UpdateCallback as UpdateCallback;
