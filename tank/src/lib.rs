@@ -1,24 +1,45 @@
 extern crate rand;
-pub mod utils;
-pub mod engine;
-pub mod sprite;
-pub mod vector_2d;
+pub extern crate engine;
 extern crate bincode;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 
 use bincode::{deserialize, serialize};
-use utils::rand_int;
-use engine::{GameContext, GameEngine, UpdateCallback};
-use sprite::{BitmapRes, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
+use engine::utils::rand_int;
+use engine::canvas::Canvas;
+use engine::{GameEngine, UpdateCallback};
+use engine::sprite::{BitmapRes, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::fmt::Display;
-use std::fmt::Debug;
-use vector_2d::Vector2D;
-use std::time::{Duration, Instant};
+
+pub trait Platform{
+    fn set_canvas_style_margin(&self, left: i32, top: i32, right: i32, bottom: i32);
+    fn set_canvas_style_width(&self, width: i32);
+    fn set_canvas_style_height(&self, height: i32);
+    fn set_canvas_width(&self, width: i32);
+    fn set_canvas_height(&self, height: i32);
+    fn alert(&self, msg: &str);
+    fn load_resource(&self, json: String);
+    fn window_inner_width(&self) -> i32;
+    fn window_inner_height(&self) -> i32;
+    fn set_on_window_resize_listener(&self, listener: fn());
+    fn set_on_connect_listener(&self, listener: fn());
+    fn set_on_resource_load_listener(&self, listener: fn(num: i32, total: i32));
+    fn console_log(&self, msg: &str);
+    fn send_message(&self, msg: &str);
+    fn send_binary_message(&self, msg: &Vec<u8>);
+    fn set_on_close_listener(&self, listener: fn());
+    fn request_animation_frame(&self);
+    fn connect(&self, url: &str);
+    fn set_frame_callback(&self, callback: fn(f64));
+    //fn set_on_message_listener(&self, callback: fn(&str));
+    fn pick_key_events(&self) -> Vec<(KeyEvent, i32)>;
+    fn pick_messages(&self) -> Vec<String>;
+    fn pick_binary_messages(&self) -> Vec<Vec<u8>>;
+    fn current_time_millis(&self) -> f64;
+}
 
 //socket消息
 pub const MSG_DISCONNECT: u8 = 1;
@@ -194,7 +215,7 @@ impl UpdateCallback for ClientUpdateCallback {
         idx_sprite_hitter: usize,
         idx_sprite_hittee: usize,
     ) -> bool {
-        let (hitter_res, hitter_id, _hitter_parent) = {
+        let (hitter_res, _hitter_id, _hitter_parent) = {
             let hitter = &engine.sprites()[idx_sprite_hitter];
             (hitter.bitmap().id(), hitter.id.clone(), hitter.parent_id)
         };
@@ -378,10 +399,24 @@ impl UpdateCallback for ServerUpdateCallback {
     }
 }
 
+pub struct Context{
+    canvas: Rc<Box<Canvas>>,
+    platform: Rc<Box<Platform>>
+}
+
+impl Context{
+    pub fn new(canvas:Box<Canvas>, platform: Box<Platform>) ->Context{
+        Context{
+            canvas: Rc::new(canvas),
+            platform: Rc::new(platform)
+        }
+    }
+}
+
 pub struct TankGame {
     pub engine: GameEngine,
     server_events: Rc<RefCell<Vec<ServerEvent>>>,
-    client_context: Option<Rc<Box<GameContext>>>,
+    client_context: Option<Context>,
     players: HashMap<u32, Player>,
     client_player: Player,
     client_dying_delay_ms: f64, //5秒重生
@@ -430,16 +465,20 @@ impl TankGame {
         }
     }
 
-    pub fn set_game_context(&mut self, context: Box<GameContext>) {
-        self.client_context = Some(Rc::new(context));
+    pub fn set_game_context(&mut self, context: Context) {
+        self.client_context = Some(context);
+    }
+
+    pub fn clone_context(&self)->(Rc<Box<Canvas>>, Rc<Box<Platform>>){
+        (self.client_context.as_ref().unwrap().canvas.clone(), self.client_context.as_ref().unwrap().platform.clone())
     }
 
     pub fn player_join_game(&mut self, name:&str){
-        let context = self.client_context.as_ref().unwrap();
-        context.console_log(&format!("{}你好， 正在加入...", name));
+        let platform = self.client_context.as_ref().unwrap().platform.clone();
+        platform.console_log(&format!("{}你好， 正在加入...", name));
         //加入游戏
         let rand_name = {
-            let t = format!("{}", context.current_time_millis() as u64 / 100);
+            let t = format!("{}", platform.current_time_millis() as u64 / 100);
             format!("{}", t[t.len() - 4..t.len()].to_string())
         };
 
@@ -454,43 +493,43 @@ impl TankGame {
     }
 
     pub fn client_on_resource_load(&self, num: i32, total: i32) {
-        let context = self.client_context.as_ref().unwrap();
+        let (canvas, platform) = self.clone_context();
         let percent = num as f32 / total as f32;
         let bar_width = (CLIENT_WIDTH as f32 / 1.5) as i32;
         let bar_height = bar_width / 10;
         let bar_left = CLIENT_WIDTH / 2 - bar_width / 2;
         let bar_top = CLIENT_HEIGHT / 2 - bar_height / 2;
-        context.fill_style("rgb(200, 200, 200)");
-        context.fill_rect(bar_left, bar_top, bar_width, bar_height);
-        context.fill_style("rgb(120, 120, 255)");
-        context.fill_rect(
+        canvas.fill_style("rgb(200, 200, 200)");
+        canvas.fill_rect(bar_left, bar_top, bar_width, bar_height);
+        canvas.fill_style("rgb(120, 120, 255)");
+        canvas.fill_rect(
             bar_left,
             bar_top,
             (bar_width as f32 * percent) as i32,
             bar_height,
         );
-        context.fill_style("#ff0");
-        context.fill_text(
+        canvas.fill_style("#ff0");
+        canvas.fill_text(
             &format!("资源加载中({}/{})", num, total),
             bar_left + bar_width / 3,
             bar_top + bar_height / 2 + 10,
         );
         if num == total {
             //资源加载完成, 启动游戏循环
-            context.request_animation_frame();
-            context.connect(&format!("ws://{}", CLIENT_IP));
+            platform.request_animation_frame();
+            platform.connect(&format!("ws://{}", CLIENT_IP));
         }
     }
 
     pub fn client_start(&mut self) {
-        let context = self.client_context.as_ref().unwrap();
-        context.console_log("游戏启动!!!");
-        context.set_canvas_width(CLIENT_WIDTH);
-        context.set_canvas_height(CLIENT_HEIGHT);
+        let (canvas, platform) = self.clone_context();
+        platform.console_log("游戏启动!!!");
+        platform.set_canvas_width(CLIENT_WIDTH);
+        platform.set_canvas_height(CLIENT_HEIGHT);
         self.client_resize_window();
-        context.set_canvas_font("24px 微软雅黑");
+        canvas.set_font("24px 微软雅黑");
 
-        context.set_on_window_resize_listener(|| {
+        platform.set_on_window_resize_listener(|| {
             GAME.with(|game| {
                 game.borrow().client_resize_window();
             });
@@ -501,24 +540,22 @@ impl TankGame {
         //         game.borrow_mut().client_on_connect();
         //     });
         // });
-        context.set_on_close_listener(|| {
+        platform.set_on_close_listener(|| {
             GAME.with(|game| {
                 game.borrow()
-                    .client_context
-                    .as_ref()
-                    .unwrap()
+                    .client_context.as_ref().unwrap().platform
                     .alert("网络已断开!");
             });
         });
 
         //加载游戏资源
-        context.set_on_resource_load_listener(|num: i32, total: i32| {
+        platform.set_on_resource_load_listener(|num: i32, total: i32| {
             GAME.with(|game| {
                 game.borrow().client_on_resource_load(num, total);
             });
         });
 
-        context.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png","{}":"gun.png","{}":"nurse.png"}}"#,
+        platform.load_resource(format!(r#"{{"{}":"tank.png","{}":"missile.png","{}":"lg_explosion.png","{}":"sm_explosion.png","{}":"gun.png","{}":"nurse.png"}}"#,
             RES_TANK_BITMAP,
             RES_MISSILE_BITMAP,
             RES_LG_EXPLOSION_BITMAP,
@@ -527,7 +564,7 @@ impl TankGame {
             RES_NURSE_BITMAP));
 
         //游戏循环
-        context.set_frame_callback(|timestamp: f64| {
+        platform.set_frame_callback(|timestamp: f64| {
             GAME.with(|game| {
                 game.borrow_mut().client_update(timestamp);
             });
@@ -535,8 +572,6 @@ impl TankGame {
     }
 
     pub fn client_update(&mut self, timestamp: f64) {
-        let c = self.client_context.clone();
-        let context = c.as_ref().unwrap();
         if self.start_time_milis == 0.0 {
             self.start_time_milis = timestamp;
         }
@@ -545,6 +580,8 @@ impl TankGame {
             self.last_timestamp = timestamp;
         }
         let elapsed_ms = timestamp - self.last_timestamp;
+
+        let (canvas, platform) = self.clone_context();
 
         //5帧的速度广播
         if timestamp >= self.client_last_sync_time {
@@ -574,7 +611,7 @@ impl TankGame {
             messages.append(&mut self.client_binary_messages);
             if messages.len() > 0 {
                 if let Ok(encoded) = serialize(&messages) {
-                    context.send_binary_message(&encoded);
+                    platform.send_binary_message(&encoded);
                 }
             }
             self.client_last_sync_time = timestamp + CLIENT_SYNC_DELAY as f64;
@@ -583,19 +620,19 @@ impl TankGame {
         //self.console_log_1("elapsed_ms=", elapsed_ms);
         //let now = context.current_time_millis();
         //处理消息
-        let messages = context.pick_binary_messages();
+        let messages = platform.pick_binary_messages();
         for msgs in messages {
             //每一条消息都是一个消息集合
             let r: Result<Vec<Vec<u8>>, _> = deserialize(&msgs[..]);
             if let Ok(m) = r {
                 self.client_handle_message(m);
             } else {
-                context.console_log(&format!("消息解析失败 {:?}", r.err()));
+                platform.console_log(&format!("消息解析失败 {:?}", r.err()));
             }
         }
 
         //键盘事件
-        let key_events = context.pick_key_events();
+        let key_events = platform.pick_key_events();
         for key_event in key_events {
             self.client_on_key_event(key_event.0.clone(), key_event.1);
             if let Ok(mut encoded) = serialize(&(key_event.0, key_event.1, self.client_player.id)) {
@@ -608,46 +645,46 @@ impl TankGame {
         //客户端仅按帧更新精灵位置，所有精灵创建、更新都由服务器下发事件中处理
         self.engine
             .update_sprites(elapsed_ms, self.client_update_callback.clone());
-        context.fill_style("#2e6da3");
-        context.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
-        context.fill_style("#3e7daf");
-        context.set_canvas_font("90px 微软雅黑");
-        context.fill_text(
+        canvas.fill_style("#2e6da3");
+        canvas.fill_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+        canvas.fill_style("#3e7daf");
+        canvas.set_font("90px 微软雅黑");
+        canvas.fill_text(
             "坦克大战",
             CLIENT_WIDTH / 2 - 185,
             CLIENT_HEIGHT / 2 - 50,
         );
-        context.set_canvas_font("32px 微软雅黑");
-        context.fill_text(
+        canvas.set_font("32px 微软雅黑");
+        canvas.fill_text(
             "↑ ↓ ← → ：移动  空格：开炮",
             100,
             CLIENT_HEIGHT / 2 + 30,
         );
-        context.set_canvas_font("29px 微软雅黑");
-        context.fill_text(
+        canvas.set_font("29px 微软雅黑");
+        canvas.fill_text(
             "源码:https://github.com/planet0104/tank",
             10,
             CLIENT_HEIGHT / 2 + 70,
         );
 
         //context.console_log(&format!("self.engine.sprites().len()={}", self.engine.sprites().len()));
-        self.engine.draw_sprites(context.clone());
+        self.engine.draw_sprites(canvas.clone());
 
         //绘制树木
         //context.draw_image_repeat(RES_GEASS1_BITMAP, 0, 0, CLIENT_WIDTH, 30);
         //context.draw_image_repeat(RES_GEASS0_BITMAP, 0, CLIENT_HEIGHT-30, CLIENT_WIDTH, 30);
-        context.stroke_style("#6efdef");
-        context.line_width(2);
-        context.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
+        canvas.stroke_style("#6efdef");
+        canvas.line_width(2);
+        canvas.stroke_rect(0, 0, CLIENT_WIDTH, CLIENT_HEIGHT);
 
         // if elapsed_ms>0.0{
         //     context.fill_style("#fff");
         //     context.set_canvas_font("24px 微软雅黑");
         //     context.fill_text(&format!("FPS:{}", 1000/elapsed_ms as i32), 10, 40);
         // }
-        context.fill_style("#fff");
-        context.set_canvas_font("22px 微软雅黑");
-        context.fill_text(
+        canvas.fill_style("#fff");
+        canvas.set_font("22px 微软雅黑");
+        canvas.fill_text(
             &format!(
                 "{}在线玩家:{}",
                 self.client_player.name,
@@ -660,9 +697,9 @@ impl TankGame {
         //前三名
         let mut lead = 1;
         for player in &self.leaders {
-            context.fill_style("#fff");
-            context.set_canvas_font("22px 微软雅黑");
-            context.fill_text(
+            canvas.fill_style("#fff");
+            canvas.set_font("22px 微软雅黑");
+            canvas.fill_text(
                 &format!(
                     "第{}名:{}",
                     lead,
@@ -671,21 +708,21 @@ impl TankGame {
                 CLIENT_WIDTH - 260,
                 lead * 40,
             );
-            context.set_canvas_font("26px 微软雅黑");
-            context.fill_style("#f00");
-            context.fill_text(&format!("{}分", player.1), CLIENT_WIDTH - 90, lead * 40);
+            canvas.set_font("26px 微软雅黑");
+            canvas.fill_style("#f00");
+            canvas.fill_text(&format!("{}分", player.1), CLIENT_WIDTH - 90, lead * 40);
             lead += 1;
         }
 
         //死亡的玩家信息 (delay, killer_name, name)
-        context.fill_style("#ff0");
-        context.set_canvas_font("20px 微软雅黑");
+        canvas.fill_style("#ff0");
+        canvas.set_font("20px 微软雅黑");
         let mut di = 1;
         for d in &mut self.dying_players {
             let y = 40 + di * 50;
-            context.fill_text(&d.1, 20, y);
-            context.fill_text(&d.2, 170, y);
-            context.draw_image_at(RES_SM_GUN_BITMAP as i32, 110, y - 40);
+            canvas.fill_text(&d.1, 20, y);
+            canvas.fill_text(&d.2, 170, y);
+            canvas.draw_image_at(RES_SM_GUN_BITMAP as i32, 110, y - 40);
             di += 1;
             d.0 += 1;
         }
@@ -694,14 +731,14 @@ impl TankGame {
 
         //死亡倒计时
         if self.client_dying_delay_ms > 0.0 {
-            context.fill_style("#FFC0CB");
-            context.set_canvas_font("36px 微软雅黑");
-            context.fill_text(
+            canvas.fill_style("#FFC0CB");
+            canvas.set_font("36px 微软雅黑");
+            canvas.fill_text(
                 &format!("被[{}]炸死", self.client_player.killer_name),
                 CLIENT_WIDTH / 2 - 185,
                 CLIENT_HEIGHT / 2 - 50,
             );
-            context.fill_text(
+            canvas.fill_text(
                 &format!(
                     "{}秒之后重生",
                     (self.client_dying_delay_ms as i32 / 1000) + 1
@@ -713,7 +750,7 @@ impl TankGame {
             if self.client_dying_delay_ms <= 0.0 {
                 //重新加入游戏
                 let player = &self.client_player;
-                context.console_log(&format!(
+                platform.console_log(&format!(
                     "重新加入游戏 MSG_ID={} player={}",
                     MSG_START, player.name
                 ));
@@ -724,7 +761,7 @@ impl TankGame {
             }
         }
         self.last_timestamp = timestamp;
-        context.request_animation_frame();
+        platform.request_animation_frame();
     }
 
     pub fn server_update_player(&mut self, _ip: String, data: SyncData) {
@@ -1238,10 +1275,10 @@ impl TankGame {
 
     //窗口大小改变时，画布适应窗口
     fn client_resize_window(&self) {
-        let context = self.client_context.as_ref().unwrap();
+        let platform = self.client_context.as_ref().unwrap().platform.clone();
         let (width, height) = (
-            context.window_inner_width() - 5,
-            context.window_inner_height() - 5,
+            platform.window_inner_width() - 5,
+            platform.window_inner_height() - 5,
         );
         let (cwidth, cheight) = if width < height {
             //竖屏
@@ -1257,15 +1294,14 @@ impl TankGame {
             )
         };
 
-        context.set_canvas_style_width(cwidth);
-        context.set_canvas_style_height(cheight);
-        context.set_canvas_style_margin((width - cwidth) / 2, (height - cheight) / 2, 0, 0);
+        platform.set_canvas_style_width(cwidth);
+        platform.set_canvas_style_height(cheight);
+        platform.set_canvas_style_margin((width - cwidth) / 2, (height - cheight) / 2, 0, 0);
     }
 
     fn client_handle_message(&mut self, messages: Vec<Vec<u8>>) {
+        let platform = self.client_context.as_ref().unwrap().platform.clone();
         let mut messages = messages;
-        let c = self.client_context.clone();
-        let context = c.as_ref().unwrap();
         for message in &mut messages {
             //context.console_log(&format!("message {:?}", message));
             let msg_id = message.remove(0);
@@ -1274,9 +1310,9 @@ impl TankGame {
                     //context.console_log(&format!("SERVER_MSG_ERR {:0.2}K", msg_len));
                     let r: Result<String, _> = deserialize(&message[..]);
                     if let Ok(msg) = r {
-                        context.console_log(&format!("服务器错误:{}", msg));
+                        platform.console_log(&format!("服务器错误:{}", msg));
                     } else {
-                        context.console_log(&format!(
+                        platform.console_log(&format!(
                             "SERVER_MSG_ERR 消息解析失败 {:?}",
                             r.err()
                         ));
@@ -1288,7 +1324,7 @@ impl TankGame {
                     if let Ok(players) = r {
                         for (uid, name) in players {
                             if let Some(player) = self.engine.query_sprite(uid) {
-                                context.console_log(&format!(
+                                platform.console_log(&format!(
                                     "设置了玩家姓名: {}-{}",
                                     uid, name
                                 ));
@@ -1296,7 +1332,7 @@ impl TankGame {
 
                                 //添加到本地players
                                 if !self.players.contains_key(&uid) {
-                                    context.console_log(&format!(
+                                    platform.console_log(&format!(
                                         "添加了本地的玩家: {}-{}",
                                         uid, name
                                     ));
@@ -1314,7 +1350,7 @@ impl TankGame {
                             }
                         }
                     } else {
-                        context.console_log(&format!(
+                        platform.console_log(&format!(
                             "SERVER_MSG_PLAYERS 消息解析失败 {:?}",
                             r.err()
                         ));
@@ -1325,17 +1361,17 @@ impl TankGame {
                     let r: Result<String, _> = deserialize(&message[..]);
                     if let Ok(ip) = r {
                         if self.client_player.ip.len() == 0 {
-                            context.console_log(&format!("你的IP:{}", ip));
+                            platform.console_log(&format!("你的IP:{}", ip));
                             self.client_player.ip = ip;
                             if let Ok(mut encoded) = serialize(&self.client_player.name) {
                                 encoded.insert(0, MSG_START);
                                 self.client_binary_messages.push(encoded);
                             }
                         } else {
-                            context.console_log(&format!("玩家上线 IP={}", ip));
+                            platform.console_log(&format!("玩家上线 IP={}", ip));
                         }
                     } else {
-                        context.console_log(&format!(
+                        platform.console_log(&format!(
                             "SERVER_MSG_UUID 消息解析失败 {:?}",
                             r.err()
                         ));
@@ -1347,7 +1383,7 @@ impl TankGame {
                     if let Ok(msg) = r {
                         self.client_synchronize_sprites(msg);
                     } else {
-                        context.console_log(&format!(
+                        platform.console_log(&format!(
                             "SERVER_MSG_SYNC 消息解析失败 {:?}",
                             r.err()
                         ));
@@ -1373,7 +1409,7 @@ impl TankGame {
 
                                 ServerEvent::PlayerJoin(ip, uid, name) => {
                                     //玩家上线
-                                    context.console_log(&format!(
+                                    platform.console_log(&format!(
                                         "玩家上线:{}-{}-{}",
                                         ip, uid, name
                                     ));
@@ -1393,7 +1429,7 @@ impl TankGame {
                                     }
 
                                     if self.client_player.ip == ip {
-                                        context.console_log(&format!(
+                                        platform.console_log(&format!(
                                             "成功加入游戏:{}-{}-{}",
                                             ip, uid, name
                                         ));
@@ -1405,7 +1441,7 @@ impl TankGame {
                             }
                         }
                     } else {
-                        context.console_log(&format!(
+                        platform.console_log(&format!(
                             "SERVER_MSG_EVENT 消息解析失败 {:?}",
                             r.err()
                         ));

@@ -1,30 +1,16 @@
-use engine::GameContext;
+use canvas::Canvas;
 use std::rc::Rc;
-use vector_2d::Vector2D;
 //精灵代码
-
 pub type SPRITEACTION = u32;
 pub const SA_NONE: SPRITEACTION = 0;
 pub const SA_KILL: SPRITEACTION = 1;
-//pub const SA_ADDSPRITE:SPRITEACTION = 2;
+pub const SA_ADDSPRITE:SPRITEACTION = 2;
 
 pub type BOUNDSACTION = u32;
 pub const BA_STOP: BOUNDSACTION = 0;
 pub const BA_WRAP: BOUNDSACTION = 1;
 pub const BA_BOUNCE: BOUNDSACTION = 2;
 pub const BA_DIE: BOUNDSACTION = 3;
-
-//导入的JS帮助函数
-// use std::ffi::CString;
-// use std::os::raw::c_char;
-// extern "C" {
-//     pub fn emscripten_console_log(text: *const c_char);
-// }
-// pub fn console_log(msg: &str) {
-//     unsafe {
-//         emscripten_console_log(CString::new(msg).unwrap().as_ptr());
-//     }
-// }
 
 pub struct BitmapRes {
     id: u8,
@@ -412,7 +398,7 @@ impl Sprite {
         SA_NONE
     }
 
-    pub fn draw(&self, context: Rc<Box<GameContext>>) {
+    pub fn draw(&self, context: Rc<Box<Canvas>>) {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
@@ -435,7 +421,7 @@ impl Sprite {
                 ),
             }
             context.fill_style("#ccccff");
-            context.set_canvas_font("16px 微软雅黑");
+            context.set_font("16px 微软雅黑");
             if self.name.len() > 0 && self.score >= 0 {
                 let score = &format!("({}分)", self.score);
                 let w = self.name.len() * 5 + score.len() * 5;

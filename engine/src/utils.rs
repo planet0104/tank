@@ -2,12 +2,6 @@ extern crate rand;
 use rand::Rng;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-//导入的JS帮助函数
-// extern "C" {
-//     pub fn _random() -> f64;
-//     pub fn _current_time_millis() -> f64;
-// }
-
 pub fn current_time_millis() -> f64 {
     let start = SystemTime::now();
     let since_the_epoch = start

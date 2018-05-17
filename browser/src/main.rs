@@ -44,7 +44,8 @@ use stdweb::web::event::{
     IMessageEvent, IKeyboardEvent, //IEvent
 };
 
-use tank::engine::GameContext;
+use tank::{Platform, Context};
+use tank::engine::canvas::Canvas;
 use std::cell::RefCell;
 use tank::{ GAME, KEY_MAP, KeyEvent, VK_SPACE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN};
 use std::sync::{Arc, Mutex};
@@ -145,91 +146,13 @@ fn connect(url: &str){
     }
 }
 
-pub struct JSGameContext {}
+pub struct JSCanvas {}
+pub struct JSPlatform {}
 
-impl GameContext for JSGameContext {
+impl Platform for JSPlatform{
     fn current_time_millis(&self) -> f64 {
         Date::now()
     }
-    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
-        js!{
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat");
-            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
-        }
-    }
-    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
-        js!{
-            // 平铺方式
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-x");
-            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
-        }
-    }
-    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
-        js!{
-            // 平铺方式
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-y");
-            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
-        }
-    }
-    fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
-        js!{
-            ctx.drawImage(window.resMap.get(@{res_id}+""), @{x}, @{y});
-        }
-    }
-
-    fn draw_image(
-        &self,
-        res_id: i32,
-        source_x: i32,
-        source_y: i32,
-        source_width: i32,
-        source_height: i32,
-        dest_x: i32,
-        dest_y: i32,
-        dest_width: i32,
-        dest_height: i32,
-    ) {
-        js!{
-            ctx.drawImage(window.resMap.get(@{res_id}+""), @{source_x}, @{source_y}, @{source_width}, @{source_height}, @{dest_x}, @{dest_y}, @{dest_width}, @{dest_height});
-        }
-    }
-
-    fn fill_style(&self, style: &str) {
-        js!{
-            ctx.fillStyle = @{style};
-        }
-    }
-
-    fn stroke_style(&self, style: &str) {
-        js!{
-            ctx.strokeStyle = @{style};
-        }
-    }
-
-    fn set_canvas_font(&self, font: &str) {
-        js!{
-            ctx.font = @{font};
-        }
-    }
-
-    fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
-        js!{
-            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
-        }
-    }
-
-    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32) {
-        js!{
-            ctx.strokeRect(@{x}, @{y}, @{width}, @{height});
-        }
-    }
-
-    fn fill_text(&self, text: &str, x: i32, y: i32) {
-        js!{
-            ctx.fillText(@{text}, @{x}, @{y});
-        }
-    }
-
     fn set_frame_callback(&self, callback: fn(f64)) {
         JS.with(|js| {
             js.borrow_mut().request_animation_frame_callback = Some(callback);
@@ -308,12 +231,6 @@ impl GameContext for JSGameContext {
         }
     }
 
-    fn line_width(&self, width: i32) {
-        js!{
-            ctx.lineWidth = @{width};
-        }
-    }
-
     fn load_resource(&self, json: String) {
         let on_resource_load = |num: i32, total:i32|{
             JS.with(|e| {
@@ -382,6 +299,93 @@ impl GameContext for JSGameContext {
     fn set_canvas_height(&self, height: i32) {
         js!{
             canvas.height = @{height};
+        }
+    }
+}
+
+impl Canvas for JSCanvas {
+    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+        js!{
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat");
+            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
+        }
+    }
+    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+        js!{
+            // 平铺方式
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-x");
+            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
+        }
+    }
+    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+        js!{
+            // 平铺方式
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-y");
+            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
+        }
+    }
+    fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
+        js!{
+            ctx.drawImage(window.resMap.get(@{res_id}+""), @{x}, @{y});
+        }
+    }
+
+    fn draw_image(
+        &self,
+        res_id: i32,
+        source_x: i32,
+        source_y: i32,
+        source_width: i32,
+        source_height: i32,
+        dest_x: i32,
+        dest_y: i32,
+        dest_width: i32,
+        dest_height: i32,
+    ) {
+        js!{
+            ctx.drawImage(window.resMap.get(@{res_id}+""), @{source_x}, @{source_y}, @{source_width}, @{source_height}, @{dest_x}, @{dest_y}, @{dest_width}, @{dest_height});
+        }
+    }
+
+    fn fill_style(&self, style: &str) {
+        js!{
+            ctx.fillStyle = @{style};
+        }
+    }
+
+    fn stroke_style(&self, style: &str) {
+        js!{
+            ctx.strokeStyle = @{style};
+        }
+    }
+
+    fn set_font(&self, font: &str) {
+        js!{
+            ctx.font = @{font};
+        }
+    }
+
+    fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
+        js!{
+            ctx.fillRect(@{x}, @{y}, @{width}, @{height});
+        }
+    }
+
+    fn stroke_rect(&self, x: i32, y: i32, width: i32, height: i32) {
+        js!{
+            ctx.strokeRect(@{x}, @{y}, @{width}, @{height});
+        }
+    }
+
+    fn fill_text(&self, text: &str, x: i32, y: i32) {
+        js!{
+            ctx.fillText(@{text}, @{x}, @{y});
+        }
+    }
+
+    fn line_width(&self, width: i32) {
+        js!{
+            ctx.lineWidth = @{width};
         }
     }
 }
@@ -542,7 +546,7 @@ fn main() {
 
     GAME.with(|game| {
         let mut game = game.borrow_mut();
-        game.set_game_context(Box::new(JSGameContext {}));
+        game.set_game_context(Context::new(Box::new(JSCanvas {}), Box::new(JSPlatform{})));
         game.client_start();
     });
 
