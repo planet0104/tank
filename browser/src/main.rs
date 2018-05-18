@@ -44,7 +44,7 @@ use stdweb::web::event::{
     IMessageEvent, IKeyboardEvent, //IEvent
 };
 
-use tank::{Platform, Context};
+use tank::{Platform, Context, Bitmap};
 use tank::engine::canvas::Canvas;
 use std::cell::RefCell;
 use tank::{ GAME, KEY_MAP, KeyEvent, VK_SPACE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN};
@@ -304,35 +304,35 @@ impl Platform for JSPlatform{
 }
 
 impl Canvas for JSCanvas {
-    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    fn draw_image_repeat(&self, bitmap: &Bitmap, x: i32, y: i32, width: i32, height: i32) {
         js!{
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat");
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{bitmap.id()}+""), "repeat");
             ctx.fillRect(@{x}, @{y}, @{width}, @{height});
         }
     }
-    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    fn draw_image_repeat_x(&self, bitmap: &Bitmap, x: i32, y: i32, width: i32, height: i32) {
         js!{
             // 平铺方式
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-x");
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{bitmap.id()}+""), "repeat-x");
             ctx.fillRect(@{x}, @{y}, @{width}, @{height});
         }
     }
-    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32) {
+    fn draw_image_repeat_y(&self, bitmap: &Bitmap, x: i32, y: i32, width: i32, height: i32) {
         js!{
             // 平铺方式
-            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{res_id}+""), "repeat-y");
+            ctx.fillStyle = ctx.createPattern(window.resMap.get(@{bitmap.id()}+""), "repeat-y");
             ctx.fillRect(@{x}, @{y}, @{width}, @{height});
         }
     }
-    fn draw_image_at(&self, res_id: i32, x: i32, y: i32) {
+    fn draw_image_at(&self, bitmap: &Bitmap, x: i32, y: i32) {
         js!{
-            ctx.drawImage(window.resMap.get(@{res_id}+""), @{x}, @{y});
+            ctx.drawImage(window.resMap.get(@{bitmap.id()}+""), @{x}, @{y});
         }
     }
 
     fn draw_image(
         &self,
-        res_id: i32,
+        bitmap: &Bitmap,
         source_x: i32,
         source_y: i32,
         source_width: i32,
@@ -343,7 +343,7 @@ impl Canvas for JSCanvas {
         dest_height: i32,
     ) {
         js!{
-            ctx.drawImage(window.resMap.get(@{res_id}+""), @{source_x}, @{source_y}, @{source_width}, @{source_height}, @{dest_x}, @{dest_y}, @{dest_width}, @{dest_height});
+            ctx.drawImage(window.resMap.get(@{bitmap.id()}+""), @{source_x}, @{source_y}, @{source_width}, @{source_height}, @{dest_x}, @{dest_y}, @{dest_width}, @{dest_height});
         }
     }
 

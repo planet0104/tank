@@ -1,41 +1,16 @@
 use canvas::Canvas;
-use std::rc::Rc;
 //精灵代码
 pub type SPRITEACTION = u32;
 pub const SA_NONE: SPRITEACTION = 0;
 pub const SA_KILL: SPRITEACTION = 1;
-pub const SA_ADDSPRITE:SPRITEACTION = 2;
+pub const SA_ADDSPRITE: SPRITEACTION = 2;
 
 pub type BOUNDSACTION = u32;
 pub const BA_STOP: BOUNDSACTION = 0;
 pub const BA_WRAP: BOUNDSACTION = 1;
 pub const BA_BOUNCE: BOUNDSACTION = 2;
 pub const BA_DIE: BOUNDSACTION = 3;
-
-pub struct BitmapRes {
-    id: u8,
-    width: i32,
-    height: i32,
-}
-
-impl BitmapRes {
-    pub fn new(id: u8, width: i32, height: i32) -> BitmapRes {
-        BitmapRes {
-            id: id,
-            width: width,
-            height: height,
-        }
-    }
-    pub fn width(&self) -> i32 {
-        self.width
-    }
-    pub fn height(&self) -> i32 {
-        self.height
-    }
-    pub fn id(&self) -> u8 {
-        self.id
-    }
-}
+use Bitmap;
 
 #[derive(Clone, Debug, Copy)]
 pub struct Rect {
@@ -112,23 +87,34 @@ impl Point {
     }
 }
 
-pub struct Sprite {
+pub trait Sprite{
+    fn draw(&self, context: &Canvas);
+    fn z_order(&self) -> i32;
+    fn position(&self) -> &Rect;
+    fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION;
+    fn id(&self) -> u32;
+    fn set_position_rect(&mut self, position: Rect);
+    fn test_collison(&self, test: &Rect) -> bool;
+    fn kill(&mut self);
+}
+
+pub struct Entity {
     pub id: u32,
     pub parent_id: u32,
-    bitmap: BitmapRes,
+    bitmap: Box<Bitmap>,
     num_frames: i32,
-    cur_frame: i32,
+    pub cur_frame: i32,
     frame_delay: i32,
     frame_trigger: i32,
-    position: Rect,
+    pub position: Rect,
     target_position: Option<PointF>,
     bounds: Rect,
     velocity: PointF,
-    z_order: i32,
+    pub z_order: i32,
     collision: Rect,
     bounds_action: BOUNDSACTION,
     hidden: bool,
-    dying: bool,
+    pub dying: bool,
     one_cycle: bool,
     name: String,
     score: i32,
@@ -138,17 +124,17 @@ pub struct Sprite {
     rotation: f64,
 }
 
-impl Sprite {
+impl Entity {
     pub fn new(
         id: u32,
-        bitmap: BitmapRes,
+        bitmap: Box<Bitmap>,
         position: PointF,
         velocity: PointF,
         z_order: i32,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
-    ) -> Sprite {
-        let mut sprite = Sprite {
+    ) -> Entity {
+        let mut sprite = Entity {
             id: id,
             parent_id: 0,
             position: Rect::new(
@@ -182,8 +168,8 @@ impl Sprite {
         sprite
     }
 
-    pub fn from_bitmap(id: u32, bitmap: BitmapRes, bounds: Rect) -> Sprite {
-        Sprite::new(
+    pub fn from_bitmap(id: u32, bitmap: Box<Bitmap>, bounds: Rect) -> Entity {
+        Entity::new(
             id,
             bitmap,
             PointF::zero(),
@@ -196,12 +182,12 @@ impl Sprite {
 
     pub fn with_bounds_action(
         id: u32,
-        bitmap: BitmapRes,
+        bitmap: Box<Bitmap>,
         position: PointF,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
-    ) -> Sprite {
-        Sprite::new(
+    ) -> Entity {
+        Entity::new(
             id,
             bitmap,
             position,
@@ -398,18 +384,18 @@ impl Sprite {
         SA_NONE
     }
 
-    pub fn draw(&self, context: Rc<Box<Canvas>>) {
+    pub fn draw(&self, context: &Canvas) {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
             match self.num_frames {
                 1 => context.draw_image_at(
-                    self.bitmap.id as i32,
+                    self.bitmap.as_ref(),
                     self.position.left as i32,
                     self.position.top as i32,
                 ),
                 _ => context.draw_image(
-                    self.bitmap.id as i32,
+                    self.bitmap.as_ref(),
                     0,
                     self.cur_frame * self.height(),
                     self.width(),
@@ -463,14 +449,6 @@ impl Sprite {
         }
     }
 
-    pub fn set_current_frame(&mut self, cur_frame: i32) {
-        self.cur_frame = cur_frame;
-    }
-
-    pub fn current_frame(&self) -> i32 {
-        self.cur_frame
-    }
-
     pub fn set_frame_delay(&mut self, frame_delay: i32) {
         self.frame_delay = frame_delay;
     }
@@ -503,10 +481,6 @@ impl Sprite {
         self.calc_collision_rect();
     }
 
-    pub fn set_position_rect(&mut self, position: Rect) {
-        self.position = position;
-    }
-
     pub fn test_collison(&self, test: &Rect) -> bool {
         self.collision.left <= test.right && test.left <= self.collision.right
             && self.collision.top <= test.bottom && test.top <= self.collision.bottom
@@ -518,26 +492,18 @@ impl Sprite {
 
     pub fn height(&self) -> i32 {
         if self.num_frames > 0 {
-            self.bitmap.height / self.num_frames
+            self.bitmap.height() / self.num_frames
         } else {
-            self.bitmap.height
+            self.bitmap.height()
         }
     }
 
     pub fn width(&self) -> i32 {
-        self.bitmap.width
+        self.bitmap.width()
     }
 
-    pub fn z_order(&self) -> i32 {
-        self.z_order
-    }
-
-    pub fn bitmap(&self) -> &BitmapRes {
+    pub fn bitmap(&self) -> &Box<Bitmap> {
         &self.bitmap
-    }
-
-    pub fn position(&self) -> &Rect {
-        &self.position
     }
 
     pub fn hidden(&self) -> bool {
@@ -572,10 +538,6 @@ impl Sprite {
         //重新计算位置
         self.position.bottom =
             self.position.top + (self.position.bottom - self.position.top) / self.num_frames as f64;
-    }
-
-    pub fn kill(&mut self) {
-        self.dying = true;
     }
 
     pub fn dying(&self) -> bool {

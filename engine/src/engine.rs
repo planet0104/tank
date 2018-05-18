@@ -1,8 +1,8 @@
-use sprite::{Sprite, SA_KILL};
-use std::rc::Rc;
-use std::cell::RefCell;
-use utils::Counter;
 use canvas::Canvas;
+use sprite::{Sprite, SA_KILL};
+use std::cell::RefCell;
+use std::rc::Rc;
+use utils::Counter;
 //GameEngine 绘制和更新精灵
 
 pub trait UpdateCallback {
@@ -16,7 +16,7 @@ pub trait UpdateCallback {
 }
 
 pub struct GameEngine {
-    sprites: Vec<Sprite>,
+    sprites: Vec<Box<Sprite>>,
     counter: Counter,
 }
 
@@ -28,7 +28,7 @@ impl GameEngine {
         }
     }
 
-    pub fn add_sprite(&mut self, sprite: Sprite) -> usize {
+    pub fn add_sprite(&mut self, sprite: Box<Sprite>) -> usize {
         if self.sprites.len() > 0 {
             for i in 0..self.sprites.len() {
                 //根据z-order插入精灵到数组
@@ -43,10 +43,10 @@ impl GameEngine {
         self.sprites.len() - 1
     }
 
-    pub fn draw_sprites(&self, context: Rc<Box<Canvas>>) {
+    pub fn draw_sprites(&self, context: &Canvas) {
         //绘制所有的精灵
         for sprite in &self.sprites {
-            sprite.draw(context.clone());
+            sprite.draw(context);
         }
     }
 
@@ -77,7 +77,7 @@ impl GameEngine {
                 //通知游戏精灵死亡
                 callback.borrow_mut().on_sprite_dying(self, i);
                 //杀死精灵
-                sprites_to_kill.push(self.sprites[i].id.clone());
+                sprites_to_kill.push(self.sprites[i].id());
                 continue;
             }
 
@@ -88,7 +88,7 @@ impl GameEngine {
 
         //删除死亡的精灵
         for sprite_id in sprites_to_kill {
-            self.sprites.retain(|ref s| s.id != sprite_id);
+            self.sprites.retain(|ref s| s.id() != sprite_id);
         }
     }
 
@@ -117,9 +117,9 @@ impl GameEngine {
         self.sprites.clear();
     }
 
-    pub fn query_sprite(&mut self, id: u32) -> Option<&mut Sprite> {
+    pub fn query_sprite(&mut self, id: u32) -> Option<&mut Box<Sprite>> {
         for sprite in &mut self.sprites {
-            if sprite.id == id {
+            if sprite.id() == id {
                 return Some(sprite);
             }
         }
@@ -128,7 +128,7 @@ impl GameEngine {
 
     pub fn query_sprite_idx(&self, id: u32) -> Option<usize> {
         for i in 0..self.sprites.len() {
-            if self.sprites[i].id == id {
+            if self.sprites[i].id() == id {
                 return Some(i);
             }
         }
@@ -139,7 +139,7 @@ impl GameEngine {
     //     &self.sprites
     // }
 
-    pub fn sprites(&mut self) -> &mut Vec<Sprite> {
+    pub fn sprites(&mut self) -> &mut Vec<Box<Sprite>> {
         &mut self.sprites
     }
 

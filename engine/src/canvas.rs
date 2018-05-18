@@ -1,12 +1,14 @@
+use Bitmap;
+
 //画布
 pub trait Canvas {
-    fn draw_image_repeat(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
-    fn draw_image_repeat_x(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
-    fn draw_image_repeat_y(&self, res_id: i32, x: i32, y: i32, width: i32, height: i32);
-    fn draw_image_at(&self, res_id: i32, x: i32, y: i32);
+    fn draw_image_repeat(&self, image: &Bitmap, x: i32, y: i32, width: i32, height: i32);
+    fn draw_image_repeat_x(&self, image: &Bitmap, x: i32, y: i32, width: i32, height: i32);
+    fn draw_image_repeat_y(&self, image: &Bitmap, x: i32, y: i32, width: i32, height: i32);
+    fn draw_image_at(&self, image: &Bitmap, x: i32, y: i32);
     fn draw_image(
         &self,
-        res_id: i32,
+        image: &Bitmap,
         source_x: i32,
         source_y: i32,
         source_width: i32,
