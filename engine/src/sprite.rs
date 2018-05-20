@@ -87,41 +87,118 @@ impl Point {
     }
 }
 
+
 pub trait Sprite{
-    fn draw(&self, context: &Canvas);
-    fn z_order(&self) -> i32;
-    fn position(&self) -> &Rect;
-    fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION;
-    fn id(&self) -> u32;
-    fn set_position_rect(&mut self, position: Rect);
-    fn test_collison(&self, test: &Rect) -> bool;
-    fn kill(&mut self);
+    fn draw(&self, context: &Canvas){
+        self.get_entity().draw(context);
+    }
+    fn z_order(&self) -> i32{
+        self.get_entity().z_order
+    }
+    fn position(&self) -> &Rect{
+        &self.get_entity().position
+    }
+    fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION{
+        self.get_entity_mut().update(elapsed_milis)
+    }
+    fn id(&self) -> u32{
+        self.get_entity().id
+    }
+    fn set_position(&mut self, position: Rect){
+        self.get_entity_mut().position = position;
+    }
+    fn set_position_point(&mut self, x: f64, y: f64){
+        self.get_entity_mut().set_position(x, y);
+    }
+    fn test_collison(&self, test: &Rect) -> bool{
+        self.get_entity().test_collison(test)
+    }
+    fn kill(&mut self){
+        self.get_entity_mut().dying = true;
+    }
+    fn parent(&self) -> u32{
+        self.get_entity().parent
+    }
+    fn set_parent(&mut self, parent: u32){
+        self.get_entity_mut().parent = parent;
+    }
+    fn killer(&self) -> u32{
+        self.get_entity().killer
+    }
+    fn killer_name(&self) -> &String{
+        &self.get_entity().killer_name
+    }
+    fn name(&self) -> &String{
+        &self.get_entity().name
+    }
+    fn set_name(&mut self, name:String){
+        self.get_entity_mut().name = name;
+    }
+    fn set_velocity(&mut self, x: f64, y: f64){
+        self.get_entity_mut().set_velocity(x, y);
+    }
+    fn add_score(&mut self){
+        self.get_entity_mut().score += 1;
+    }
+    fn set_lives(&mut self, lives: u32) {
+        self.get_entity_mut().lives = lives;
+    }
+    fn lives(&self) -> u32 {
+        self.get_entity().lives
+    }
+    fn set_score(&mut self, score: i32){
+        self.get_entity_mut().score = score;
+    }
+    fn score(&self) -> i32{
+        self.get_entity().score
+    }
+    fn set_killer(&mut self, killer: u32, killer_name: String){
+        self.get_entity_mut().set_killer(killer, killer_name);
+    }
+    fn cur_frame(&self)->i32{
+        self.get_entity().cur_frame
+    }
+    fn set_cur_frame(&mut self, cur_frame: i32){
+        self.get_entity_mut().cur_frame = cur_frame;
+    }
+    fn bitmap(&self)->&Box<Bitmap>{
+        &self.get_entity().bitmap
+    }
+    fn velocity(&self) -> &PointF {
+        &self.get_entity().velocity
+    }
+    fn set_target_position(&mut self, target: PointF){
+        self.get_entity_mut().target_position = Some(target);
+    }
+    fn class(&self) -> i32;
+    fn get_entity(&self) -> &Entity;
+    fn get_entity_mut(&mut self) -> &mut Entity;
 }
 
 pub struct Entity {
     pub id: u32,
-    pub parent_id: u32,
-    bitmap: Box<Bitmap>,
-    num_frames: i32,
+    pub parent: u32,
+    pub bitmap: Box<Bitmap>,
+    pub num_frames: i32,
     pub cur_frame: i32,
-    frame_delay: i32,
-    frame_trigger: i32,
+    pub frame_delay: i32,
+    pub frame_trigger: i32,
     pub position: Rect,
-    target_position: Option<PointF>,
-    bounds: Rect,
-    velocity: PointF,
+    pub target_position: Option<PointF>,
+    pub bounds: Rect,
+    pub velocity: PointF,
     pub z_order: i32,
-    collision: Rect,
-    bounds_action: BOUNDSACTION,
-    hidden: bool,
+    pub collision: Rect,
+    pub bounds_action: BOUNDSACTION,
+    pub hidden: bool,
     pub dying: bool,
-    one_cycle: bool,
-    name: String,
-    score: i32,
-    killer_id: u32,
-    killer_name: String,
-    lives: u32,
-    rotation: f64,
+    pub one_cycle: bool,
+    pub name: String,
+    pub score: i32,
+    pub killer: u32,
+    pub killer_name: String,
+    pub lives: u32,
+    pub rotation: f64,
 }
 
 impl Entity {
@@ -136,7 +213,7 @@ impl Entity {
     ) -> Entity {
         let mut sprite = Entity {
             id: id,
-            parent_id: 0,
+            parent: 0,
             position: Rect::new(
                 position.x,
                 position.y,
@@ -159,7 +236,7 @@ impl Entity {
             name: "".to_string(),
             collision: Rect::zero(),
             score: 0,
-            killer_id: 0,
+            killer: 0,
             killer_name: String::new(),
             lives: 0,
             rotation: 0.0,
@@ -458,15 +535,6 @@ impl Entity {
         self.velocity.y = y;
     }
 
-    pub fn set_velocity_point(&mut self, velocity: &PointF) {
-        self.velocity.x = velocity.x;
-        self.velocity.y = velocity.y;
-    }
-
-    pub fn velocity(&self) -> &PointF {
-        &self.velocity
-    }
-
     pub fn set_position_point(&mut self, position: &PointF) {
         let dx = position.x - self.position.left;
         let dy = position.y - self.position.top;
@@ -502,35 +570,6 @@ impl Entity {
         self.bitmap.width()
     }
 
-    pub fn bitmap(&self) -> &Box<Bitmap> {
-        &self.bitmap
-    }
-
-    pub fn hidden(&self) -> bool {
-        self.hidden
-    }
-
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    pub fn set_name(&mut self, name: String) {
-        self.name = name;
-    }
-
-    pub fn set_killer(&mut self, killer_id: u32, killer_name: String) {
-        self.killer_id = killer_id;
-        self.killer_name = killer_name;
-    }
-
-    pub fn killer_id(&self) -> u32 {
-        self.killer_id
-    }
-
-    pub fn killer_name(&self) -> &String {
-        &self.killer_name
-    }
-
     pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {
         self.num_frames = num_frames;
         self.one_cycle = one_cycle;
@@ -540,35 +579,8 @@ impl Entity {
             self.position.top + (self.position.bottom - self.position.top) / self.num_frames as f64;
     }
 
-    pub fn dying(&self) -> bool {
-        self.dying
-    }
-
-    pub fn add_score(&mut self) {
-        self.score += 1;
-    }
-
-    pub fn set_score(&mut self, score: i32) {
-        self.score = score;
-    }
-
-    pub fn score(&self) -> i32 {
-        self.score
-    }
-
-    pub fn set_lives(&mut self, lives: u32) {
-        self.lives = lives;
-    }
-
-    pub fn lives(&self) -> u32 {
-        self.lives
-    }
-
-    pub fn set_rotation(&mut self, rotation: f64) {
-        self.rotation = rotation;
-    }
-
-    pub fn set_target_position(&mut self, target: PointF) {
-        self.target_position = Some(target);
+    pub fn set_killer(&mut self, killer: u32, killer_name: String){
+        self.killer = killer;
+        self.killer_name = killer_name;
     }
 }

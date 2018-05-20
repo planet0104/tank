@@ -6,7 +6,7 @@ use engine::utils::rand_int;
 use engine::canvas::Canvas;
 use engine::background::{ ScrollingBackground, BackgroundLayer};
 use engine::{GameEngine, Bitmap, ScrollDir, UpdateCallback};
-use engine::sprite::{Entity, SPRITEACTION, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
+use engine::sprite::{Entity, Rect, SPRITEACTION, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -61,6 +61,9 @@ impl Sprite for PersonSprite{
     }
     fn kill(&mut self){
         self.entity.dying = true;
+    }
+    fn class(&self) -> i32{
+        0
     }
 }
 
@@ -122,13 +125,32 @@ impl Wanderer{
         //创建滚动背景和风景图层
         let background = ScrollingBackground::new(WIDTH, HEIGHT);
         let bg_landscape_layer = BackgroundLayer::new(
-            Box::new(self.resources.get(IMG_LANDSCAPE).unwrap()),
+            Box::new(*self.resources.get(IMG_LANDSCAPE).unwrap()),
             0.0,
             ScrollDir::Left
         );
-        var viewPort = new Rect(352, 352, 608, 608); //视口最初设置为显示风景位图的中央
-        bgLandscapeLayer.setViewPort(viewPort);
-        background.addLayer(bgLandscapeLayer);
+        let viewport = Rect::new(352.0, 352.0, 608.0, 608.0); //视口最初设置为显示风景位图的中央
+        bg_landscape_layer.set_viewport(viewport);
+        background.add_layer(bg_landscape_layer);
+
+        //创建滚动前景和云彩图层
+        let foreground = ScrollingBackground::new(WIDTH, HEIGHT);
+        let fg_clouds_layer = BackgroundLayer::new(
+            Box::new(*self.resources.get(IMG_CLOUDS).unwrap()),
+            0.0,
+            ScrollDir::Left
+        );
+        let viewport = Rect::new(64.0, 64.0, 320.0, 320.0);
+        fg_clouds_layer.set_viewport(viewport);
+        foreground.add_layer(fg_clouds_layer);
+
+        //创建并加载人的位图
+        personBitmap = res.pngPerson;
+        var bounds = new Rect(115, 112, 26, 32);
+        personSprite = new PersonSprite(personBitmap, bounds, BOUNDS_ACTION_STOP);
+        personSprite.setNumFrames(2);
+        personSprite.setPosition(115, 112);
+        game.addSprite(personSprite);
 
         window().request_animation_frame(self.animation_callback);
     }

@@ -16,7 +16,7 @@ pub trait UpdateCallback {
 }
 
 pub struct GameEngine {
-    sprites: Vec<Box<Sprite>>,
+    sprites: Vec<Rc<RefCell<Sprite>>>,
     counter: Counter,
 }
 
@@ -28,11 +28,11 @@ impl GameEngine {
         }
     }
 
-    pub fn add_sprite(&mut self, sprite: Box<Sprite>) -> usize {
+    pub fn add_sprite(&mut self, sprite: Rc<RefCell<Sprite>>) -> usize {
         if self.sprites.len() > 0 {
             for i in 0..self.sprites.len() {
                 //根据z-order插入精灵到数组
-                if sprite.z_order() < self.sprites[i].z_order() {
+                if sprite.borrow().z_order() < self.sprites[i].borrow().z_order() {
                     self.sprites.insert(i, sprite);
                     return i;
                 }
@@ -46,7 +46,7 @@ impl GameEngine {
     pub fn draw_sprites(&self, context: &Canvas) {
         //绘制所有的精灵
         for sprite in &self.sprites {
-            sprite.draw(context);
+            sprite.borrow().draw(context);
         }
     }
 
@@ -60,9 +60,9 @@ impl GameEngine {
         let mut sprites_to_kill: Vec<u32> = vec![];
         for i in 0..self.sprites.len() {
             //保存旧的精灵位置以防需要恢复
-            let old_sprite_pos = *self.sprites[i].position();
+            let old_sprite_pos = *self.sprites[i].borrow().position();
             //更新精灵
-            let sprite_action = self.sprites[i].update(elapsed_milis);
+            let sprite_action = self.sprites[i].borrow_mut().update(elapsed_milis);
 
             //处理SA_ADDSPRITE
             // if sprite_action == SA_ADDSPRITE{
@@ -77,18 +77,18 @@ impl GameEngine {
                 //通知游戏精灵死亡
                 callback.borrow_mut().on_sprite_dying(self, i);
                 //杀死精灵
-                sprites_to_kill.push(self.sprites[i].id());
+                sprites_to_kill.push(self.sprites[i].borrow().id());
                 continue;
             }
 
             if self.check_sprite_collision(i, &callback) {
-                self.sprites[i].set_position_rect(old_sprite_pos);
+                self.sprites[i].borrow_mut().set_position(old_sprite_pos);
             }
         }
 
         //删除死亡的精灵
         for sprite_id in sprites_to_kill {
-            self.sprites.retain(|ref s| s.id() != sprite_id);
+            self.sprites.retain(|ref s| s.borrow().id() != sprite_id);
         }
     }
 
@@ -104,7 +104,7 @@ impl GameEngine {
             if i == test_sprite_id {
                 continue;
             }
-            if self.sprites[test_sprite_id].test_collison(self.sprites[i].position()) {
+            if self.sprites[test_sprite_id].borrow().test_collison(self.sprites[i].borrow().position()) {
                 return callback
                     .borrow_mut()
                     .on_sprite_collision(self, i, test_sprite_id);
@@ -117,10 +117,10 @@ impl GameEngine {
         self.sprites.clear();
     }
 
-    pub fn query_sprite(&mut self, id: u32) -> Option<&mut Box<Sprite>> {
+    pub fn query_sprite(&mut self, id: u32) -> Option<Rc<RefCell<Sprite>>> {
         for sprite in &mut self.sprites {
-            if sprite.id() == id {
-                return Some(sprite);
+            if sprite.borrow().id() == id {
+                return Some(sprite.clone());
             }
         }
         None
@@ -128,7 +128,7 @@ impl GameEngine {
 
     pub fn query_sprite_idx(&self, id: u32) -> Option<usize> {
         for i in 0..self.sprites.len() {
-            if self.sprites[i].id() == id {
+            if self.sprites[i].borrow().id() == id {
                 return Some(i);
             }
         }
@@ -139,7 +139,7 @@ impl GameEngine {
     //     &self.sprites
     // }
 
-    pub fn sprites(&mut self) -> &mut Vec<Box<Sprite>> {
+    pub fn sprites(&mut self) -> &mut Vec<Rc<RefCell<Sprite>>> {
         &mut self.sprites
     }
 
@@ -154,6 +154,6 @@ impl GameEngine {
     }
 
     pub fn kill_sprite(&mut self, idx: usize) {
-        self.sprites[idx].kill();
+        self.sprites[idx].borrow_mut().kill();
     }
 }
