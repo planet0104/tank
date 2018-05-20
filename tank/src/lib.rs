@@ -844,6 +844,7 @@ impl TankGame {
                 }
             }
         }
+        
         //按得分排序
         let mut players_score = vec![];
         for (id, player) in &self.players {
