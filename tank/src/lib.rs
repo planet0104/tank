@@ -274,14 +274,10 @@ impl UpdateCallback for ServerUpdateCallback {
         idx_sprite_hitter: usize,
         idx_sprite_hittee: usize,
     ) -> bool {
-        //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
         //碰撞检测
-        // let sprite_hitter = engine.sprites()[idx_sprite_hitter].clone();
-        // let sprite_hittee = engine.sprites()[idx_sprite_hittee].clone();
-        // let mut sprite_hitter = sprite_hitter.borrow_mut();
-        // let mut sprite_hittee = sprite_hittee.borrow_mut();
+        //此处杀死的精灵, 会在下次更新时，调用上边sprite_dying函数
 
-        let (hitter_id, hitter_parent, hitter_class) = {
+        let (_hitter_id, hitter_parent, hitter_class) = {
             let hitter = engine.sprites()[idx_sprite_hitter].borrow();
             (hitter.id(), hitter.parent(), hitter.class())
         };
@@ -289,9 +285,6 @@ impl UpdateCallback for ServerUpdateCallback {
             let hittee = engine.sprites()[idx_sprite_hittee].borrow();
             (hittee.id(), hittee.parent(), hittee.class())
         };
-
-        //println!("hitter>>{:?}", (hitter_id, hitter_parent, hitter_class));
-        //println!("hittee>>{:?}", (hittee_id, hittee_parent, hittee_class));
 
         if hitter_class == sprites::SPRITE_MISSILE && hittee_class == sprites::SPRITE_TANK {
             let killer_name = if let Some(killer) = engine.query_sprite(hitter_parent) {
@@ -327,12 +320,12 @@ impl UpdateCallback for ServerUpdateCallback {
             //子弹和护士相撞, 玩家血量+1
             engine.sprites()[idx_sprite_hittee].borrow_mut().kill();
             engine.sprites()[idx_sprite_hitter].borrow_mut().kill();
-            engine.sprites()[idx_sprite_hittee].borrow_mut().set_killer(
-                hitter_parent,
-                String::new(),
-            );
+            engine.sprites()[idx_sprite_hittee]
+                .borrow_mut()
+                .set_killer(hitter_parent, String::new());
             true
-        } else if hitter_class == sprites::SPRITE_MISSILE && hittee_class == sprites::SPRITE_MISSILE {
+        } else if hitter_class == sprites::SPRITE_MISSILE && hittee_class == sprites::SPRITE_MISSILE
+        {
             //检测子弹和子弹是否碰撞
             //同一个玩家的子弹不会碰撞
             if hitter_parent != hittee_parent {
@@ -839,14 +832,13 @@ impl TankGame {
 
     //Client接收服务器广播列表，对精灵当前位置和服务器位置的距离计算速度(时间为：1s/5、200ms)，精灵自动移动到下一个位置。
     pub fn client_synchronize_sprites(&mut self, sync_data: Vec<SyncData>) {
-        let platform = self.client_context.as_ref().unwrap().platform.clone();
+        let _platform = self.client_context.as_ref().unwrap().platform.clone();
         //let context = self.client_context.as_ref().unwrap();
         //self.console_log_1("client_synchronize_sprites", &sync_data);
         if self.last_sync_time == 0.0 {
             self.last_sync_time = self.time_elpased_ms;
         }
         //let time = self.time_elpased_ms - self.last_sync_time;
-        //context.console_log(&format!("客户端精灵数量 {}", self.engine.sprites().len()));
 
         //删掉列表中不存在的精灵
         let server_ids = sync_data.iter().map(|d| d.id).collect::<Vec<u32>>();

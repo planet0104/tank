@@ -1,6 +1,8 @@
 use Bitmap;
 use canvas::Canvas;
 use sprite::Rect;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 pub trait Background {
     fn draw<C: Canvas>(&self, canvas: &C);
@@ -10,7 +12,7 @@ pub trait Background {
 }
 
 pub struct ScrollingBackground {
-    layers: Vec<BackgroundLayer>,
+    layers: Vec<Rc<RefCell<BackgroundLayer>>>,
     width: i32,
     height: i32,
 }
@@ -24,7 +26,7 @@ impl ScrollingBackground {
         }
     }
 
-    pub fn add_layer(&mut self, layer: BackgroundLayer) {
+    pub fn add_layer(&mut self, layer: Rc<RefCell<BackgroundLayer>>) {
         self.layers.push(layer);
     }
 }
@@ -32,14 +34,14 @@ impl ScrollingBackground {
 impl Background for ScrollingBackground {
     fn draw<C: Canvas>(&self, canvas: &C) {
         for layer in &self.layers {
-            layer.draw(canvas, 0, 0)
+            layer.borrow().draw(canvas, 0, 0)
         }
     }
 
     fn update(&mut self) {
         //更新图层
         for layer in &mut self.layers {
-            layer.update();
+            layer.borrow_mut().update();
         }
     }
 
@@ -52,6 +54,7 @@ impl Background for ScrollingBackground {
     }
 }
 
+#[derive(Clone, Debug, Copy)]
 pub enum ScrollDir {
     Up,
     Right,
@@ -134,8 +137,7 @@ impl BackgroundLayer {
                 self.height() + self.viewport.top as i32, //图像源左上角
                 -self.viewport.left as i32,
                 -self.viewport.top as i32, //图像源宽高
-                x,
-                y, //目标绘制坐标
+                x, y, //目标绘制坐标
                 -self.viewport.left as i32,
                 -self.viewport.top as i32,
             );
@@ -316,20 +318,17 @@ impl BackgroundLayer {
                 self.viewport.bottom as i32 - self.height(),
             );
         } else if self.viewport.top < 0.0 {
+            //DrawPart(destX, destY, srcX, srcY, width, height);
+            //drawImage(srcX, srcY, srcWidth, srcHeight, destX, destY, destWidth, destHeight);
             //绘制拆开的视口，从顶部环绕到底部
             canvas.draw_image(
                 self.bitmap.as_ref(),
-                self.viewport.left as i32,
-                self.height() + self.viewport.top as i32,
-                self.viewport.right as i32 - self.viewport.left as i32,
-                -self.viewport.top as i32,
-                x,
-                y,
-                self.viewport.right as i32 - self.viewport.left as i32,
-                -self.viewport.top as i32,
+                self.viewport.left as i32, self.height() + self.viewport.top as i32,//srcx, srcY
+                self.viewport.right as i32 - self.viewport.left as i32, -self.viewport.top as i32,//width, height
+                x, y,//destX, destY
+                self.viewport.right as i32 - self.viewport.left as i32, -self.viewport.top as i32,
             );
-            canvas.draw_image(
-                self.bitmap.as_ref(),
+            println!("{:?}", (
                 self.viewport.left as i32,
                 0,
                 self.viewport.right as i32 - self.viewport.left as i32,
@@ -338,7 +337,20 @@ impl BackgroundLayer {
                 y - self.viewport.top as i32,
                 self.viewport.right as i32 - self.viewport.left as i32,
                 self.viewport.bottom as i32,
+            ));
+            //DrawPart(destX, destY, srcX, srcY, width, height);
+            //drawImage(srcX, srcY, srcWidth, srcHeight, destX, destY, destWidth, destHeight);
+            println!("start>>>");
+            canvas.draw_image(
+                self.bitmap.as_ref(),
+                self.viewport.left as i32, 0, //srcX, srcY
+                self.viewport.right as i32 - self.viewport.left as i32,
+                self.viewport.bottom as i32,
+                x, y - self.viewport.top as i32,//destX, destY
+                self.viewport.right as i32 - self.viewport.left as i32,
+                self.viewport.bottom as i32,
             );
+            println!(">>>ok...");
         } else if self.viewport.right as i32 > self.width() {
             //绘制拆开的视口，从右侧环绕到左侧
             let w = self.width() - self.viewport.left as i32;

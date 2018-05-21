@@ -13,9 +13,9 @@ pub trait Bitmap {
     fn width(&self) -> i32;
     fn height(&self) -> i32;
     fn id(&self) -> u8;
+    fn url(&self) -> &str;
 }
 
-#[derive(Copy)]
 pub struct HtmlImage {
     pub width: i32,
     pub height: i32,
@@ -24,7 +24,11 @@ pub struct HtmlImage {
 
 impl Clone for HtmlImage {
     fn clone(&self) -> HtmlImage {
-        *self
+        HtmlImage {
+            width: self.width,
+            height: self.height,
+            id: self.id,
+        }
     }
 }
 
@@ -43,6 +47,9 @@ impl Bitmap for HtmlImage {
     }
     fn id(&self) -> u8 {
         self.id
+    }
+    fn url(&self) -> &str {
+        ""
     }
 }
 
