@@ -103,7 +103,7 @@ fn main() {
 
                             MSG_DISCONNECT => {
                                 //玩家断开连接
-                                game.server_leave_game(ip);
+                                game.server_leave_game(ip.clone());
                                 info!(
                                     "玩家离开游戏{} 在线人数:{}",
                                     ip,
