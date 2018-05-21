@@ -24,7 +24,7 @@ impl ScrollingBackground {
         }
     }
 
-    pub fn add_layer(&mut self, layer: BackgroundLayer){
+    pub fn add_layer(&mut self, layer: BackgroundLayer) {
         self.layers.push(layer);
     }
 }

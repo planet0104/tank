@@ -6,20 +6,21 @@ extern crate tank;
 extern crate websocket;
 use bincode::{deserialize, serialize};
 
-use tank::utils::duration_to_milis;
-use tank::{KeyEvent, Player, SyncData, GAME, MSG_CONNECT, MSG_DISCONNECT, MSG_KEY_EVENT,
-           MSG_START, MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_ERR, SERVER_MSG_EVENT, SERVER_MSG_IP,
+use tank::engine::sprite::Sprite;
+use tank::engine::utils::duration_to_milis;
+use tank::{KeyEvent, SyncData, GAME, MSG_CONNECT, MSG_DISCONNECT, MSG_KEY_EVENT, MSG_START,
+           MSG_SYNC_DATA, SERVER_IP, SERVER_MSG_ERR, SERVER_MSG_EVENT, SERVER_MSG_IP,
            SERVER_MSG_PLAYERS, SERVER_MSG_SYNC, SERVER_SYNC_DELAY};
 
-use std::sync::mpsc::{channel, Receiver, Sender};
-use std::time::{Duration, Instant};
-use std::thread;
-use websocket::OwnedMessage;
-use websocket::sync::Server;
-use std::sync::{Arc, RwLock};
 use std::collections::HashMap;
-use websocket::result::WebSocketError;
 use std::io::ErrorKind;
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, RwLock};
+use std::thread;
+use std::time::{Duration, Instant};
+use websocket::OwnedMessage;
+use websocket::result::WebSocketError;
+use websocket::sync::Server;
 
 use env_logger::Builder;
 use log::LevelFilter;
@@ -63,7 +64,13 @@ fn main() {
                             MSG_CONNECT => {
                                 if let Ok(mut encoded) = serialize(&ip.to_string()) {
                                     encoded.insert(0, SERVER_MSG_IP);
-                                    messages.push(encoded);
+                                    if let Ok(mut encoded) = serialize(&vec![encoded]) {
+                                        send_binary_message(
+                                            connections_clone.clone(),
+                                            &ip,
+                                            encoded,
+                                        );
+                                    }
                                 }
                             }
                             MSG_START => {
@@ -80,8 +87,11 @@ fn main() {
                                     //下发玩家列表
                                     let players = game.players()
                                         .iter()
-                                        .map(|(id, player)| (*id, player.name.clone()))
-                                        .collect::<Vec<(u32, String)>>();
+                                        .map(|(id, player)| {
+                                            let player = player.borrow();
+                                            (*id, player.ip.clone(), player.name().clone())
+                                        })
+                                        .collect::<Vec<(u32, String, String)>>();
                                     if let Ok(mut encoded) = serialize(&players) {
                                         encoded.insert(0, SERVER_MSG_PLAYERS);
                                         messages.push(encoded);
@@ -92,13 +102,13 @@ fn main() {
                             }
 
                             MSG_DISCONNECT => {
+                                //玩家断开连接
+                                game.server_leave_game(ip);
                                 info!(
                                     "玩家离开游戏{} 在线人数:{}",
                                     ip,
                                     game.players().len()
                                 );
-                                //玩家断开连接
-                                game.server_leave_game(ip);
                             }
 
                             MSG_KEY_EVENT => {
@@ -276,33 +286,33 @@ fn main() {
 //     }
 // }
 
-// fn send_binary_message(
-//     connections: Arc<RwLock<HashMap<String, Writer>>>,
-//     uuid: &String,
-//     message: Vec<u8>,
-// ) {
-//     //info!("send_message: {} to {}", message, uuid);
-//     let mut connections = connections.write().unwrap();
-//     if !connections.contains_key(uuid) {
-//         info!("uuid不存在 {}", uuid);
-//         return;
-//     }
-//     if let Err(err) = connections
-//         .get_mut(uuid)
-//         .unwrap()
-//         .send_message(&OwnedMessage::Binary(message))
-//     {
-//         info!("消息发送失败: {:?}", err);
-//         match err {
-//             WebSocketError::IoError(err) => {
-//                 if err.kind() == ErrorKind::ConnectionAborted {
-//                     connections.remove(uuid);
-//                 }
-//             }
-//             _ => {}
-//         }
-//     }
-// }
+fn send_binary_message(
+    connections: Arc<RwLock<HashMap<String, Writer>>>,
+    uuid: &String,
+    message: Vec<u8>,
+) {
+    //info!("send_message: {} to {}", message, uuid);
+    let mut connections = connections.write().unwrap();
+    if !connections.contains_key(uuid) {
+        info!("uuid不存在 {}", uuid);
+        return;
+    }
+    if let Err(err) = connections
+        .get_mut(uuid)
+        .unwrap()
+        .send_message(&OwnedMessage::Binary(message))
+    {
+        info!("消息发送失败: {:?}", err);
+        match err {
+            WebSocketError::IoError(err) => {
+                if err.kind() == ErrorKind::ConnectionAborted {
+                    connections.remove(uuid);
+                }
+            }
+            _ => {}
+        }
+    }
+}
 
 fn broad_cast_binary_message(connections: Arc<RwLock<HashMap<String, Writer>>>, message: Vec<u8>) {
     //info!("broad_cast_message: {}", message);

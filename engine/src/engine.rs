@@ -104,7 +104,10 @@ impl GameEngine {
             if i == test_sprite_id {
                 continue;
             }
-            if self.sprites[test_sprite_id].borrow().test_collison(self.sprites[i].borrow().position()) {
+            if self.sprites[test_sprite_id]
+                .borrow()
+                .test_collison(self.sprites[i].borrow().position())
+            {
                 return callback
                     .borrow_mut()
                     .on_sprite_collision(self, i, test_sprite_id);
