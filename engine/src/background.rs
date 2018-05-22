@@ -318,8 +318,6 @@ impl BackgroundLayer {
                 self.viewport.bottom as i32 - self.height(),
             );
         } else if self.viewport.top < 0.0 {
-            //DrawPart(destX, destY, srcX, srcY, width, height);
-            //drawImage(srcX, srcY, srcWidth, srcHeight, destX, destY, destWidth, destHeight);
             //绘制拆开的视口，从顶部环绕到底部
             canvas.draw_image(
                 self.bitmap.as_ref(),
@@ -328,19 +326,6 @@ impl BackgroundLayer {
                 x, y,//destX, destY
                 self.viewport.right as i32 - self.viewport.left as i32, -self.viewport.top as i32,
             );
-            println!("{:?}", (
-                self.viewport.left as i32,
-                0,
-                self.viewport.right as i32 - self.viewport.left as i32,
-                self.viewport.bottom as i32,
-                x,
-                y - self.viewport.top as i32,
-                self.viewport.right as i32 - self.viewport.left as i32,
-                self.viewport.bottom as i32,
-            ));
-            //DrawPart(destX, destY, srcX, srcY, width, height);
-            //drawImage(srcX, srcY, srcWidth, srcHeight, destX, destY, destWidth, destHeight);
-            println!("start>>>");
             canvas.draw_image(
                 self.bitmap.as_ref(),
                 self.viewport.left as i32, 0, //srcX, srcY
@@ -350,7 +335,6 @@ impl BackgroundLayer {
                 self.viewport.right as i32 - self.viewport.left as i32,
                 self.viewport.bottom as i32,
             );
-            println!(">>>ok...");
         } else if self.viewport.right as i32 > self.width() {
             //绘制拆开的视口，从右侧环绕到左侧
             let w = self.width() - self.viewport.left as i32;
