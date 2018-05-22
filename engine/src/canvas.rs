@@ -18,6 +18,9 @@ pub trait Canvas {
         dest_width: i32,
         dest_height: i32,
     );
+    fn translate(&self, _x: i32, _y:i32){}
+    fn save(&self){}
+    fn restore(&self){}
     fn line_width(&self, _width: i32) {}
     fn set_font(&self, _font: &str) {}
     fn fill_style(&self, _style: &str) {}

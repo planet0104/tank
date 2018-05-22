@@ -330,6 +330,24 @@ impl Canvas for JSCanvas {
         }
     }
 
+    fn translate(&self, x:i32, y:i32){
+        js!{
+            ctx.translate(@{x}, @{y});
+        }
+    }
+
+    fn save(&self){
+        js!{
+            ctx.save();
+        }
+    }
+
+    fn restore(&self){
+        js!{
+            ctx.restore();
+        }
+    }
+
     fn draw_image(
         &self,
         bitmap: &Bitmap,

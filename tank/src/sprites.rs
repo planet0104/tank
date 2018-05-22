@@ -1,5 +1,5 @@
 use engine::HtmlImage;
-use engine::sprite::{Entity, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
+use engine::sprite::{Entity, PointF, Rect, Sprite, BA_DIE, BA_STOP, BA_WRAP};
 use engine::utils::rand_int;
 use {CLIENT_HEIGHT, CLIENT_WIDTH, PLAYER_LIVES, TANK_BITMAP_HEIGHT, TANK_BITMAP_WIDTH};
 
@@ -22,6 +22,7 @@ pub const RES_LG_EXPLOSION_BITMAP: u8 = 2;
 pub const RES_SM_EXPLOSION_BITMAP: u8 = 3;
 pub const RES_SM_GUN_BITMAP: u8 = 4;
 pub const RES_NURSE_BITMAP: u8 = 5;
+pub const RES_BG_BITMAP: u8 = 6;
 
 pub const SM_GUN_BITMAP: HtmlImage = HtmlImage {
     id: RES_SM_GUN_BITMAP,
@@ -46,7 +47,7 @@ impl TankSprite {
             }),
             position,
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
-            BA_WRAP,
+            BA_STOP,
         );
         entity.set_num_frames(4, false);
         entity.set_frame_delay(-1);
