@@ -348,6 +348,12 @@ impl Canvas for JSCanvas {
         }
     }
 
+    fn rotate(&self, degree: f64){
+        js!{
+            ctx.rotate(@{degree});
+        }
+    }
+
     fn draw_image(
         &self,
         bitmap: &Bitmap,

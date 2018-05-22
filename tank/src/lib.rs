@@ -618,9 +618,23 @@ impl TankGame {
         //-------------- 平移，使当前玩家处于屏幕中央 ---------------------------
         //---------------------------------------------------------------------
         canvas.save();
+        let mut window_width = platform.window_inner_width();
+        let mut window_height = platform.window_inner_height();
+        //检查是否横屏
+        if window_width<window_height{
+            let w = window_width;
+            window_width = window_height;
+            window_height = w;
+
+            canvas.translate(platform.window_inner_width(), 0);
+            canvas.rotate(std::f64::consts::PI/2.0);
+        }
+
+        canvas.save();
+
         if let Some(current_player) = &self.current_player {
             let current_player = current_player.borrow();
-            let (cw, ch) = (platform.window_inner_width(), platform.window_inner_height());
+            let (cw, ch) = (window_width, window_height);
             canvas.translate(-current_player.position().left as i32 + cw/2 - TANK_BITMAP_WIDTH/2, -current_player.position().top as i32 + ch/2 - TANK_BITMAP_HEIGHT/2);
         }
 
@@ -661,12 +675,12 @@ impl TankGame {
                         .or_else(|| Some(String::new()))
                         .unwrap()
                 ),
-                platform.window_inner_width() - 260,
+                window_width - 260,
                 lead * 40,
             );
             canvas.set_font("18px 微软雅黑");
             canvas.fill_style("#f00");
-            canvas.fill_text(&format!("{}分", player.1), platform.window_inner_width() - 90, lead * 40);
+            canvas.fill_text(&format!("{}分", player.1), window_width - 90, lead * 40);
             lead += 1;
         }
 
@@ -693,16 +707,16 @@ impl TankGame {
             canvas.set_font("36px 微软雅黑");
             canvas.fill_text(
                 &format!("被[{}]炸死", current_player.killer_name()),
-                platform.window_inner_width() / 2 - 185,
-                platform.window_inner_height() / 2 - 50,
+                window_width / 2 - 185,
+                window_height / 2 - 50,
             );
             canvas.fill_text(
                 &format!(
                     "{}秒之后重生",
                     (self.client_dying_delay_ms as i32 / 1000) + 1
                 ),
-                platform.window_inner_width() / 2 - 185,
-                platform.window_inner_height() / 2 - 10,
+                window_width / 2 - 185,
+                window_height / 2 - 10,
             );
             self.client_dying_delay_ms -= elapsed_ms;
             if self.client_dying_delay_ms <= 0.0 {
@@ -744,9 +758,9 @@ impl TankGame {
         canvas.fill_text(
             "源码:https://github.com/planet0104/tank",
             10,
-            platform.window_inner_height() - 20,
+            window_height - 20,
         );
-
+        canvas.restore();
         self.last_timestamp = timestamp;
         platform.request_animation_frame();
     }

@@ -19,6 +19,7 @@ pub trait Canvas {
         dest_height: i32,
     );
     fn translate(&self, _x: i32, _y:i32){}
+    fn rotate(&self, _degree: f64){}
     fn save(&self){}
     fn restore(&self){}
     fn line_width(&self, _width: i32) {}
