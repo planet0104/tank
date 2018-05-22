@@ -22,7 +22,7 @@
     </head>
 <body>
 <canvas id="canvas" style="background:#ccc;"></canvas>
-<div id="game_pad" style="display: none; position: absolute; width: 100%; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(255, 255, 255, 0.1);">
+<div id="game_pad" style="display: none; position: absolute; width: 100%; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(0, 0, 0, 0);">
     <div id="game_pad_direction" style="background: url(control.png); width:128px; height:128px; display: block; position: absolute; left: 5px; top: 2px;"></div>
     <div id="game_pad_button_a" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 5px; top: 5px;"></div>
     <div id="game_pad_button_b" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 60px; bottom: 5px;"></div>
@@ -33,6 +33,7 @@
         <div><input id="btn_start" type="button" style="width: 104.5pt; height: 40pt; margin-top: 6pt;" value="进入游戏" /></div>
     </div>
 </div>
+<button id="btnFullScreen" onclick="setFullScreen(this)" style="position: fixed; right: 0px; width: 40pt;height: 40pt; border-radius: 20pt; border:solid 2pt rgba(255, 255, 255, 0.3);  font-size: 10pt; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.6)">全屏<br/>模式</button>
 <script>
     var url_asmjs = window.location.href.endsWith("asmjs=1");
     //绘图画布
@@ -187,6 +188,41 @@
         append_js("client-asm.js");
     }else{
         append_js("client.js");
+    }
+
+    // 找到支持的方法, 使用需要全屏的 element 调用
+    function launchFullScreen(element) {
+        if(element.requestFullscreen) {
+            element.requestFullscreen();
+        } else if(element.mozRequestFullScreen) {
+            element.mozRequestFullScreen();
+        } else if(element.webkitRequestFullscreen) {
+            element.webkitRequestFullscreen();
+        } else if(element.msRequestFullscreen) {
+            element.msRequestFullscreen();
+        }
+    }
+
+    // 退出 fullscreen
+    function exitFullscreen() {
+        if(document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if(document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if(document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        }
+    }
+
+    function setFullScreen(btn){
+        console.log(btn.innerHTML);
+        if(btn.innerHTML == "全屏<br>模式"){
+            launchFullScreen(document.documentElement);
+            btn.innerHTML = "退出<br/>全屏";
+        }else{
+            exitFullscreen();
+            btn.innerHTML = "全屏<br/>模式";
+        }
     }
 </script>
 </body>
