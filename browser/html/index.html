@@ -5,6 +5,8 @@
         <meta name="viewport" content="width=device-width, user-scalable=no">
         <meta charset="utf-8">
         <style type="text/css">
+        body,html{ padding: 0px; margin: 0px;}
+        #canvas{ position: fixed; }
             .centerme {
                 margin: 0 auto;
                 display: table;
@@ -18,7 +20,7 @@
             }
         </style>
     </head>
-<body style="padding:0px;margin:0;background: #2e6da3; overflow: hidden;">
+<body>
 <canvas id="canvas" style="background:#ccc;"></canvas>
 <div id="game_pad" style="display: none; position: absolute; width: 100%; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(255, 255, 255, 0.1);">
     <div id="game_pad_direction" style="background: url(control.png); width:128px; height:128px; display: block; position: absolute; left: 5px; top: 2px;"></div>
@@ -56,47 +58,12 @@
         }
     }
 
-    //随机移动
-    function random_move(){
-        //随机走一段距离
-        if (Math.random()>0.75){
-            var keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"];
-            var idx = Math.randInt(0, 3);
-            var event = new Event('keydown');
-            event.key = keys[idx];
-            document.dispatchEvent(event);
-        
-            setTimeout(() => {
-                var event = new Event('keyup');
-                event.key = keys[idx];
-                document.dispatchEvent(event);
-            }, Math.randInt(500, 3000));
-        }
-    }
-
-    //随机发射炮弹
-    function random_fire(){
-        if (Math.random()>0.75){
-            var event = new Event('keydown');
-            event.key = " ";
-            document.dispatchEvent(event);
-
-            var event = new Event('keyup');
-            event.key = " ";
-            document.dispatchEvent(event);
-        }
-    }
-
-    function random_action(){
-        random_move();
-        random_fire();
-    }
-
-    function _start(){
-        setInterval(() => {
-            random_action();
-        }, 400);
-    }
+    /**
+    * 产生L到B之间的随机整数
+    */
+    Math.randInt = function (L, B) {
+        return Math.floor( Math.random()*(B - L + 1)) + L;
+    };
 
     function ping(ip, callback) {
         var img = new Image();
@@ -112,7 +79,6 @@
             document.getElementById("game_pad").style.display = 'block';   
         }
     }catch(e){}
-    document.getElementById("game_pad").style.display = 'block';
 
     // ping("54.249.68.59", function(time){
     //         console.log("ping:"+time+"ms");
@@ -129,10 +95,11 @@
             Module._on_touch_event(target, eventType, clientX, clientY);
         }
     }
-var game_pad = document.getElementById("game_pad");
-var game_pad_direction = document.getElementById("game_pad_direction");
-var game_pad_button_a = document.getElementById("game_pad_button_a");
-var game_pad_button_b = document.getElementById("game_pad_button_b");
+    
+    var game_pad = document.getElementById("game_pad");
+    var game_pad_direction = document.getElementById("game_pad_direction");
+    var game_pad_button_a = document.getElementById("game_pad_button_a");
+    var game_pad_button_b = document.getElementById("game_pad_button_b");
 
     //-------- 按钮控制 ------------------
     game_pad_button_a.addEventListener("touchstart", function(event){

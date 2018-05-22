@@ -1,11 +1,8 @@
 [package]
-name = "tank"
+name = "wanderer"
 version = "0.1.0"
 authors = ["Jia Ye <planet0104@gmail.com>"]
 
 [dependencies]
 engine = { path = "../engine" }
-rand = "0.4.2"
-bincode = "1.0.0"
-serde_derive = "1.0.43"
-serde = "1.0.37"
+stdweb = "0.4.6"
