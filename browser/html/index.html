@@ -2,7 +2,25 @@
 <!DOCTYPE HTML>
 <html>
     <head>
-        <meta name="viewport" content="width=device-width, user-scalable=no">
+        <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="apple-mobile-web-app-title" content="Tank" />
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="format-detection"content="telephone=no, email=no" />
+
+        <!-- uc强制竖屏 -->
+        <meta name="screen-orientation" content="landscape">
+        
+        <!-- QQ强制竖屏 -->
+        <meta name="x5-orientation" content="landscape">
+        <!-- UC强制全屏 -->
+        <meta name="full-screen" content="yes">
+        <!-- QQ强制全屏 -->
+        <meta name="x5-fullscreen" content="true">
+        <!-- UC应用模式 -->
+        <meta name="browsermode" content="application">
+        <!-- QQ应用模式 -->
+        <meta name="x5-page-mode" content="app">
         <meta charset="utf-8">
         <style type="text/css">
         body,html{ padding: 0px; margin: 0px;}
@@ -33,7 +51,7 @@
         <div><input id="btn_start" type="button" style="width: 104.5pt; height: 40pt; margin-top: 6pt;" value="进入游戏" /></div>
     </div>
 </div>
-<button id="btnFullScreen" onclick="setFullScreen(this)" style="position: fixed; right: 0px; width: 40pt;height: 40pt; border-radius: 20pt; border:solid 2pt rgba(255, 255, 255, 0.3);  font-size: 10pt; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.6)">全屏<br/>模式</button>
+<button id="btnFullScreen" onclick="setFullScreen(this)" style="position: fixed; right: 0px; width: 40pt;height: 40pt; border-radius: 20pt; border:solid 2pt rgba(255, 255, 255, 0.3);  font-size: 8pt; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.6)">全屏<br/>模式</button>
 <script>
     var url_asmjs = window.location.href.endsWith("asmjs=1");
     //绘图画布
