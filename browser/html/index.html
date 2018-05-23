@@ -26,22 +26,86 @@
             -ms-transform: translateY(-50%);
             transform: translateY(-50%);
         }
+        .game_pad_direction{
+            /*
+                border-radius: 25px;
+                background: rgba(0, 0, 0, 0);
+            */
+            display: none;
+            width: 300px; height: 131px;
+            background: url(control.png);
+            width:128px;
+            height:128px;
+            display: block;
+            position: fixed;
+            left: 5px;
+            bottom: 2px;
+        }
+        .game_pad_buttons{
+            display: none;
+            width: 300px; height: 131px;
+            width:128px;
+            height:128px;
+            display: block;
+            position: fixed;
+            right: 5px;
+            bottom: 10px;
+        }
+        .game_pad_buttons #game_pad_button_a{
+            background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 5px; top: 5px;
+        }
+        .game_pad_buttons #game_pad_button_b{
+            background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 60px; bottom: 5px;
+        }
+        .game_pad_direction_landscape{
+            top: 10px;
+        }
+        .game_pad_buttons_landscape{
+            left: 10px;
+            right: auto;
+            bottom: 10px;
+        }
+        .game_pad_buttons_landscape #game_pad_button_a{
+            top: auto;
+            bottom: 5px;
+        }
+        .game_pad_buttons_landscape #game_pad_button_b{
+            bottom: auto;
+            top: 5px;
+        }
+
+        .input_name_dialog{
+            display: none; position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5)
+        }
+        .input_name_dialog_landscape .box{
+            transform: rotate(90deg);
+        }
+        .btn_full_screen{
+            position: fixed; right: 5px; top:5px; width: 40pt;height: 40pt; border-radius: 20pt; border:solid 2pt rgba(255, 255, 255, 0.3);  font-size: 8pt; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.6)
+        }
+        .btn_full_screen_landscape{
+            transform: rotate(90deg);
+            top: auto;
+            bottom: 5px;
+        }
         </style>
     </head>
 <body>
 <canvas id="canvas" style="background:#ccc;"></canvas>
-<div id="game_pad" style="display: none; position: absolute; width: 300px; height: 131px; margin-bottom: 10px; left: 0px; bottom: 0px; border-radius: 25px;background: rgba(0, 0, 0, 0);">
-    <div id="game_pad_direction" style="background: url(control.png); width:128px; height:128px; display: block; position: absolute; left: 5px; top: 2px;"></div>
-    <div id="game_pad_button_a" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 5px; top: 5px;"></div>
-    <div id="game_pad_button_b" style="background: url(button.png); width:48px; height:48px; display: block; position: absolute; right: 60px; bottom: 5px;"></div>
-</div>
-<div id="input_name_dialog" style="display: none; position: absolute; left: 0px; top: 0px; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5)">
+    <div id="game_pad_direction" class="game_pad_direction"></div>
+    <div id="game_pad_buttons" class="game_pad_buttons">
+        <div id="game_pad_button_a"></div>
+        <div id="game_pad_button_b"></div>
+    </div>
+<div id="input_name_dialog" class="input_name_dialog">
     <div class="centerme">
+        <div class="box">
         <input id="txt_user_name" type="text" style="width: 100pt; height: 30pt; text-align: center;" placeholder="请输入4个字大名" maxlength="4" />
         <div><input id="btn_start" type="button" style="width: 104.5pt; height: 40pt; margin-top: 6pt;" value="进入游戏" /></div>
+        </div>
     </div>
 </div>
-<button id="btnFullScreen" onclick="setFullScreen(this)" style="position: fixed; right: 0px; width: 40pt;height: 40pt; border-radius: 20pt; border:solid 2pt rgba(255, 255, 255, 0.3);  font-size: 8pt; background: rgba(0, 0, 0, 0.3); color: rgba(255, 255, 255, 0.6)">全屏<br/>模式</button>
+<button id="btnFullScreen" class="btn_full_screen" onclick="setFullScreen(this)">全屏<br/>模式</button>
 <script>
     var url_asmjs = window.location.href.endsWith("asmjs=1");
     //绘图画布
@@ -82,13 +146,22 @@
         img.src = "http://"+ip;
     }
 
+    function show_game_pad(){
+        document.getElementById("game_pad_direction").style.display = 'block';
+        document.getElementById("game_pad_buttons").style.display = 'block';
+    }
+    function hide_game_pad(){
+        document.getElementById("game_pad_direction").style.display = 'none';
+        document.getElementById("game_pad_buttons").style.display = 'none';
+    }
+
     //电脑版不显示游戏手柄
     try{
         if (/Android|webOS|iPhone|iPod|BlackBerry/i.test(navigator.userAgent)) {
-            document.getElementById("game_pad").style.display = 'block';
+            show_game_pad();
         }
     }catch(e){}
-    document.getElementById("game_pad").style.display = 'block';
+    show_game_pad();
 
     // ping("54.249.68.59", function(time){
     //         console.log("ping:"+time+"ms");
@@ -106,7 +179,6 @@
         }
     }
     
-    var game_pad = document.getElementById("game_pad");
     var game_pad_direction = document.getElementById("game_pad_direction");
     var game_pad_button_a = document.getElementById("game_pad_button_a");
     var game_pad_button_b = document.getElementById("game_pad_button_b");
@@ -143,9 +215,6 @@
         event.preventDefault();
         game_on_touch_event(window.ID_GAME_PAD_DIRECTION, window.ID_TOUCHEND, 0, 0);
     });
-    
-    game_pad.style.transform = "translate("+-game_pad.clientHeight*0.5+"px, "+ (-window.innerHeight+game_pad.clientWidth/1.2) +"px) rotate(90deg)";
-    //game_pad.style.width = window.innerHeight+"px";
 </script>
 <script>
     //webassembly使用

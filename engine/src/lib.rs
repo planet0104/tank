@@ -9,6 +9,9 @@ pub mod vector_2d;
 pub use engine::GameEngine;
 pub use engine::UpdateCallback;
 
+pub const LANDSCAPE: i32 = 1;//横屏
+pub const PORTRAIT:i32 = 0;//竖屏
+
 pub trait Bitmap {
     fn width(&self) -> i32;
     fn height(&self) -> i32;

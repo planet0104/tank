@@ -44,7 +44,7 @@ use stdweb::web::event::{
     IMessageEvent, IKeyboardEvent, //IEvent
 };
 
-use tank::{Platform, Context, Bitmap};
+use tank::{LANDSCAPE, PORTRAIT, Platform, Context, Bitmap};
 use tank::engine::canvas::Canvas;
 use std::cell::RefCell;
 use tank::{ GAME, KEY_MAP, KeyEvent, VK_SPACE, VK_LEFT, VK_RIGHT, VK_UP, VK_DOWN};
@@ -301,6 +301,24 @@ impl Platform for JSPlatform{
             canvas.height = @{height};
         }
     }
+
+    fn set_orientation(&self, orientation:i32){
+        if orientation == PORTRAIT{
+            js!{
+                game_pad_direction.className="game_pad_direction game_pad_direction_landscape";
+                game_pad_buttons.className="game_pad_buttons game_pad_buttons_landscape";
+                document.getElementById("input_name_dialog").className = "input_name_dialog input_name_dialog_landscape";
+                document.getElementById("btnFullScreen").className = "btn_full_screen btn_full_screen_landscape";
+            };
+        }else{
+            js!{
+                game_pad_direction.className="game_pad_direction";
+                game_pad_buttons.className="game_pad_buttons";
+                document.getElementById("input_name_dialog").className = "input_name_dialog";
+                document.getElementById("btnFullScreen").className = "btn_full_screen";
+            };
+        }
+    }
 }
 
 impl Canvas for JSCanvas {
@@ -460,8 +478,8 @@ fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
                     },
                     ID_TOUCHMOVE | ID_TOUCHSTART => {
                         //方向按钮按下 判断按钮方向
-                        let offset_left:i32 =  js!(return game_pad.offsetLeft + game_pad_direction.offsetLeft).try_into().unwrap();
-                        let offset_top:i32 =  js!(return game_pad.offsetTop + game_pad_direction.offsetTop).try_into().unwrap();
+                        let offset_left:i32 =  js!(return game_pad_direction.offsetLeft).try_into().unwrap();
+                        let offset_top:i32 =  js!(return game_pad_direction.offsetTop).try_into().unwrap();
                         //方向按钮按下 判断按钮方向
                         let x = client_x - offset_left;
                         let y = client_y - offset_top;
@@ -469,21 +487,25 @@ fn handle_touch_event(target:i32, event_type: i32, client_x:i32, client_y:i32){
                         let btn_width = offset_width/3;
                         let direction_status = game_pad_direction.get_attribute("status").unwrap_or("0".to_string()).parse::<i32>().unwrap();
 
+                        //上
                         if x>=btn_width&&x<=btn_width*2&&y<=btn_width && direction_status != 1 {
                             let _ = game_pad_direction.set_attribute("status", "1");
                             events.push((KeyEvent::KeyDown, VK_UP));
                         }
 
+                        //下
                         if x>=btn_width&&x<btn_width*2&&y>=btn_width*2&&y<=btn_width*3 && direction_status != 2 {
                             let _ = game_pad_direction.set_attribute("status", "2");
                             events.push((KeyEvent::KeyDown, VK_DOWN));
                         }
 
+                        //左
                         if x<=btn_width&&y>=btn_width&&y<=btn_width*2 && direction_status != 3 {
                             let _ = game_pad_direction.set_attribute("status", "3");
                             events.push((KeyEvent::KeyDown, VK_LEFT));
                         }
 
+                        //右
                         if x>=btn_width*2&&y>=btn_width&&y<=btn_width*2 && direction_status != 4 {
                             let _ = game_pad_direction.set_attribute("status", "4");
                             events.push((KeyEvent::KeyDown, VK_RIGHT));

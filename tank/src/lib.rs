@@ -9,7 +9,7 @@ use bincode::{deserialize, serialize};
 use engine::canvas::Canvas;
 use engine::sprite::{Entity, PointF, Rect, Sprite, BA_DIE, BA_WRAP};
 use engine::utils::rand_int;
-pub use engine::{Bitmap, GameEngine, HtmlImage, UpdateCallback};
+pub use engine::{LANDSCAPE, PORTRAIT, Bitmap, GameEngine, HtmlImage, UpdateCallback};
 use sprites::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -40,6 +40,7 @@ pub trait Platform {
     fn pick_messages(&self) -> Vec<String>;
     fn pick_binary_messages(&self) -> Vec<Vec<u8>>;
     fn current_time_millis(&self) -> f64;
+    fn set_orientation(&self, orientation:i32);
 }
 
 //socket消息
@@ -384,6 +385,7 @@ pub struct TankGame {
     next_nurse_time: f64,       //(server)上次出现护士时间
     client_last_sync_time: f64, //(client)上次数据同步时间
     client_binary_messages: Vec<Vec<u8>>,
+    orientation: i32, //0 竖屏 1横屏
 }
 
 impl TankGame {
@@ -413,6 +415,7 @@ impl TankGame {
             start_time_milis: 0.0,
             client_last_sync_time: 0.0,
             client_binary_messages: vec![],
+            orientation: PORTRAIT
         }
     }
 
@@ -485,7 +488,7 @@ impl TankGame {
 
         platform.set_on_window_resize_listener(|| {
             GAME.with(|game| {
-                game.borrow().client_resize_window();
+                game.borrow_mut().client_resize_window();
             });
         });
 
@@ -592,7 +595,20 @@ impl TankGame {
         }
 
         //键盘事件
-        let key_events = platform.pick_key_events();
+        let mut key_events = platform.pick_key_events();
+        //如果是竖屏,对事件修改: 上=>左; 下=>右;  左=>下; 右=>上;
+        if self.orientation == PORTRAIT{
+            for event in &mut key_events{
+                let etype = event.0.clone();
+                match event.1{
+                    VK_UP => *event = (etype, VK_LEFT),
+                    VK_DOWN => *event = (etype, VK_RIGHT),
+                    VK_LEFT => *event = (etype, VK_DOWN),
+                    VK_RIGHT => *event = (etype, VK_UP),
+                    _ => {}
+                }
+            }
+        }
         if self.current_player_id != 0 {
             for key_event in key_events {
                 self.client_on_key_event(key_event.0.clone(), key_event.1);
@@ -620,8 +636,8 @@ impl TankGame {
         canvas.save();
         let mut window_width = platform.window_inner_width();
         let mut window_height = platform.window_inner_height();
-        //检查是否横屏
-        if window_width<window_height{
+        //检查是否竖屏
+        if self.orientation == PORTRAIT{
             let w = window_width;
             window_width = window_height;
             window_height = w;
@@ -1201,29 +1217,16 @@ impl TankGame {
     }
 
     //窗口大小改变时，画布适应窗口
-    fn client_resize_window(&self) {
+    fn client_resize_window(&mut self) {
         let platform = self.client_context.as_ref().unwrap().platform.clone();
-        // let (width, height) = (
-        //     platform.window_inner_width() - 5,
-        //     platform.window_inner_height() - 5,
-        // );
-        // let (cwidth, cheight) = if width < height {
-        //     //竖屏
-        //     (
-        //         width,
-        //         (width as f32 / CLIENT_WIDTH as f32 * CLIENT_HEIGHT as f32) as i32,
-        //     )
-        // } else {
-        //     //横屏
-        //     (
-        //         (height as f32 / CLIENT_HEIGHT as f32 * CLIENT_WIDTH as f32) as i32,
-        //         height,
-        //     )
-        // };
-
-        // platform.set_canvas_style_width(cwidth);
-        // platform.set_canvas_style_height(cheight);
-        // platform.set_canvas_style_margin((width - cwidth) / 2, (height - cheight) / 2, 0, 0);
+        if platform.window_inner_width()<platform.window_inner_height(){
+            //竖屏
+            self.orientation = PORTRAIT;
+        }else{
+            //横屏
+            self.orientation = LANDSCAPE;
+        }
+        platform.set_orientation(self.orientation);
         platform.set_canvas_width(platform.window_inner_width());
         platform.set_canvas_height(platform.window_inner_height());
     }
