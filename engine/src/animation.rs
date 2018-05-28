@@ -25,6 +25,11 @@ impl Animation{
         frame_delay: duration as f64/frame_count as f64,
         time_elapsed: 0.0}
     }
+
+    pub fn infinite(bitmap:Rc<RefCell<Bitmap>>, src_x:u32, src_y:u32, frame_width:u32, frame_height:u32, frame_count:u32, duration: u32) -> Animation{
+        Animation::new(bitmap, src_x, src_y, frame_width, frame_height, frame_count, duration, -1)
+    }
+
     //单帧精灵
     pub fn single_frame(bitmap:Rc<RefCell<Bitmap>>, src_x:u32, src_y:u32, frame_width:u32, frame_height:u32) -> Animation{
         Animation{bitmap, src_x, src_y, frame_width, frame_height, frame_count:1, frame_delay:0.0, loops:0, cur_frame: 0, _duration: 0,
@@ -51,9 +56,7 @@ impl Animation{
 
     //绘制当前帧
     pub fn draw(&self, x:i32, y:i32, context: &Canvas){
-        // if self.bitmap.borrow().id() == 3{
-        //     context.console_log(&format!("cur_frame={} self.time_elapsed={}", self.cur_frame, self.time_elapsed));
-        // }
+        //context.console_log(&format!("cur_frame={} self.time_elapsed={}", self.cur_frame, self.time_elapsed));
         context.draw_image(
             &*self.bitmap.borrow(),
             (self.src_x+(self.cur_frame%self.frame_count) * self.frame_width) as i32,

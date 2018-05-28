@@ -1,0 +1,44 @@
+boss动画:
+1.站立(1帧 [shapes:528拼529])
+2.跑步(5帧 [shapes:537-541拼540])
+3.投掷(10帧 [shapes:543-552])
+4.跳跃(3帧 [shapes:554-556])
+5.被击中(5帧 [shapes:561-565])
+6.下蹲(5帧 [shapes:567-571])
+7.死亡1(15帧 [shapes:573-588])
+8.死亡2(12帧 [shapes:590-602])
+
+玩家动画:
+------------------------------------------
+1.stand(109帧 sprite:439:f202-f311) 每隔5帧取15帧
+2.walk(18帧 sprite:447)
+3.throw(31帧 sprite:460)
+4.jump(21帧 sprite:465)
+5.hit(11帧 sprite:471)
+6.crouch(33帧 sprite:477)
+
+x:961,width:167
+y:416,height:220
+------------------------------------------
+7.positive_dying(44帧 sprite:501)
+(x:913,y:408,width:282,height:236)
+8.behind_dying(41帧 sprite:526)
+(x:793,y:441,width:220,height:200)
+
+雪动画:
+1.faceprint(18帧-shapes 38-55)
+2.ballprint(7帧-shapes 57-63)
+3.飘雪(代码生成)(74帧 142-216)
+
+
+图片：
+1.人影bad_shadow(shapes 65)
+2.雪球snowball(shapes 67)
+3.脚印footprint(shapes 69)
+4.生命lives(shapes 398)
+5.雪堆snowdrift(shapes 422)
+6.雪球影子snowball_shadow(shapes 860)
+7.背景1(images-410)
+8.背景2(images-414)
+	
+
