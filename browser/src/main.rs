@@ -322,6 +322,9 @@ impl Platform for JSPlatform{
 }
 
 impl Canvas for JSCanvas {
+    fn console_log(&self, s: &str){
+        console!(log, s);
+    }
     fn draw_image_repeat(&self, bitmap: &Bitmap, x: i32, y: i32, width: i32, height: i32) {
         js!{
             ctx.fillStyle = ctx.createPattern(window.resMap.get(@{bitmap.id()}+""), "repeat");

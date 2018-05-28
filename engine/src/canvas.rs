@@ -29,4 +29,5 @@ pub trait Canvas {
     fn fill_rect(&self, _x: i32, _y: i32, _width: i32, _height: i32) {}
     fn stroke_rect(&self, _x: i32, _y: i32, _width: i32, _height: i32) {}
     fn fill_text(&self, _text: &str, _x: i32, _y: i32) {}
+    fn console_log(&self, _s: &str) {}
 }

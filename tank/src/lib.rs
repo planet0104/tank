@@ -72,22 +72,22 @@ pub const SPRITE_UPDATE_FPS: u32 = 5;
 pub const TANK_VELOCITY: f64 = 0.3;
 pub const MISSILE_VELOCITY: f64 = 0.5;
 pub const PLAYER_LIVES: u32 = 6; //生命值
-pub const TANK_BITMAP_WIDTH: i32 = 57;
-pub const TANK_BITMAP_HEIGHT: i32 = 57;
+pub const TANK_BITMAP_WIDTH: u32 = 57;
+pub const TANK_BITMAP_HEIGHT: u32 = 57;
 pub const SERVER_SYNC_DELAY: u64 = 100; //15帧刷新速度, 20人在线, 每次广播1K数据, 每秒广播15Kx20=300K数据,  100人1.5M/S?
 pub const CLIENT_SYNC_DELAY: u64 = 100;
 
 // pub const SERVER_IP: &str = "127.0.0.1:8080";
 // pub const CLIENT_IP: &str = "127.0.0.1:8080";
 
-// pub const SERVER_IP: &str = "192.168.192.122:8080";
-// pub const CLIENT_IP: &str = "192.168.192.122:8080";
+pub const SERVER_IP: &str = "192.168.192.122:8080";
+pub const CLIENT_IP: &str = "192.168.192.122:8080";
 
 // pub const SERVER_IP:&str = "192.168.1.108:8080";
 // pub const CLIENT_IP:&str = "192.168.1.108:8080";
 
-pub const SERVER_IP: &str = "172.31.33.204:8414";
-pub const CLIENT_IP: &str = "54.249.68.59:8414";
+// pub const SERVER_IP: &str = "172.31.33.204:8414";
+// pub const CLIENT_IP: &str = "54.249.68.59:8414";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum KeyEvent {
@@ -127,8 +127,8 @@ pub struct SyncData {
     pub id: u32,
     pub x: i16,
     pub y: i16,
-    pub res: u8,
-    pub frame: u8,
+    pub class: u8,
+    pub animation: u8,
     pub velocity_x: f32,
     pub velocity_y: f32,
     pub extra: Option<ExtraData>,
@@ -551,10 +551,10 @@ impl TankGame {
                 //上传玩家数据
                 let data = SyncData {
                     id: current_player.id(),
-                    frame: current_player.cur_frame() as u8,
+                    animation: current_player.cur_animation_index() as u8,
                     x: current_player.position().left as i16,
                     y: current_player.position().top as i16,
-                    res: current_player.bitmap().id(),
+                    class: current_player.class() as u8,
                     velocity_x: current_player.velocity().x as f32,
                     velocity_y: current_player.velocity().y as f32,
                     extra: None,
@@ -651,7 +651,7 @@ impl TankGame {
         if let Some(current_player) = &self.current_player {
             let current_player = current_player.borrow();
             let (cw, ch) = (window_width, window_height);
-            canvas.translate(-current_player.position().left as i32 + cw/2 - TANK_BITMAP_WIDTH/2, -current_player.position().top as i32 + ch/2 - TANK_BITMAP_HEIGHT/2);
+            canvas.translate(-current_player.position().left as i32 + cw/2 - TANK_BITMAP_WIDTH as i32/2, -current_player.position().top as i32 + ch/2 - TANK_BITMAP_HEIGHT as i32/2);
         }
 
         //背景边框和颜色
@@ -786,7 +786,7 @@ impl TankGame {
             let mut player_sprite = player_sprite.borrow_mut();
             player_sprite.set_position_point(data.x as f64, data.y as f64);
             player_sprite.set_velocity(data.velocity_x as f64, data.velocity_y as f64);
-            player_sprite.set_cur_frame(data.frame as i32);
+            player_sprite.set_cur_animation(data.animation as usize);
         }
     }
 
@@ -825,7 +825,7 @@ impl TankGame {
                         born_position.y - sprite.position().top,
                     );
                     let distance = (dx * dx + dy * dy).sqrt();
-                    if distance < sprite.bitmap().width() as f64 {
+                    if distance < sprite.cur_animation().width() as f64 {
                         overlap = true;
                         break;
                     }
@@ -908,18 +908,18 @@ impl TankGame {
                     //sprite.set_position(sdata.x as f64, sdata.y as f64);
                     sprite.set_target_position(PointF::new(sdata.x as f64, sdata.y as f64));
                     sprite.set_velocity(sdata.velocity_x as f64, sdata.velocity_y as f64);
-                    sprite.set_cur_frame(sdata.frame as i32);
+                    sprite.set_cur_animation(sdata.animation as usize);
                 }
                 //更新精灵
-                if sdata.res == RES_NURSE_BITMAP {
+                if sdata.class as i32 == SPRITE_NURSE {
 
-                } else if sdata.res == RES_TANK_BITMAP {
+                } else if sdata.class as i32 == SPRITE_TANK {
                     //更新得分
                     if let Some(extra) = sdata.extra {
                         sprite.set_score(extra.score as i32);
                         sprite.set_lives(extra.lives as u32);
                     }
-                } else if sdata.res == RES_MISSILE_BITMAP {
+                } else if sdata.class as i32 == SPRITE_MISSILE {
 
                 }
             } else {
@@ -931,11 +931,11 @@ impl TankGame {
                         x: sdata.x as f64,
                         y: sdata.y as f64,
                     };
-                    match sdata.res {
-                        RES_LG_EXPLOSION_BITMAP => {
+                    match sdata.class as i32 {
+                        SPRITE_LG_EXPLOSION => {
                             Rc::new(RefCell::new(LGExplosionSprite::new(sdata.id, pos)))
                         }
-                        RES_TANK_BITMAP => {
+                        SPRITE_TANK => {
                             let tank_sprite = Rc::new(RefCell::new(TankSprite::new(
                                 String::new(),
                                 sdata.id,
@@ -944,10 +944,10 @@ impl TankGame {
                             tank = Some(tank_sprite.clone());
                             tank_sprite
                         }
-                        RES_MISSILE_BITMAP => {
+                        SPRITE_MISSILE => {
                             Rc::new(RefCell::new(MissileSprite::new(sdata.id, pos)))
                         }
-                        RES_NURSE_BITMAP => {
+                        SPRITE_NURSE => {
                             Rc::new(RefCell::new(NruseSprite::new(sdata.id, Some(pos))))
                         }
                         _ => Rc::new(RefCell::new(SMExplosionSprite::new(sdata.id, pos))),
@@ -972,7 +972,7 @@ impl TankGame {
                 }
 
                 let mut sprite = &mut self.engine.sprites()[sidx].borrow_mut();
-                sprite.set_cur_frame(sdata.frame as i32);
+                sprite.set_cur_animation(sdata.animation as usize);
                 sprite.set_velocity(sdata.velocity_x as f64, sdata.velocity_y as f64);
                 //platform.console_log(&format!("创建精灵：{:?}", sdata));
 
@@ -1042,7 +1042,7 @@ impl TankGame {
                         VK_SPACE => {
                             let (tank_position, direction) = {
                                 let mut tank_sprite = self.engine.sprites()[idx].borrow_mut();
-                                (*tank_sprite.position(), tank_sprite.cur_frame())
+                                (*tank_sprite.position(), tank_sprite.cur_animation_index())
                             };
                             //创建一个新的子弹精灵
                             let sid = self.engine.next_sprite_id();
@@ -1052,7 +1052,7 @@ impl TankGame {
 
                             //子弹的方向同玩家的方向
                             let mut missile = missile_sprite.borrow_mut();
-                            missile.set_cur_frame(direction);
+                            missile.set_cur_animation(direction);
                             missile.set_parent(sprite_id); //记住玩家发射的子弹
                             match direction {
                                 0 => {
@@ -1100,22 +1100,22 @@ impl TankGame {
                         }
                         VK_LEFT => {
                             let mut tank_sprite = self.engine.sprites()[idx].borrow_mut();
-                            tank_sprite.set_cur_frame(2);
+                            tank_sprite.set_cur_animation(2);
                             tank_sprite.set_velocity(-TANK_VELOCITY, 0.0);
                         }
                         VK_RIGHT => {
                             let mut tank_sprite = self.engine.sprites()[idx].borrow_mut();
-                            tank_sprite.set_cur_frame(3);
+                            tank_sprite.set_cur_animation(3);
                             tank_sprite.set_velocity(TANK_VELOCITY, 0.0);
                         }
                         VK_UP => {
                             let mut tank_sprite = self.engine.sprites()[idx].borrow_mut();
-                            tank_sprite.set_cur_frame(0);
+                            tank_sprite.set_cur_animation(0);
                             tank_sprite.set_velocity(0.0, -TANK_VELOCITY);
                         }
                         VK_DOWN => {
                             let mut tank_sprite = self.engine.sprites()[idx].borrow_mut();
-                            tank_sprite.set_cur_frame(1);
+                            tank_sprite.set_cur_animation(1);
                             tank_sprite.set_velocity(0.0, TANK_VELOCITY);
                         }
                         _other => {
@@ -1156,7 +1156,7 @@ impl TankGame {
                             _other => None,
                         }
                     } {
-                        player.set_cur_frame(frame);
+                        player.set_cur_animation(frame);
                         player.set_velocity(velocity.x, velocity.y);
                     };
                 }
@@ -1190,7 +1190,7 @@ impl TankGame {
             let sprite = sprite.borrow();
             let mut extra = None;
             //玩家信息
-            if sprite.bitmap().id() == RES_TANK_BITMAP {
+            if sprite.class() as i32 == SPRITE_TANK {
                 extra = Some(ExtraData {
                     score: sprite.score() as u16,
                     lives: sprite.lives() as u16,
@@ -1199,10 +1199,10 @@ impl TankGame {
 
             data.push(SyncData {
                 id: sprite.id(),
-                frame: sprite.cur_frame() as u8,
+                animation: sprite.cur_animation_index() as u8,
                 x: sprite.position().left as i16,
                 y: sprite.position().top as i16,
-                res: sprite.bitmap().id(),
+                class: sprite.class() as u8,
                 velocity_x: sprite.velocity().x as f32,
                 velocity_y: sprite.velocity().y as f32,
                 extra: extra,

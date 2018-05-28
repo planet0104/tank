@@ -2,6 +2,7 @@ extern crate rand;
 pub mod background;
 pub mod canvas;
 pub mod engine;
+pub mod animation;
 pub mod sprite;
 pub mod utils;
 pub mod vector_2d;

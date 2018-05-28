@@ -10,7 +10,7 @@ pub const BA_STOP: BOUNDSACTION = 0;
 pub const BA_WRAP: BOUNDSACTION = 1;
 pub const BA_BOUNCE: BOUNDSACTION = 2;
 pub const BA_DIE: BOUNDSACTION = 3;
-use Bitmap;
+use animation::Animation;
 
 #[derive(Clone, Debug, Copy)]
 pub struct Rect {
@@ -157,14 +157,14 @@ pub trait Sprite {
     fn set_killer(&mut self, killer: u32, killer_name: String) {
         self.get_entity_mut().set_killer(killer, killer_name);
     }
-    fn cur_frame(&self) -> i32 {
-        self.get_entity().cur_frame
+    fn cur_animation_index(&self) -> usize {
+        self.get_entity().cur_animation
     }
-    fn set_cur_frame(&mut self, cur_frame: i32) {
-        self.get_entity_mut().cur_frame = cur_frame;
+    fn cur_animation(&self) -> &Animation{
+        &self.get_entity().animations[self.get_entity().cur_animation]
     }
-    fn bitmap(&self) -> &Box<Bitmap> {
-        &self.get_entity().bitmap
+    fn set_cur_animation(&mut self, cur_animation: usize) {
+        self.get_entity_mut().set_cur_animation(cur_animation);
     }
     fn velocity(&self) -> &PointF {
         &self.get_entity().velocity
@@ -180,11 +180,8 @@ pub trait Sprite {
 pub struct Entity {
     pub id: u32,
     pub parent: u32,
-    pub bitmap: Box<Bitmap>,
-    pub num_frames: i32,
-    pub cur_frame: i32,
-    pub frame_delay: i32,
-    pub frame_trigger: i32,
+    pub animations: Vec<Animation>,
+    pub cur_animation: usize,
     pub position: Rect,
     pub target_position: Option<PointF>,
     pub bounds: Rect,
@@ -206,30 +203,27 @@ pub struct Entity {
 impl Entity {
     pub fn new(
         id: u32,
-        bitmap: Box<Bitmap>,
+        animations: Vec<Animation>,
         position: PointF,
-        velocity: PointF,
-        z_order: i32,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
     ) -> Entity {
+        let width = animations[0].width() as f64;
+        let height = animations[0].height() as f64;
         let mut sprite = Entity {
             id: id,
+            animations,
+            cur_animation: 0,
             parent: 0,
             position: Rect::new(
                 position.x,
                 position.y,
-                position.x + bitmap.width() as f64,
-                position.y + bitmap.height() as f64,
+                position.x + width,
+                position.y + height,
             ),
             target_position: None,
-            bitmap: bitmap,
-            num_frames: 1,
-            cur_frame: 0,
-            frame_delay: 0,
-            frame_trigger: 0,
-            velocity: velocity,
-            z_order: z_order,
+            velocity: PointF::zero(),
+            z_order: 0,
             bounds: bounds,
             bounds_action: bounds_action,
             hidden: false,
@@ -247,35 +241,35 @@ impl Entity {
         sprite
     }
 
-    pub fn from_bitmap(id: u32, bitmap: Box<Bitmap>, bounds: Rect) -> Entity {
-        Entity::new(
-            id,
-            bitmap,
-            PointF::zero(),
-            PointF::zero(),
-            0,
-            bounds,
-            BA_STOP,
-        )
-    }
+    // pub fn from_bitmap(id: u32, bitmap: Box<Bitmap>, bounds: Rect) -> Entity {
+    //     Entity::new(
+    //         id,
+    //         bitmap,
+    //         PointF::zero(),
+    //         PointF::zero(),
+    //         0,
+    //         bounds,
+    //         BA_STOP,
+    //     )
+    // }
 
-    pub fn with_bounds_action(
-        id: u32,
-        bitmap: Box<Bitmap>,
-        position: PointF,
-        bounds: Rect,
-        bounds_action: BOUNDSACTION,
-    ) -> Entity {
-        Entity::new(
-            id,
-            bitmap,
-            position,
-            PointF::zero(),
-            0,
-            bounds,
-            bounds_action,
-        )
-    }
+    // pub fn with_bounds_action(
+    //     id: u32,
+    //     bitmap: Box<Bitmap>,
+    //     position: PointF,
+    //     bounds: Rect,
+    //     bounds_action: BOUNDSACTION,
+    // ) -> Entity {
+    //     Entity::new(
+    //         id,
+    //         bitmap,
+    //         position,
+    //         PointF::zero(),
+    //         0,
+    //         bounds,
+    //         bounds_action,
+    //     )
+    // }
 
     // pub fn with_bounds_action_norand(
     //     id: u32,
@@ -310,8 +304,12 @@ impl Entity {
             return SA_KILL;
         }
 
-        // Update the frame
-        self.update_frame();
+        // Update the animation
+        self.animations[self.cur_animation].update(elapsed_milis);
+        //执行一遍的动画结束后杀死精灵
+        if self.animations[self.cur_animation].end(){
+            self.dying = true;
+        }
 
         //检查是否到达目标位置
         if let Some(target) = self.target_position {
@@ -467,24 +465,7 @@ impl Entity {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
-            match self.num_frames {
-                1 => context.draw_image_at(
-                    self.bitmap.as_ref(),
-                    self.position.left as i32,
-                    self.position.top as i32,
-                ),
-                _ => context.draw_image(
-                    self.bitmap.as_ref(),
-                    0,
-                    self.cur_frame * self.height(),
-                    self.width(),
-                    self.height(),
-                    self.position.left as i32,
-                    self.position.top as i32,
-                    self.width(),
-                    self.height(),
-                ),
-            }
+            self.animations[self.cur_animation].draw(self.position.left as i32, self.position.top as i32, context);
             context.fill_style("#ccccff");
             context.set_font("16px 微软雅黑");
             if self.name.len() > 0 && self.score >= 0 {
@@ -508,28 +489,6 @@ impl Entity {
                 self.position.bottom as i32 + 40,
             );
         }
-    }
-
-    pub fn update_frame(&mut self) {
-        self.frame_trigger -= 1;
-        if (self.frame_delay >= 0) && (self.frame_trigger <= 0) {
-            // Reset the frame trigger;
-            self.frame_trigger = self.frame_delay;
-
-            // Increment the frame
-            self.cur_frame += 1;
-            if self.cur_frame >= self.num_frames {
-                // If it's a one-cycle frame animation, kill the sprite
-                match self.one_cycle {
-                    true => self.dying = true,
-                    _ => self.cur_frame = 0,
-                }
-            }
-        }
-    }
-
-    pub fn set_frame_delay(&mut self, frame_delay: i32) {
-        self.frame_delay = frame_delay;
     }
 
     pub fn set_velocity(&mut self, x: f64, y: f64) {
@@ -560,26 +519,28 @@ impl Entity {
         self.position.contain(x, y)
     }
 
-    pub fn height(&self) -> i32 {
-        if self.num_frames > 0 {
-            self.bitmap.height() / self.num_frames
-        } else {
-            self.bitmap.height()
-        }
+    pub fn height(&self) -> u32 {
+        self.animations[self.cur_animation].height()
     }
 
-    pub fn width(&self) -> i32 {
-        self.bitmap.width()
+    pub fn width(&self) -> u32 {
+        self.animations[self.cur_animation].width()
     }
 
-    pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {
-        self.num_frames = num_frames;
-        self.one_cycle = one_cycle;
-
-        //重新计算位置
-        self.position.bottom =
-            self.position.top + (self.position.bottom - self.position.top) / self.num_frames as f64;
+    pub fn set_cur_animation(&mut self, cur_animation: usize){
+        self.cur_animation = cur_animation;
+        //更新位置?
+        
     }
+
+    // pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {
+    //     self.num_frames = num_frames;
+    //     self.one_cycle = one_cycle;
+
+    //     //重新计算位置
+    //     self.position.bottom =
+    //         self.position.top + (self.position.bottom - self.position.top) / self.num_frames as f64;
+    // }
 
     pub fn set_killer(&mut self, killer: u32, killer_name: String) {
         self.killer = killer;

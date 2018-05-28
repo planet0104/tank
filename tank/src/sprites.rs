@@ -1,7 +1,10 @@
 use engine::HtmlImage;
 use engine::sprite::{Entity, PointF, Rect, Sprite, BA_DIE, BA_STOP, BA_WRAP};
 use engine::utils::rand_int;
+use engine::animation::Animation;
 use {CLIENT_HEIGHT, CLIENT_WIDTH, PLAYER_LIVES, TANK_BITMAP_HEIGHT, TANK_BITMAP_WIDTH};
+use std::cell::RefCell;
+use std::rc::Rc;
 
 //--------------------------------------------
 //-------------游戏资源ID----------------------
@@ -38,19 +41,23 @@ pub struct TankSprite {
 
 impl TankSprite {
     pub fn new(ip: String, id: u32, position: PointF) -> TankSprite {
-        let mut entity = Entity::with_bounds_action(
-            id,
-            Box::new(HtmlImage {
+        let bitmap = Rc::new(RefCell::new(HtmlImage {
                 id: RES_TANK_BITMAP,
-                width: TANK_BITMAP_WIDTH,
-                height: TANK_BITMAP_HEIGHT * 4,
-            }),
+                width: TANK_BITMAP_WIDTH as i32 * 4,
+                height: TANK_BITMAP_HEIGHT as i32,
+            }));
+        let mut entity = Entity::new(
+            id,
+            vec![
+                Animation::single_frame(bitmap.clone(), 0, 0, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap.clone(), 0, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap.clone(), 0, TANK_BITMAP_HEIGHT*2, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap, 0, TANK_BITMAP_HEIGHT*3, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+            ],
             position,
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
             BA_STOP,
         );
-        entity.set_num_frames(4, false);
-        entity.set_frame_delay(-1);
         entity.lives = PLAYER_LIVES;
         TankSprite { ip, entity }
     }
@@ -76,19 +83,23 @@ pub struct NruseSprite {
 
 impl NruseSprite {
     pub fn new(id: u32, position: Option<PointF>) -> NruseSprite {
-        let mut entity = Entity::with_bounds_action(
-            id,
-            Box::new(HtmlImage {
+        let bitmap = Rc::new(RefCell::new(HtmlImage {
                 id: RES_NURSE_BITMAP,
-                width: TANK_BITMAP_WIDTH,
-                height: TANK_BITMAP_HEIGHT * 4,
-            }),
+                width: TANK_BITMAP_WIDTH as i32 * 4,
+                height: TANK_BITMAP_HEIGHT as i32,
+            }));
+        let entity = Entity::new(
+            id,
+            vec![
+                Animation::single_frame(bitmap.clone(), 0, 0, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap.clone(), 0, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap.clone(), 0, TANK_BITMAP_HEIGHT*2, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+                Animation::single_frame(bitmap, 0, TANK_BITMAP_HEIGHT*3, TANK_BITMAP_HEIGHT, TANK_BITMAP_HEIGHT),
+            ],
             PointF::zero(),
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
             BA_WRAP,
         );
-        entity.set_num_frames(4, false);
-        entity.set_frame_delay(-1);
 
         let mut nurse = NruseSprite {
             entity,
@@ -104,37 +115,37 @@ impl NruseSprite {
                 1 => {
                     //向下
                     nurse.set_velocity(0.0, velocity);
-                    nurse.set_cur_frame(1);
+                    nurse.set_cur_animation(1);
                     nurse.set_position_point(
-                        rand_int(TANK_BITMAP_WIDTH, CLIENT_WIDTH - TANK_BITMAP_WIDTH) as f64,
-                        -TANK_BITMAP_HEIGHT as f64,
+                        rand_int(TANK_BITMAP_WIDTH as i32, CLIENT_WIDTH - TANK_BITMAP_WIDTH as i32) as f64,
+                        -(TANK_BITMAP_HEIGHT as i32) as f64,
                     );
                 }
                 2 => {
                     //向左
                     nurse.set_velocity(-velocity, 0.0);
-                    nurse.set_cur_frame(2);
+                    nurse.set_cur_animation(2);
                     nurse.set_position_point(
                         CLIENT_WIDTH as f64,
-                        rand_int(TANK_BITMAP_HEIGHT, CLIENT_HEIGHT - TANK_BITMAP_HEIGHT) as f64,
+                        rand_int(TANK_BITMAP_HEIGHT as i32, CLIENT_HEIGHT - TANK_BITMAP_HEIGHT as i32) as f64,
                     );
                 }
                 3 => {
                     //向右
                     nurse.set_velocity(velocity, 0.0);
-                    nurse.set_cur_frame(3);
+                    nurse.set_cur_animation(3);
                     nurse.set_position_point(
                         0.0,
-                        rand_int(TANK_BITMAP_HEIGHT, CLIENT_HEIGHT - TANK_BITMAP_HEIGHT) as f64,
+                        rand_int(TANK_BITMAP_HEIGHT as i32, CLIENT_HEIGHT - TANK_BITMAP_HEIGHT as i32) as f64,
                     );
                     //println!("护士位置: {:?}", nurse.position());
                 }
                 _ => {
                     //向上
                     nurse.set_velocity(0.0, -velocity);
-                    nurse.set_cur_frame(0);
+                    nurse.set_cur_animation(0);
                     nurse.set_position_point(
-                        rand_int(TANK_BITMAP_WIDTH, CLIENT_WIDTH - TANK_BITMAP_WIDTH) as f64,
+                        rand_int(TANK_BITMAP_WIDTH as i32, CLIENT_WIDTH - TANK_BITMAP_WIDTH as i32) as f64,
                         CLIENT_HEIGHT as f64,
                     );
                 }
@@ -171,19 +182,23 @@ pub struct MissileSprite {
 
 impl MissileSprite {
     pub fn new(id: u32, position: PointF) -> MissileSprite {
-        let mut entity = Entity::with_bounds_action(
-            id,
-            Box::new(HtmlImage {
+        let bitmap = Rc::new(RefCell::new(HtmlImage {
                 id: RES_MISSILE_BITMAP,
-                width: 20,
-                height: 80,
-            }),
+                width: 80,
+                height: 20,
+            }));
+        let entity = Entity::new(
+            id,
+            vec![
+                Animation::single_frame(bitmap.clone(), 0, 0, 20, 20),
+                Animation::single_frame(bitmap.clone(), 0, 20, 20, 20),
+                Animation::single_frame(bitmap.clone(), 0, 20*2, 20, 20),
+                Animation::single_frame(bitmap.clone(), 0, 20*3, 20, 20),
+            ],
             position,
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
             BA_DIE,
         );
-        entity.set_num_frames(4, false);
-        entity.set_frame_delay(-1);
         MissileSprite { entity }
     }
 }
@@ -207,16 +222,19 @@ pub struct SMExplosionSprite {
 
 impl SMExplosionSprite {
     pub fn new(id: u32, position: PointF) -> SMExplosionSprite {
-        let mut entity = Entity::from_bitmap(
+        let entity = Entity::new(
             id,
-            Box::new(HtmlImage {
-                id: RES_SM_EXPLOSION_BITMAP,
-                width: 17,
-                height: 136,
-            }),
+            vec![
+                Animation::on_cycle(Rc::new(RefCell::new(HtmlImage {
+                    id: RES_SM_EXPLOSION_BITMAP,
+                    width: 136,
+                    height: 17,
+                })), 0, 0, 17, 17, 8, 500)
+            ],
+            PointF::zero(),
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
+            BA_STOP
         );
-        entity.set_num_frames(8, true);
         let mut sprite = SMExplosionSprite { entity };
         sprite.set_position_point(position.x, position.y);
         sprite
@@ -242,16 +260,19 @@ pub struct LGExplosionSprite {
 
 impl LGExplosionSprite {
     pub fn new(id: u32, position: PointF) -> LGExplosionSprite {
-        let mut entity = Entity::from_bitmap(
+        let entity = Entity::new(
             id,
-            Box::new(HtmlImage {
+            vec![
+                Animation::on_cycle(Rc::new(RefCell::new(HtmlImage {
                 id: RES_LG_EXPLOSION_BITMAP,
-                width: 33,
-                height: 272,
-            }),
+                width: 272,
+                height: 33,
+            })), 0, 0, 34, 33, 8, 500)
+            ],
+            PointF::zero(),
             Rect::new(0.0, 0.0, CLIENT_WIDTH as f64, CLIENT_HEIGHT as f64),
+            BA_STOP
         );
-        entity.set_num_frames(8, true);
         let mut sprite = LGExplosionSprite { entity };
         sprite.set_position_point(position.x, position.y);
         sprite
