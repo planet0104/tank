@@ -160,11 +160,12 @@ pub trait Sprite {
     fn cur_animation_index(&self) -> usize {
         self.get_entity().cur_animation
     }
-    fn cur_animation(&self) -> &Animation{
-        &self.get_entity().animations[self.get_entity().cur_animation]
+    fn cur_animation(&mut self) -> &mut Animation{
+        let cur_animation = self.get_entity().cur_animation;
+        &mut self.get_entity_mut().animations[cur_animation]
     }
-    fn set_cur_animation(&mut self, cur_animation: usize) {
-        self.get_entity_mut().set_cur_animation(cur_animation);
+    fn set_cur_animation(&mut self, cur_animation: usize) -> bool {
+        self.get_entity_mut().set_cur_animation(cur_animation)
     }
     fn velocity(&self) -> &PointF {
         &self.get_entity().velocity
@@ -207,6 +208,7 @@ impl Entity {
         position: PointF,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
+        one_cycle: bool,
     ) -> Entity {
         let width = animations[0].width() as f64;
         let height = animations[0].height() as f64;
@@ -228,7 +230,7 @@ impl Entity {
             bounds_action: bounds_action,
             hidden: false,
             dying: false,
-            one_cycle: false,
+            one_cycle: one_cycle,
             name: "".to_string(),
             collision: Rect::zero(),
             score: 0,
@@ -307,7 +309,7 @@ impl Entity {
         // Update the animation
         self.animations[self.cur_animation].update(elapsed_milis);
         //执行一遍的动画结束后杀死精灵
-        if self.animations[self.cur_animation].end(){
+        if self.one_cycle && self.animations[self.cur_animation].end(){
             self.dying = true;
         }
 
@@ -527,10 +529,14 @@ impl Entity {
         self.animations[self.cur_animation].width()
     }
 
-    pub fn set_cur_animation(&mut self, cur_animation: usize){
-        self.cur_animation = cur_animation;
+    pub fn set_cur_animation(&mut self, cur_animation: usize) -> bool{
+        if self.cur_animation!=cur_animation{
+            self.cur_animation = cur_animation;
+            true
+        }else{
+            false
+        }
         //更新位置?
-        
     }
 
     // pub fn set_num_frames(&mut self, num_frames: i32, one_cycle: bool) {

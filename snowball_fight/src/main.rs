@@ -19,14 +19,15 @@ use stdweb::traits::*;
 use stdweb::unstable::TryInto;
 use stdweb::web::{document, window, CanvasRenderingContext2d};
 use stdweb::web::event::{
-    KeyPressEvent
+    KeyPressEvent,
+    KeyUpEvent,
 };
 use stdweb::web::html_element::CanvasElement;
 use sprite::Image;
 
 pub const WIDTH: i32 = 400;
 pub const HEIGHT: i32 = 400;
-const IMG_PERSON: &'static str = "stand.png";
+const IMG_PERSON: &'static str = "character.png";
 
 thread_local!{
     static GAME: RefCell<Option<SnowballFight>> = RefCell::new(None);
@@ -68,6 +69,22 @@ impl Canvas for SnowballFight {
         self.context2d.fill_rect(x as f64, y as f64, width as f64, height as f64);
     }
 
+    fn translate(&self, x:f64, y:f64){
+        self.context2d.translate(x, y);
+    }
+
+    fn scale(&self, x:f64, y:f64){
+        self.context2d.scale(x, y);
+    }
+
+    fn save(&self){
+        self.context2d.save();
+    }
+
+    fn restore(&self){
+        self.context2d.restore();
+    }
+
     fn console_log(&self, s: &str){
         console!(log, s);
     }
@@ -96,7 +113,7 @@ impl Canvas for SnowballFight {
 
 impl SnowballFight {
     pub fn start(resources: &RefMut<HashMap<String, Image>>) {
-        console!(log, "start!!");
+
         let canvas: CanvasElement = document()
             .query_selector("#canvas")
             .unwrap()
@@ -107,7 +124,8 @@ impl SnowballFight {
         canvas.set_height(HEIGHT as u32);
 
         //创建并加载人的位图
-        let person_sprite = PersonSprite::new(Rc::new(RefCell::new(resources.get(IMG_PERSON).unwrap().clone())));
+        let mut person_sprite = PersonSprite::new(Rc::new(RefCell::new(resources.get(IMG_PERSON).unwrap().clone())));
+        person_sprite.set_position_point(100.0, 200.0);
 
         let mut engine = GameEngine::new();
         let player = Rc::new(RefCell::new(person_sprite));
@@ -135,8 +153,6 @@ impl SnowballFight {
             let snowball_fight = game.as_mut().unwrap();
             window().request_animation_frame(snowball_fight.animation_callback);
         });
-
-        console!(log, "start!! 2");
     }
 
     pub fn animation_frame(&mut self, timestamp: f64) {
@@ -158,14 +174,46 @@ impl SnowballFight {
 
     pub fn draw(&self) {
         //绘制子画面
-        self.fill_style("#fff");
+        self.fill_style("#eee");
         self.fill_rect(0, 0, WIDTH, HEIGHT);
         self.engine.draw_sprites(self);
     }
 
-    pub fn drive(&mut self, direction: ScrollDir){
-        //让人走动
-        self.player.borrow_mut().walk();
+    //走动
+    pub fn walk(&mut self, direction: ScrollDir){
+        match direction{
+            ScrollDir::Right => {
+                self.player.borrow_mut().walk();
+            }
+            _ => {
+                self.player.borrow_mut().walk();
+            }
+        }
+    }
+
+    pub fn on_key_down(&mut self, key: &str){
+        //console!(log, format!("on_key_down={}, cur_animation_index={}", key, self.player.borrow().cur_animation_index()));
+        match key{
+            "Left" | "ArrowLeft" => self.walk(ScrollDir::Left),
+            "Up" | "ArrowUp" => self.walk(ScrollDir::Up),
+            "Down" | "ArrowDown" => self.walk(ScrollDir::Down),
+            "Right" | "ArrowRight" => self.walk(ScrollDir::Right),
+            "s" => self.player.borrow_mut().crouch(),
+            "a" => self.player.borrow_mut().throw_left(),
+            "d" => self.player.borrow_mut().throw_right(),
+            _ => {}
+        }
+    }
+
+    pub fn on_key_up(&mut self, key: &str){
+        match key{
+            "Left" | "ArrowLeft" => self.player.borrow_mut().idle(),
+            "Up" | "ArrowUp" => self.player.borrow_mut().idle(),
+            "Down" | "ArrowDown" => self.player.borrow_mut().idle(),
+            "Right" | "ArrowRight" => self.player.borrow_mut().idle(),
+            "s" => self.player.borrow_mut().standup(),
+            _ => {}
+        }
     }
 }
 
@@ -206,13 +254,14 @@ fn main() {
         GAME.with(|game| {
             let mut game = game.borrow_mut();
             let snowball_fight = game.as_mut().unwrap();
-            match event.key().as_str(){
-                "Left" | "ArrowLeft" => snowball_fight.drive(ScrollDir::Left),
-                "Up" | "ArrowUp" => snowball_fight.drive(ScrollDir::Up),
-                "Down" | "ArrowDown" => snowball_fight.drive(ScrollDir::Down),
-                "Right" | "ArrowRight" => snowball_fight.drive(ScrollDir::Right),
-                _ => {}
-            }; 
+            snowball_fight.on_key_down(event.key().as_str());
+        });
+    });
+    window().add_event_listener(|event: KeyUpEvent| {
+        GAME.with(|game| {
+            let mut game = game.borrow_mut();
+            let snowball_fight = game.as_mut().unwrap();
+            snowball_fight.on_key_up(event.key().as_str());
         });
     });
 
