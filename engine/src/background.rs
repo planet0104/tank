@@ -137,7 +137,8 @@ impl BackgroundLayer {
                 self.height() + self.viewport.top as i32, //图像源左上角
                 -self.viewport.left as i32,
                 -self.viewport.top as i32, //图像源宽高
-                x, y, //目标绘制坐标
+                x,
+                y, //目标绘制坐标
                 -self.viewport.left as i32,
                 -self.viewport.top as i32,
             );
@@ -321,17 +322,23 @@ impl BackgroundLayer {
             //绘制拆开的视口，从顶部环绕到底部
             canvas.draw_image(
                 self.bitmap.as_ref(),
-                self.viewport.left as i32, self.height() + self.viewport.top as i32,//srcx, srcY
-                self.viewport.right as i32 - self.viewport.left as i32, -self.viewport.top as i32,//width, height
-                x, y,//destX, destY
-                self.viewport.right as i32 - self.viewport.left as i32, -self.viewport.top as i32,
+                self.viewport.left as i32,
+                self.height() + self.viewport.top as i32, //srcx, srcY
+                self.viewport.right as i32 - self.viewport.left as i32,
+                -self.viewport.top as i32, //width, height
+                x,
+                y, //destX, destY
+                self.viewport.right as i32 - self.viewport.left as i32,
+                -self.viewport.top as i32,
             );
             canvas.draw_image(
                 self.bitmap.as_ref(),
-                self.viewport.left as i32, 0, //srcX, srcY
+                self.viewport.left as i32,
+                0, //srcX, srcY
                 self.viewport.right as i32 - self.viewport.left as i32,
                 self.viewport.bottom as i32,
-                x, y - self.viewport.top as i32,//destX, destY
+                x,
+                y - self.viewport.top as i32, //destX, destY
                 self.viewport.right as i32 - self.viewport.left as i32,
                 self.viewport.bottom as i32,
             );

@@ -97,11 +97,20 @@ pub trait Sprite {
     fn position(&self) -> &Rect {
         &self.get_entity().position
     }
+    fn left(&self) -> f64 {
+        self.get_entity().position.left
+    }
+    fn top(&self) -> f64 {
+        self.get_entity().position.top
+    }
     fn update(&mut self, elapsed_milis: f64) -> SPRITEACTION {
         self.get_entity_mut().update(elapsed_milis)
     }
     fn id(&self) -> u32 {
         self.get_entity().id
+    }
+    fn add_followed_animation(&mut self, animation:Animation){
+        self.get_entity_mut().add_followed_animation(animation);
     }
     fn set_position(&mut self, position: Rect) {
         self.get_entity_mut().position = position;
@@ -109,6 +118,7 @@ pub trait Sprite {
     fn set_position_point(&mut self, x: f64, y: f64) {
         self.get_entity_mut().set_position(x, y);
     }
+    //碰撞检测
     fn test_collison(&self, test: &Rect) -> bool {
         self.get_entity().test_collison(test)
     }
@@ -157,14 +167,18 @@ pub trait Sprite {
     fn set_killer(&mut self, killer: u32, killer_name: String) {
         self.get_entity_mut().set_killer(killer, killer_name);
     }
-    fn cur_animation_index(&self) -> usize {
-        self.get_entity().cur_animation
+    fn cur_animation_index(&self) -> &[usize] {
+        &self.get_entity().cur_animation
     }
-    fn cur_animation(&mut self) -> &mut Animation{
-        let cur_animation = self.get_entity().cur_animation;
-        &mut self.get_entity_mut().animations[cur_animation]
+    fn get_animation(&mut self, anim: usize) -> &mut Animation {
+        &mut self.get_entity_mut().animations[anim]
     }
-    fn set_cur_animation(&mut self, cur_animation: usize) -> bool {
+
+    fn resotre_last_animation(&mut self) {
+        self.get_entity_mut().resotre_last_animation();
+    }
+
+    fn set_cur_animation(&mut self, cur_animation: &[usize]) -> bool {
         self.get_entity_mut().set_cur_animation(cur_animation)
     }
     fn velocity(&self) -> &PointF {
@@ -182,7 +196,8 @@ pub struct Entity {
     pub id: u32,
     pub parent: u32,
     pub animations: Vec<Animation>,
-    pub cur_animation: usize,
+    pub cur_animation: Vec<usize>,
+    pub last_animation: Vec<usize>,
     pub position: Rect,
     pub target_position: Option<PointF>,
     pub bounds: Rect,
@@ -199,6 +214,7 @@ pub struct Entity {
     pub killer_name: String,
     pub lives: u32,
     pub rotation: f64,
+    pub followed_animations: Vec<Animation>,
 }
 
 impl Entity {
@@ -206,16 +222,18 @@ impl Entity {
         id: u32,
         animations: Vec<Animation>,
         position: PointF,
+        width: f64,
+        height: f64,
         bounds: Rect,
         bounds_action: BOUNDSACTION,
         one_cycle: bool,
     ) -> Entity {
-        let width = animations[0].width() as f64;
-        let height = animations[0].height() as f64;
         let mut sprite = Entity {
             id: id,
             animations,
-            cur_animation: 0,
+            followed_animations: vec![],
+            cur_animation: vec![],
+            last_animation: vec![],
             parent: 0,
             position: Rect::new(
                 position.x,
@@ -307,10 +325,12 @@ impl Entity {
         }
 
         // Update the animation
-        self.animations[self.cur_animation].update(elapsed_milis);
-        //执行一遍的动画结束后杀死精灵
-        if self.one_cycle && self.animations[self.cur_animation].end(){
-            self.dying = true;
+        for anim in &self.cur_animation {
+            self.animations[*anim].update(elapsed_milis);
+            //执行一遍的动画结束后杀死精灵
+            if self.one_cycle && self.animations[*anim].end() {
+                self.dying = true;
+            }
         }
 
         //检查是否到达目标位置
@@ -467,7 +487,13 @@ impl Entity {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
-            self.animations[self.cur_animation].draw(self.position.left as i32, self.position.top as i32, context);
+            for anim in &self.cur_animation {
+                self.animations[*anim].draw(
+                    self.position.left as i32,
+                    self.position.top as i32,
+                    context,
+                );
+            }
             context.fill_style("#ccccff");
             context.set_font("16px 微软雅黑");
             if self.name.len() > 0 && self.score >= 0 {
@@ -521,19 +547,14 @@ impl Entity {
         self.position.contain(x, y)
     }
 
-    pub fn height(&self) -> u32 {
-        self.animations[self.cur_animation].height()
-    }
-
-    pub fn width(&self) -> u32 {
-        self.animations[self.cur_animation].width()
-    }
-
-    pub fn set_cur_animation(&mut self, cur_animation: usize) -> bool{
-        if self.cur_animation!=cur_animation{
-            self.cur_animation = cur_animation;
+    pub fn set_cur_animation(&mut self, cur_animation: &[usize]) -> bool {
+        if self.cur_animation != cur_animation {
+            self.last_animation.clear();
+            self.last_animation.append(&mut self.cur_animation);
+            self.cur_animation.clear();
+            self.cur_animation.append(&mut cur_animation.to_vec());
             true
-        }else{
+        } else {
             false
         }
         //更新位置?
@@ -551,5 +572,14 @@ impl Entity {
     pub fn set_killer(&mut self, killer: u32, killer_name: String) {
         self.killer = killer;
         self.killer_name = killer_name;
+    }
+
+    pub fn resotre_last_animation(&mut self) {
+        self.cur_animation.clear();
+        self.cur_animation.append(&mut self.last_animation);
+    }
+
+    pub fn add_followed_animation(&mut self, animation: Animation){
+        self.followed_animations.push(animation);
     }
 }

@@ -15,15 +15,12 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use stdweb::web::html_element::ImageElement;
 
+use sprite::Image;
 use stdweb::traits::*;
 use stdweb::unstable::TryInto;
-use stdweb::web::{document, window, CanvasRenderingContext2d};
-use stdweb::web::event::{
-    KeyPressEvent,
-    KeyUpEvent,
-};
+use stdweb::web::event::{KeyPressEvent, KeyUpEvent};
 use stdweb::web::html_element::CanvasElement;
-use sprite::Image;
+use stdweb::web::{document, window, CanvasRenderingContext2d};
 
 pub const WIDTH: i32 = 400;
 pub const HEIGHT: i32 = 400;
@@ -57,35 +54,49 @@ struct SnowballFight {
 
 impl Canvas for SnowballFight {
     fn draw_image_at(&self, bitmap: &Bitmap, x: i32, y: i32) {
-        RESOURCES.with(|resources|{
-            self.context2d.draw_image(resources.borrow().get(bitmap.url()).unwrap().image.clone(), x as f64, y as f64).unwrap();
+        RESOURCES.with(|resources| {
+            self.context2d
+                .draw_image(
+                    resources.borrow().get(bitmap.url()).unwrap().image.clone(),
+                    x as f64,
+                    y as f64,
+                )
+                .unwrap();
         });
     }
 
     fn fill_style(&self, style: &str) {
         self.context2d.set_fill_style_color(style);
     }
+    fn stroke_style(&self, style: &str) {
+        self.context2d.set_stroke_style_color(style);
+    }
     fn fill_rect(&self, x: i32, y: i32, width: i32, height: i32) {
-        self.context2d.fill_rect(x as f64, y as f64, width as f64, height as f64);
+        self.context2d
+            .fill_rect(x as f64, y as f64, width as f64, height as f64);
     }
 
-    fn translate(&self, x:f64, y:f64){
+    fn stroke_rect(&self, x: f64, y: f64, width: f64, height: f64) {
+        self.context2d.stroke_rect(x, y, width, height);
+    }
+
+    fn translate(&self, x: f64, y: f64) {
         self.context2d.translate(x, y);
     }
 
-    fn scale(&self, x:f64, y:f64){
+    fn scale(&self, x: f64, y: f64) {
         self.context2d.scale(x, y);
     }
 
-    fn save(&self){
+    fn save(&self) {
         self.context2d.save();
     }
 
-    fn restore(&self){
+    fn restore(&self) {
         self.context2d.restore();
     }
 
-    fn console_log(&self, s: &str){
+    fn console_log(&self, s: &str) {
         console!(log, s);
     }
 
@@ -101,19 +112,24 @@ impl Canvas for SnowballFight {
         dest_width: i32,
         dest_height: i32,
     ) {
-        RESOURCES.with(|resources|{
-            let _ = self.context2d.draw_image_s(resources.borrow().get(bitmap.url()).unwrap().image.clone(),
-            source_x as f64, source_y as f64,
-            source_width as f64, source_height as f64,
-            dest_x as f64, dest_y as f64,
-            dest_width as f64, dest_height as f64);
+        RESOURCES.with(|resources| {
+            let _ = self.context2d.draw_image_s(
+                resources.borrow().get(bitmap.url()).unwrap().image.clone(),
+                source_x as f64,
+                source_y as f64,
+                source_width as f64,
+                source_height as f64,
+                dest_x as f64,
+                dest_y as f64,
+                dest_width as f64,
+                dest_height as f64,
+            );
         });
     }
 }
 
 impl SnowballFight {
     pub fn start(resources: &RefMut<HashMap<String, Image>>) {
-
         let canvas: CanvasElement = document()
             .query_selector("#canvas")
             .unwrap()
@@ -124,7 +140,9 @@ impl SnowballFight {
         canvas.set_height(HEIGHT as u32);
 
         //创建并加载人的位图
-        let mut person_sprite = PersonSprite::new(Rc::new(RefCell::new(resources.get(IMG_PERSON).unwrap().clone())));
+        let mut person_sprite = PersonSprite::new(Rc::new(RefCell::new(
+            resources.get(IMG_PERSON).unwrap().clone(),
+        )));
         person_sprite.set_position_point(100.0, 200.0);
 
         let mut engine = GameEngine::new();
@@ -179,34 +197,24 @@ impl SnowballFight {
         self.engine.draw_sprites(self);
     }
 
-    //走动
-    pub fn walk(&mut self, direction: ScrollDir){
-        match direction{
-            ScrollDir::Right => {
-                self.player.borrow_mut().walk();
-            }
-            _ => {
-                self.player.borrow_mut().walk();
-            }
-        }
-    }
-
-    pub fn on_key_down(&mut self, key: &str){
+    pub fn on_key_down(&mut self, key: &str) {
         //console!(log, format!("on_key_down={}, cur_animation_index={}", key, self.player.borrow().cur_animation_index()));
-        match key{
-            "Left" | "ArrowLeft" => self.walk(ScrollDir::Left),
-            "Up" | "ArrowUp" => self.walk(ScrollDir::Up),
-            "Down" | "ArrowDown" => self.walk(ScrollDir::Down),
-            "Right" | "ArrowRight" => self.walk(ScrollDir::Right),
+        match key {
+            "Left" | "ArrowLeft" => self.player.borrow_mut().walk_left(),
+            "Up" | "ArrowUp" => self.player.borrow_mut().walk_up(),
+            "Down" | "ArrowDown" => self.player.borrow_mut().walk_down(),
+            "Right" | "ArrowRight" => self.player.borrow_mut().walk_right(),
             "s" => self.player.borrow_mut().crouch(),
             "a" => self.player.borrow_mut().throw_left(),
             "d" => self.player.borrow_mut().throw_right(),
+            "w" => self.player.borrow_mut().jump(),
+            "h" => self.player.borrow_mut().hit(),
             _ => {}
         }
     }
 
-    pub fn on_key_up(&mut self, key: &str){
-        match key{
+    pub fn on_key_up(&mut self, key: &str) {
+        match key {
             "Left" | "ArrowLeft" => self.player.borrow_mut().idle(),
             "Up" | "ArrowUp" => self.player.borrow_mut().idle(),
             "Down" | "ArrowDown" => self.player.borrow_mut().idle(),

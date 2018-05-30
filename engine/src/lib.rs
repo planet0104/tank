@@ -1,8 +1,8 @@
 extern crate rand;
+pub mod animation;
 pub mod background;
 pub mod canvas;
 pub mod engine;
-pub mod animation;
 pub mod sprite;
 pub mod utils;
 pub mod vector_2d;
@@ -10,8 +10,8 @@ pub mod vector_2d;
 pub use engine::GameEngine;
 pub use engine::UpdateCallback;
 
-pub const LANDSCAPE: i32 = 1;//横屏
-pub const PORTRAIT:i32 = 0;//竖屏
+pub const LANDSCAPE: i32 = 1; //横屏
+pub const PORTRAIT: i32 = 0; //竖屏
 
 pub trait Bitmap {
     fn width(&self) -> i32;

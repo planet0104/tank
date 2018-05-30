@@ -18,17 +18,17 @@ pub trait Canvas {
         dest_width: i32,
         dest_height: i32,
     );
-    fn translate(&self, _x: f64, _y:f64){}
-    fn scale(&self, _x: f64, _y:f64){}
-    fn rotate(&self, _degree: f64){}
-    fn save(&self){}
-    fn restore(&self){}
+    fn translate(&self, _x: f64, _y: f64) {}
+    fn scale(&self, _x: f64, _y: f64) {}
+    fn rotate(&self, _degree: f64) {}
+    fn save(&self) {}
+    fn restore(&self) {}
     fn line_width(&self, _width: i32) {}
     fn set_font(&self, _font: &str) {}
     fn fill_style(&self, _style: &str) {}
     fn stroke_style(&self, _style: &str) {}
     fn fill_rect(&self, _x: i32, _y: i32, _width: i32, _height: i32) {}
-    fn stroke_rect(&self, _x: i32, _y: i32, _width: i32, _height: i32) {}
+    fn stroke_rect(&self, _x: f64, _y: f64, _width: f64, _height: f64) {}
     fn fill_text(&self, _text: &str, _x: i32, _y: i32) {}
     fn console_log(&self, _s: &str) {}
 }
