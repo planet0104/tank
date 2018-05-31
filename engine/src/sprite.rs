@@ -170,7 +170,10 @@ pub trait Sprite {
     fn cur_animation_index(&self) -> &[usize] {
         &self.get_entity().cur_animation
     }
-    fn get_animation(&mut self, anim: usize) -> &mut Animation {
+    fn get_animation(&self, anim: usize) -> &Animation {
+        &self.get_entity().animations[anim]
+    }
+    fn get_animation_mut(&mut self, anim: usize) -> &mut Animation{
         &mut self.get_entity_mut().animations[anim]
     }
 
@@ -332,6 +335,9 @@ impl Entity {
                 self.dying = true;
             }
         }
+        for anim in &mut self.followed_animations{
+            anim.update(elapsed_milis);
+        }
 
         //检查是否到达目标位置
         if let Some(target) = self.target_position {
@@ -487,6 +493,10 @@ impl Entity {
         // Draw the sprite if it isn't hidden
         if !self.hidden {
             // Draw the appropriate frame, if necessary
+            for anim in &self.followed_animations{
+                anim.draw(self.position.left as i32, self.position.top as i32, context);
+            }
+
             for anim in &self.cur_animation {
                 self.animations[*anim].draw(
                     self.position.left as i32,

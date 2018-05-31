@@ -84,6 +84,10 @@ impl Canvas for SnowballFight {
         self.context2d.translate(x, y);
     }
 
+    fn rotate(&self, degree:f64){
+        self.context2d.rotate(degree);
+    }
+
     fn scale(&self, x: f64, y: f64) {
         self.context2d.scale(x, y);
     }
